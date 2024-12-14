@@ -70,6 +70,9 @@ BUTTON_RIGHT    = 1 << 0
 IRQ:
     rti
 
+BareNmiHandler:
+    rts
+
 NMI:
     pha
     txa
@@ -95,9 +98,8 @@ NMI:
     lda #$02
     sta $4014
 
-    ;jmp (NmiHandler)
+    jsr NmiTrampoline
 
-NMI_Done:
     lda #0
     sta $2005
     sta $2005
@@ -112,9 +114,17 @@ NMI_Done:
     pla
     rti
 
+NmiTrampoline:
+    jmp (NmiHandler)
+
 RESET:
     sei         ; Disable IRQs
     cld         ; Disable decimal mode
+
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
 
     ldx #$40
     stx $4017   ; Disable APU frame IRQ

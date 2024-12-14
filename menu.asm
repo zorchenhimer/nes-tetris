@@ -29,10 +29,15 @@ MenuDestinations:
 
 Menu_ItemCount = (* - MenuDestinations) / 2
 
-NmiMenu:
-    rts
+;NmiMenu:
+;    rts
 
 InitMenu:
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
+
     jsr ClearSprites
 
     ldx #0
@@ -197,5 +202,10 @@ Menu_DoSelection:
 
     lda #0
     sta $2001
+
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
 
     jmp (AddressPointer1)

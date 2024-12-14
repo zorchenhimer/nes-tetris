@@ -19,7 +19,6 @@ BoardHeight = 20
 BoardWidth  = 10
 
 NmiGame:
-    
     rts
 
 InitGame:
