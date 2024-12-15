@@ -71,18 +71,6 @@ IRQ:
     rti
 
 BareNmiHandler:
-    rts
-
-NMI:
-    pha
-    txa
-    pha
-    tya
-    pha
-
-    lda #$FF
-    sta Sleeping
-
     lda #$3F
     sta $2006
     lda #$00
@@ -97,6 +85,29 @@ NMI:
     sta $2003
     lda #$02
     sta $4014
+    rts
+
+NMI:
+    pha
+    ;txa
+    ;pha
+    ;tya
+    ;pha
+
+    ;lda #$3F
+    ;sta $2006
+    ;lda #$00
+    ;sta $2006
+
+    ;.repeat 4*8, i
+    ;    lda Palettes+i
+    ;    sta $2007
+    ;.endrepeat
+
+    ;lda #$00
+    ;sta $2003
+    ;lda #$02
+    ;sta $4014
 
     jsr NmiTrampoline
 
@@ -107,10 +118,13 @@ NMI:
     lda #%1000_0000
     sta $2000
 
-    pla
-    tay
-    pla
-    tax
+    lda #$FF
+    sta Sleeping
+
+    ;pla
+    ;tay
+    ;pla
+    ;tax
     pla
     rti
 

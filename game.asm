@@ -3,9 +3,10 @@
 CurrentBlock: .res 1
 BlockRotation: .res 1
 
+FieldGrid: .res 10*20
+
 .segment "BSS"
 BlockGrid: .res 4*4
-FieldGrid: .res 10*20
 BlockX: .res 1
 BlockY: .res 1
 
@@ -18,12 +19,30 @@ Block_TileId = $10
 BoardHeight = 20
 BoardWidth  = 10
 
+TILE_X = $00
+TILE_A = $10
+TILE_B = $11
+TILE_C = $12
+
+; Column offset for bounding box
+BLOCK_START_X = 4
+
 NmiGame:
     rts
 
 InitGame:
     ; Clear sprites
     jsr ClearSprites
+
+    lda #$3F
+    sta $2006
+    lda #$00
+    sta $2006
+
+    .repeat 4*8, i
+        lda Palettes+i
+        sta $2007
+    .endrepeat
 
     ldx #0
     jsr FillAttributeTable
@@ -50,9 +69,19 @@ InitGame:
     lda #0
     sta BlockRotation
 
+    lda #$11
+    sta FieldGrid+(BoardWidth*0)+0
+    sta FieldGrid+(BoardWidth*(BoardHeight-1))+0
+    sta FieldGrid+(BoardWidth*0)+9
+    sta FieldGrid+(BoardWidth*(BoardHeight-1))+9
+
+    jsr DrawFullBoard_SPEED
+
     lda #%1000_0000
     sta $2000
 
+    lda #$00
+    sta $2003
     jsr WaitForNMI
 
     lda #%0001_1110
@@ -61,9 +90,14 @@ InitGame:
     jsr WaitForNMI
     jsr WaitForNMI
 
-    lda #.lobyte(NmiGame)
+    ;lda #.lobyte(NmiGame)
+    ;sta NmiHandler+0
+    ;lda #.hibyte(NmiGame)
+    ;sta NmiHandler+1
+
+    lda #.lobyte(DrawFullBoard_SPEED)
     sta NmiHandler+0
-    lda #.hibyte(NmiGame)
+    lda #.hibyte(DrawFullBoard_SPEED)
     sta NmiHandler+1
 
 FrameGame:
@@ -81,6 +115,12 @@ FrameGame:
 ;    jmp FramePaused
 ;:
 
+    lda #BUTTON_START ; start
+    jsr ButtonPressed
+    beq :+
+    jsr PlaceBlock
+:
+
     lda #BUTTON_A ; A
     jsr ButtonPressed
     beq :+
@@ -97,12 +137,13 @@ FrameGame:
     ;lda #$03
     ;and BlockRotation
     ;sta BlockRotation
-    inc CurrentBlock
-    lda CurrentBlock
-    cmp #7
-    bne :+
-    lda #0
-    sta CurrentBlock
+    ;inc CurrentBlock
+    ;lda CurrentBlock
+    ;cmp #7
+    ;bne :+
+    ;lda #0
+    ;sta CurrentBlock
+    jsr NextBlock
 :
 
     lda #BUTTON_LEFT ; left
@@ -181,6 +222,77 @@ DedFrame:
 
     jmp InitMenu
 
+NextBlock:
+    inc CurrentBlock
+    lda CurrentBlock
+    cmp #7
+    bne :+
+    lda #0
+    sta CurrentBlock
+:
+    tay
+
+    lda #BLOCK_START_X
+    sta BlockX
+
+    lda BlockStart_Y, y
+    sta BlockY
+
+    lda #0
+    sta BlockRotation
+
+    jmp LoadBlock
+    ;rts
+
+PlaceBlock:
+    ldy BlockY
+    ldx BlockToPlayfield_Lo, y
+    dex
+    txa
+    clc
+    adc BlockX
+    sta AddressPointer1+0
+
+    lda BlockToPlayfield_Hi, y
+    adc #0
+    sta AddressPointer1+1
+
+    sec
+    lda AddressPointer1+0
+    sbc #BoardWidth
+    sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    sbc #0
+    sta AddressPointer1+1
+
+    ldy #0
+    ldx #0
+@loop:
+    lda BlockGrid, x
+    beq :+
+    sta (AddressPointer1), y
+:
+    inx
+    iny
+    cpy #4
+    bcc @loop
+
+    ldy #0
+    cpx #16
+    beq @done
+
+    clc
+    lda AddressPointer1+0
+    adc #BoardWidth
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jmp @loop
+@done:
+    rts
+
 ; Reads CurrentBlock & CurrentRotation to find the
 ; correct entry in BlockTiles and loads that data
 ; into BlockGrid.
@@ -212,7 +324,6 @@ LoadBlock:
     rts
 
 UpdateBlock:
-
     ldx BlockX
     lda BlockGridLocationX, x
     sta TmpX
@@ -253,6 +364,52 @@ UpdateBlock:
 
     rts
 
+DrawFullBoard:
+    ldx #0
+    ldy #0
+    lda #BoardWidth
+    sta TmpA
+    lda #BoardHeight
+    sta TmpB
+@loopRow:
+    lda PlayfieldPpuRows_Hi, x
+    sta $2006
+    lda PlayfieldPpuRows_Lo, x
+    sta $2006
+    inx
+
+    lda #BoardWidth
+    sta TmpA
+
+@loopCol:
+    lda FieldGrid, y
+    sta $2007
+    iny
+    dec TmpA
+    bne @loopCol
+
+    dec TmpB
+    bne @loopRow
+
+    rts
+
+DrawFullBoard_SPEED:
+    lda #$02
+    sta $4014
+
+    .repeat BoardHeight, i
+        lda PlayfieldPpuRows_Hi+i
+        sta $2006
+        lda PlayfieldPpuRows_Lo+i
+        sta $2006
+
+        .repeat BoardWidth, j
+            lda FieldGrid+(i*BoardWidth)+j
+            sta $2007
+        .endrepeat
+    .endrepeat
+    rts
+
 BlockSpriteLookupY:
     .byte 0,  0,  0,  0
     .byte 8,  8,  8,  8
@@ -276,6 +433,36 @@ BlockGridLocationX:
         .byte BlockLocation_X+(i*8)
     .endrepeat
 
+BlockToPlayfield_Hi:
+    .repeat BoardHeight, i
+        .byte .hibyte(FieldGrid+(i*BoardWidth))
+    .endrepeat
+
+BlockToPlayfield_Lo:
+    .repeat BoardHeight, i
+        .byte .lobyte(FieldGrid+(i*BoardWidth))
+    .endrepeat
+
+PlayfieldStartAddr = $20CC
+PlayfieldPpuRows_Hi:
+    .repeat BoardHeight, i
+        .byte .hibyte(PlayfieldStartAddr+(i*32))
+    .endrepeat
+
+PlayfieldPpuRows_Lo:
+    .repeat BoardHeight, i
+        .byte .lobyte(PlayfieldStartAddr+(i*32))
+    .endrepeat
+
+BlockStart_Y:
+    .byte 1 ; Z
+    .byte 1 ; S
+    .byte 1 ; T
+    .byte 1 ; L
+    .byte 1 ; J
+    .byte 0 ; I
+    .byte 0 ; O
+
 ; Locations for each tile in a block
 BlockTiles:
     .word :+
@@ -286,157 +473,164 @@ BlockTiles:
     .word :++++++
     .word :+++++++
 
+; Z
 ; XX
 ;  XX
-:   .byte 1, 1, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 1, 1, 0, 0
-    .byte 1, 0, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 1, 1, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 1, 1, 0, 0
-    .byte 1, 0, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+; S
 ;  XX
 ; XX
-:   .byte 0, 1, 1, 0
-    .byte 1, 1, 0, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 1, 0, 0, 0
-    .byte 1, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_A, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 1, 0
-    .byte 1, 1, 0, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 1, 0, 0, 0
-    .byte 1, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_A, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+; T
 ;  X
 ; XXX
-:   .byte 0, 1, 0, 0
-    .byte 1, 1, 1, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 0, 0, 0
-    .byte 1, 1, 1, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 1, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
 
+; L
 ; XXX
 ; X
-:   .byte 0, 0, 0, 0
-    .byte 1, 1, 1, 0
-    .byte 1, 0, 0, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_X, TILE_X, TILE_A, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 1, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 0, 1, 0
-    .byte 1, 1, 1, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_X
+    .byte TILE_A, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+; J
 ; X
 ; XXX
-:   .byte 1, 0, 0, 0
-    .byte 1, 1, 1, 0
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_A, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 1, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 0, 0, 0
-    .byte 1, 1, 1, 0
-    .byte 0, 0, 1, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 1, 1, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+; I
 ; XXXX
-:   .byte 0, 0, 0, 0
-    .byte 1, 1, 1, 1
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_A
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
 
-    .byte 0, 0, 0, 0
-    .byte 1, 1, 1, 1
-    .byte 0, 0, 0, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_A, TILE_A, TILE_A, TILE_A
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
-    .byte 0, 1, 0, 0
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_X, TILE_X
 
+; O
 ; XX
 ; XX
-:   .byte 0, 0, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
+:   .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 0, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 0, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte 0, 0, 0, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 1, 1, 0
-    .byte 0, 0, 0, 0
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_A, TILE_A, TILE_X
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
 
