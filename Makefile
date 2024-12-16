@@ -12,6 +12,7 @@ SOURCES = \
 	menu.asm \
 	scores.asm \
 	game.asm \
+	utils.asm \
 	playfield.i
 
 CHR = tiles.chr
