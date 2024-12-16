@@ -118,6 +118,15 @@ BinToDec:
     rts
 
 ClearSprites:
+    ldx #0
+    lda #$FF
+@loop:
+    sta SpriteZero, x
+    inx
+    inx
+    inx
+    inx
+    bne @loop
     rts
 
 ; Tile data in AdressPointer1

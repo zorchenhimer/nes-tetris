@@ -207,6 +207,9 @@ StartFrame:
 Palette_Bg:
     .byte $0F, $20, $00, $10
 
+Palette_Sp:
+    .byte $0F, $27, $00, $10
+
     .include "scores.asm"
     .include "menu.asm"
     .include "game.asm"

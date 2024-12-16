@@ -2,6 +2,7 @@
 .segment "ZEROPAGE"
 CurrentBlock: .res 1
 BlockRotation: .res 1
+DropSpeed: .res 1
 
 FieldGrid: .res 10*20
 
@@ -10,7 +11,12 @@ BlockGrid: .res 4*4
 BlockX: .res 1
 BlockY: .res 1
 
+CurrentX: .res 1
+CurrentY: .res 1
+
 .popseg
+
+SPEED = 20
 
 BlockLocation_X = 88
 BlockLocation_Y = 40 - 1
@@ -61,19 +67,30 @@ InitGame:
     ldx #0
     jsr LoadPalette
 
+    lda #.lobyte(Palette_Sp)
+    sta AddressPointer1+0
+    lda #.hibyte(Palette_Sp)
+    sta AddressPointer1+1
+
     ldx #4
     jsr LoadPalette
 
-    lda #0
+    lda #6
     sta CurrentBlock
-    lda #0
-    sta BlockRotation
+    ;lda #0
+    ;sta BlockRotation
+
+    jsr NextBlock
 
     lda #$11
-    sta FieldGrid+(BoardWidth*0)+0
     sta FieldGrid+(BoardWidth*(BoardHeight-1))+0
-    sta FieldGrid+(BoardWidth*0)+9
     sta FieldGrid+(BoardWidth*(BoardHeight-1))+9
+
+    sta FieldGrid+(BoardWidth*2)+0
+    sta FieldGrid+(BoardWidth*2)+9
+
+    ;lda #$12
+    ;sta FieldGrid+(BoardWidth*2)+4
 
     jsr DrawFullBoard_SPEED
 
@@ -100,6 +117,9 @@ InitGame:
     lda #.hibyte(DrawFullBoard_SPEED)
     sta NmiHandler+1
 
+    lda #SPEED
+    sta DropSpeed
+
 FrameGame:
     jsr LoadBlock
 
@@ -115,12 +135,6 @@ FrameGame:
 ;    jmp FramePaused
 ;:
 
-    lda #BUTTON_START ; start
-    jsr ButtonPressed
-    beq :+
-    jsr PlaceBlock
-:
-
     lda #BUTTON_A ; A
     jsr ButtonPressed
     beq :+
@@ -133,17 +147,10 @@ FrameGame:
     lda #BUTTON_B ; B
     jsr ButtonPressed
     beq :+
-    ;dec BlockRotation
-    ;lda #$03
-    ;and BlockRotation
-    ;sta BlockRotation
-    ;inc CurrentBlock
-    ;lda CurrentBlock
-    ;cmp #7
-    ;bne :+
-    ;lda #0
-    ;sta CurrentBlock
-    jsr NextBlock
+    dec BlockRotation
+    lda #$03
+    and BlockRotation
+    sta BlockRotation
 :
 
     lda #BUTTON_LEFT ; left
@@ -169,22 +176,25 @@ FrameGame:
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
-    dec BlockY
-    bpl :+
-    lda #0
-    sta BlockY
 :
 
     lda #BUTTON_DOWN ; down
     jsr ButtonPressed
     beq :+
-    inc BlockY
-    lda BlockY
-    cmp #BoardHeight
-    bcc :+
-    lda #BoardHeight-1
-    sta BlockY
 :
+
+    dec DropSpeed
+    bne :+
+    inc BlockY
+    lda #SPEED
+    sta DropSpeed
+    jsr CheckFallCollision
+:
+
+    lda BlockX
+    sta CurrentX
+    lda BlockY
+    sta CurrentY
 
     jsr UpdateBlock
     jsr WaitForNMI
@@ -222,7 +232,73 @@ DedFrame:
 
     jmp InitMenu
 
-NextBlock:
+; Doesn't do any rotational collision stuff, just block gravity.
+; Handles placing a block on the playfield
+CheckFallCollision:
+    ; Find lowest row
+    ldx #15
+@bottomLoop:
+    lda BlockGrid, x
+    bne @found
+    dex
+    jmp @bottomLoop
+@found:
+    txa
+    lsr a
+    lsr a
+    clc
+    adc BlockY
+    sta TmpA
+    cmp #BoardHeight+1
+    bcc :+
+    jmp @CollideBottom
+:
+
+    ; Align grid on playfield
+    ldy BlockY
+    dey
+    lda BlockToPlayfield_Lo, y
+    clc
+    adc BlockX
+    sec
+    sbc #1
+    sta AddressPointer1+0
+
+    lda #0
+    sta AddressPointer1+1
+
+    ldx #0
+    ldy #0
+@blockLoop:
+    lda BlockGrid, x
+    beq @nextBlock
+    lda (AddressPointer1), y
+    beq @nextBlock
+    jmp @CollideBottom
+
+@nextBlock:
+    iny
+    cpy #4
+    bne :+
+    ldy #0
+    clc
+    lda AddressPointer1+0
+    adc #BoardWidth
+    sta AddressPointer1+0
+:
+
+    inx
+    cpx #16
+    beq @done
+    jmp @blockLoop
+
+@done:
+    rts
+
+@CollideBottom:
+    dec BlockY
+    jsr PlaceBlock
+
     inc CurrentBlock
     lda CurrentBlock
     cmp #7
@@ -230,6 +306,20 @@ NextBlock:
     lda #0
     sta CurrentBlock
 :
+    jsr NextBlock
+
+    rts
+
+NextBlock:
+;    inc CurrentBlock
+;    lda CurrentBlock
+;    cmp #7
+;    bne :+
+;    lda #0
+;    sta CurrentBlock
+;:
+    lda #0
+    sta CurrentBlock
     tay
 
     lda #BLOCK_START_X
@@ -246,24 +336,15 @@ NextBlock:
 
 PlaceBlock:
     ldy BlockY
-    ldx BlockToPlayfield_Lo, y
-    dex
-    txa
+    dey
+    lda BlockToPlayfield_Lo, y
     clc
     adc BlockX
-    sta AddressPointer1+0
-
-    lda BlockToPlayfield_Hi, y
-    adc #0
-    sta AddressPointer1+1
-
     sec
-    lda AddressPointer1+0
-    sbc #BoardWidth
+    sbc #1
     sta AddressPointer1+0
 
-    lda AddressPointer1+1
-    sbc #0
+    lda #0
     sta AddressPointer1+1
 
     ldy #0
@@ -324,11 +405,11 @@ LoadBlock:
     rts
 
 UpdateBlock:
-    ldx BlockX
+    ldx CurrentX
     lda BlockGridLocationX, x
     sta TmpX
 
-    ldx BlockY
+    ldx CurrentY
     lda BlockGridLocationY, x
     sta TmpY
 
@@ -398,9 +479,11 @@ DrawFullBoard_SPEED:
     sta $4014
 
     .repeat BoardHeight, i
-        lda PlayfieldPpuRows_Hi+i
+        lda #.hibyte(PlayfieldStartAddr+(i*32))
+        ;lda PlayfieldPpuRows_Hi+i
         sta $2006
-        lda PlayfieldPpuRows_Lo+i
+        ;lda PlayfieldPpuRows_Lo+i
+        lda #.lobyte(PlayfieldStartAddr+(i*32))
         sta $2006
 
         .repeat BoardWidth, j

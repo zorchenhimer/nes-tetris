@@ -43,7 +43,7 @@ InitMenu:
     ldx #0
     jsr FillAttributeTable
 
-    ldx #0
+    ldx #' '
     jsr FillScreen
 
     lda #.lobyte(Palette_Bg)
