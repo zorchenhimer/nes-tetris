@@ -19,6 +19,9 @@ CurrentY: .res 1
 MinX: .res 1
 MaxX: .res 1
 
+; Which rows need to be cleared
+ClearRows: .res 20
+
 .popseg
 
 SPEED = 60
@@ -38,6 +41,8 @@ TILE_C = $12
 
 ; Column offset for bounding box
 BLOCK_START_X = 4
+
+DEBUG_BLOCK = 5
 
 NmiGame:
     rts
@@ -326,26 +331,159 @@ CheckFallCollision:
     lda #0
     sta CurrentBlock
 :
-    jsr NextBlock
+    jsr CheckRowClear
+    ldx #.sizeof(ClearRows)-1
+:   lda ClearRows, x
+    bne StartClearRows
+    dex
+    bpl :-
 
+@no:
+    jsr NextBlock
+    rts
+
+StartClearRows:
+    stx TmpA ; First row index to clear
+    stx TmpB ; Source row to copy from
+
+@top:
+    ; Destination
+    ldx TmpA
+    bmi @bottom
+    lda BlockToPlayfield_Lo, x
+    sta AddressPointer1+0
+    lda BlockToPlayfield_Hi, x
+    sta AddressPointer1+1
+
+:
+    dec TmpB
+    bpl :+
+    jmp @ClearWithEmpty
+:
+
+    ; Do we need to clear multiple rows?
+    ldx TmpB
+    lda ClearRows, x
+    bne :--
+
+    ; Source
+    ldx TmpB
+    lda BlockToPlayfield_Lo, x
+    sta AddressPointer2+0
+    lda BlockToPlayfield_Hi, x
+    sta AddressPointer2+1
+
+    jsr DoClearRow
+
+@bottom:
+    dec TmpA
+    bpl @top
+    jmp NextBlock
+    ;rts
+
+; Clear the top row(s)
+@ClearWithEmpty:
+    ldy #0
+    lda #0
+:   sta (AddressPointer1), y
+    iny
+    cpy #10
+    bne :-
+    jmp @bottom
+
+
+CheckRowClear:
+    ldx #.sizeof(ClearRows)-1
+    lda #0
+:
+    sta ClearRows, x
+    dex
+    bpl :-
+
+
+;    ldx #15
+;@bottomLoop:
+;    lda BlockGrid, x
+;    bne @found
+;    dex
+;    jmp @bottomLoop
+;@found:
+;    txa
+;    lsr a
+;    lsr a
+;    clc
+;    adc BlockY
+;    sta BlockY
+
+    inc BlockY
+    inc BlockY
+    inc BlockY
+
+    lda #4
+    sta TmpX
+@loop:
+    dec BlockY
+    bmi @next ; too high, don't check against nothing
+    ldy BlockY
+    cpy #BoardHeight
+    bcs @next ; too low, don't check against nothing
+    lda BlockToPlayfield_Lo, y
+    sta AddressPointer1+0
+
+    lda #0
+    sta AddressPointer1+1
+
+    jsr CheckSingleRow
+    beq :+
+    ldy BlockY
+    lda #1
+    sta ClearRows, y
+:
+
+@next:
+    dec TmpX
+    bne @loop
+    rts
+
+; Row in AddressPointer1
+CheckSingleRow:
+    ldy #0
+    .repeat 10
+        lda (AddressPointer1), y
+        beq @nope
+        iny
+    .endrepeat
+
+    lda #1
+@nope:
+    rts
+
+DoClearRow:
+    ldy #0
+:
+    lda (AddressPointer2), y
+    sta (AddressPointer1), y
+    iny
+    cpy #10
+    bne :-
     rts
 
 CheckCollide_Rotate:
+    lda #BoardWidth+1
+    sta MaxX
+    lda #255 ; no block in col 1
+    sta MinX
+
     ; Left - Col 1
     .repeat 4, i
         lda BlockGrid+(i*4)
         bne @FailCol1
     .endrepeat
-    lda #255 ; no block in col 1
-    sta MinX
     jmp @checkRight
 
 @FailCol1: ; block in col 1
     lda #0
     sta MinX
-
-    lda #BoardWidth+1
-    sta MaxX
 
 @checkCol4:
     ; Col 4
@@ -442,7 +580,7 @@ NextBlock:
 ;    lda #0
 ;    sta CurrentBlock
 ;:
-    lda #2
+    lda #DEBUG_BLOCK
     sta CurrentBlock
     tay
 
