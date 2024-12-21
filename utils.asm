@@ -43,6 +43,20 @@ btnPress_stc:
     lda #1
     rts
 
+ButtonReleased:
+    sta TmpY
+    and Controller_Old
+    bne :+
+    ; wasn't pressed last frame, can't be
+    ; released this frame
+    rts
+:
+    sta TmpX
+    lda Controller
+    and TmpY
+    eor TmpX
+    rts
+
 ; Palette data address in AddressPointer1
 ; Palette index in X
 LoadPalette:

@@ -6,6 +6,8 @@ DropSpeed: .res 1
 
 FieldGrid: .res 10*20
 
+SoftDrop: .res 1
+
 .segment "BSS"
 BlockGrid: .res 4*4
 BlockX: .res 1
@@ -14,9 +16,13 @@ BlockY: .res 1
 CurrentX: .res 1
 CurrentY: .res 1
 
+MinX: .res 1
+MaxX: .res 1
+
 .popseg
 
-SPEED = 20
+SPEED = 60
+SOFT_SPEED = 35
 
 BlockLocation_X = 88
 BlockLocation_Y = 40 - 1
@@ -75,19 +81,19 @@ InitGame:
     ldx #4
     jsr LoadPalette
 
-    lda #6
+    lda #2
     sta CurrentBlock
     ;lda #0
     ;sta BlockRotation
 
     jsr NextBlock
 
-    lda #$11
-    sta FieldGrid+(BoardWidth*(BoardHeight-1))+0
-    sta FieldGrid+(BoardWidth*(BoardHeight-1))+9
+    ;lda #$11
+    ;sta FieldGrid+(BoardWidth*(BoardHeight-1))+0
+    ;sta FieldGrid+(BoardWidth*(BoardHeight-1))+9
 
-    sta FieldGrid+(BoardWidth*2)+0
-    sta FieldGrid+(BoardWidth*2)+9
+    ;sta FieldGrid+(BoardWidth*2)+0
+    ;sta FieldGrid+(BoardWidth*2)+9
 
     ;lda #$12
     ;sta FieldGrid+(BoardWidth*2)+4
@@ -119,6 +125,8 @@ InitGame:
 
     lda #SPEED
     sta DropSpeed
+    ;lda #10
+    ;sta BlockY
 
 FrameGame:
     jsr LoadBlock
@@ -135,6 +143,20 @@ FrameGame:
 ;    jmp FramePaused
 ;:
 
+    lda #BUTTON_DOWN ; down
+    jsr ButtonPressed
+    beq :+
+    lda #1
+    sta SoftDrop
+:
+
+    lda #BUTTON_DOWN ; down
+    jsr ButtonReleased
+    beq :+
+    lda #0
+    sta SoftDrop
+:
+
     lda #BUTTON_A ; A
     jsr ButtonPressed
     beq :+
@@ -142,6 +164,16 @@ FrameGame:
     lda #$03
     and BlockRotation
     sta BlockRotation
+
+    jsr LoadBlock
+    jsr CheckCollide_Rotate
+    beq :+
+    ; Rotation collides; rotate back
+    dec BlockRotation
+    lda #$03
+    and BlockRotation
+    sta BlockRotation
+    jsr LoadBlock
 :
 
     lda #BUTTON_B ; B
@@ -151,20 +183,34 @@ FrameGame:
     lda #$03
     and BlockRotation
     sta BlockRotation
+
+    jsr LoadBlock
+    jsr CheckCollide_Rotate
+    beq :+
+    ; Rotation collides; rotate back
+    inc BlockRotation
+    lda #$03
+    and BlockRotation
+    sta BlockRotation
+    jsr LoadBlock
 :
 
     lda #BUTTON_LEFT ; left
     jsr ButtonPressed
-    beq :+
+    beq :++
     dec BlockX
     bpl :+
     lda #0
     sta BlockX
 :
+    jsr CheckCollide_Rotate
+    beq :+
+    inc BlockX
+:
 
     lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
-    beq :+
+    beq :++
     inc BlockX
     lda BlockX
     cmp #BoardWidth
@@ -172,24 +218,35 @@ FrameGame:
     lda #BoardWidth-1
     sta BlockX
 :
+    jsr CheckCollide_Rotate
+    beq :+
+    dec BlockX
+:
 
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
 :
 
-    lda #BUTTON_DOWN ; down
-    jsr ButtonPressed
-    beq :+
-:
+    lda SoftDrop
+    beq @noSoft
+    sec
+    lda DropSpeed
+    sbc #SOFT_SPEED
+    sta DropSpeed
+    bpl @noDrop
+    jmp @doDrop
+
+@noSoft:
 
     dec DropSpeed
-    bne :+
+    bpl @noDrop
+@doDrop:
     inc BlockY
     lda #SPEED
     sta DropSpeed
     jsr CheckFallCollision
-:
+@noDrop:
 
     lda BlockX
     sta CurrentX
@@ -254,6 +311,83 @@ CheckFallCollision:
     jmp @CollideBottom
 :
 
+    jsr CheckCollide_WithGrid
+    bne @CollideBottom
+    rts
+
+@CollideBottom:
+    dec BlockY
+    jsr PlaceBlock
+
+    inc CurrentBlock
+    lda CurrentBlock
+    cmp #7
+    bne :+
+    lda #0
+    sta CurrentBlock
+:
+    jsr NextBlock
+
+    rts
+
+CheckCollide_Rotate:
+    ; Left - Col 1
+    .repeat 4, i
+        lda BlockGrid+(i*4)
+        bne @FailCol1
+    .endrepeat
+    lda #255 ; no block in col 1
+    sta MinX
+    jmp @checkRight
+
+@FailCol1: ; block in col 1
+    lda #0
+    sta MinX
+
+    lda #BoardWidth+1
+    sta MaxX
+
+@checkCol4:
+    ; Col 4
+    .repeat 4, i
+        lda BlockGrid+(i*4)+3
+        bne @FailCol4
+    .endrepeat
+    jmp @checkCol3
+
+@FailCol4:
+    lda #BoardWidth
+    sta MaxX
+
+@checkCol3:
+    ; Col 3
+    .repeat 4, i
+        lda BlockGrid+(i*4)+2
+        bne @FailCol3
+    .endrepeat
+    jmp @checkLeft
+
+@FailCol3:
+    lda #BoardWidth-1
+    sta MaxX
+
+@checkLeft:
+    lda MinX
+    cmp BlockX
+    bcc @checkRight
+    lda #1  ; can't rotate; on left edge
+    rts
+
+@checkRight:
+    lda BlockX
+    cmp MaxX
+    bcc :+
+    lda #1  ; can't rotate; on right edge
+    rts
+
+:
+
+CheckCollide_WithGrid:
     ; Align grid on playfield
     ldy BlockY
     dey
@@ -274,7 +408,7 @@ CheckFallCollision:
     beq @nextBlock
     lda (AddressPointer1), y
     beq @nextBlock
-    jmp @CollideBottom
+    jmp @collide
 
 @nextBlock:
     iny
@@ -293,21 +427,11 @@ CheckFallCollision:
     jmp @blockLoop
 
 @done:
+    lda #0
     rts
 
-@CollideBottom:
-    dec BlockY
-    jsr PlaceBlock
-
-    inc CurrentBlock
-    lda CurrentBlock
-    cmp #7
-    bne :+
-    lda #0
-    sta CurrentBlock
-:
-    jsr NextBlock
-
+@collide:
+    lda #1
     rts
 
 NextBlock:
@@ -318,7 +442,7 @@ NextBlock:
 ;    lda #0
 ;    sta CurrentBlock
 ;:
-    lda #0
+    lda #2
     sta CurrentBlock
     tay
 
@@ -330,6 +454,9 @@ NextBlock:
 
     lda #0
     sta BlockRotation
+
+    lda #0
+    sta SoftDrop
 
     jmp LoadBlock
     ;rts
