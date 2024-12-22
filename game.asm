@@ -4,8 +4,6 @@ CurrentBlock: .res 1
 BlockRotation: .res 1
 DropSpeed: .res 1
 
-FieldGrid: .res 10*20
-
 SoftDrop: .res 1
 
 .segment "BSS"
@@ -26,6 +24,8 @@ BagA: .res 7 ; next pieces
 BagB: .res 7 ; next pieces
 HoldPiece: .res 1
 
+FieldGrid: .res 10*20
+
 .popseg
 
 SPEED = 60
@@ -38,17 +38,53 @@ Block_TileId = $10
 BoardHeight = 20
 BoardWidth  = 10
 
+; These are CHR banks, not tiles
 TILE_X = $00
-TILE_A = $10
-TILE_B = $11
-TILE_C = $12
+TILE_A = $01
+TILE_B = $01
+TILE_C = $01
 
 ; Column offset for bounding box
 BLOCK_START_X = 4
 
 DEBUG_BLOCK = 2
 
+MMC5_OFFSET = $3C00
+
+.enum IRQStates
+DrawBoard
+.endenum
+
+IrqStates:
+    .word irqDrawBoard
+    ;.word irqDrawBags
+
+IrqLines:
+    .byte 10
+    .byte 130
+
+; IRQ state index in A
+SetIRQ:
+    ;lda NextIRQ
+    tax
+    asl a
+    tay
+
+    lda IrqLines, x
+    sta $5203
+    lda #$80
+    sta $5204
+
+    lda IrqStates+0, y
+    sta ptrIRQ+0
+    lda IrqStates+1, y
+    sta ptrIRQ+1
+    cli
+    rts
+
 NmiGame:
+    lda #$02
+    sta $4014
     rts
 
 InitGame:
@@ -109,7 +145,7 @@ InitGame:
     ;lda #$12
     ;sta FieldGrid+(BoardWidth*2)+4
 
-    jsr DrawFullBoard_SPEED
+    ;jsr DrawFullBoard_SPEED
 
     lda #%1000_0000
     sta $2000
@@ -129,9 +165,14 @@ InitGame:
     ;lda #.hibyte(NmiGame)
     ;sta NmiHandler+1
 
-    lda #.lobyte(DrawFullBoard_SPEED)
+    ;lda #.lobyte(DrawFullBoard_SPEED)
+    ;sta NmiHandler+0
+    ;lda #.hibyte(DrawFullBoard_SPEED)
+    ;sta NmiHandler+1
+
+    lda #.lobyte(NmiGame)
     sta NmiHandler+0
-    lda #.hibyte(DrawFullBoard_SPEED)
+    lda #.hibyte(NmiGame)
     sta NmiHandler+1
 
     lda #SPEED
@@ -140,6 +181,9 @@ InitGame:
     ;sta BlockY
 
 FrameGame:
+    lda #IRQStates::DrawBoard
+    jsr SetIRQ
+
     jsr LoadBlock
 
     jsr ReadControllers
@@ -471,7 +515,7 @@ CheckRowClear:
     lda BlockToPlayfield_Lo, y
     sta AddressPointer1+0
 
-    lda #0
+    lda BlockToPlayfield_Hi, y
     sta AddressPointer1+1
 
     jsr CheckSingleRow
@@ -576,11 +620,19 @@ CheckCollide_WithGrid:
     lda BlockToPlayfield_Lo, y
     clc
     adc BlockX
+    sta AddressPointer1+0
+
+    lda BlockToPlayfield_Hi, y
+    adc #0
+    sta AddressPointer1+1
+
+    sta AddressPointer1+0
     sec
     sbc #1
     sta AddressPointer1+0
 
-    lda #0
+    lda AddressPointer1+1
+    sbc #0
     sta AddressPointer1+1
 
     ldy #3
@@ -590,11 +642,19 @@ CheckCollide_WithGrid:
     lda BlockToPlayfield_Lo, y
     clc
     adc BlockX
+    sta AddressPointer1+0
+
+    lda BlockToPlayfield_Hi, y
+    adc #0
+    sta AddressPointer1+1
+
+    lda AddressPointer1+0
     sec
     sbc #1
     sta AddressPointer1+0
 
-    lda #0
+    lda AddressPointer1+1
+    sbc #0
     sta AddressPointer1+1
 
     ldx #0
@@ -615,6 +675,10 @@ CheckCollide_WithGrid:
     lda AddressPointer1+0
     adc #BoardWidth
     sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
 :
 
     inx
@@ -663,11 +727,19 @@ PlaceBlock:
     lda BlockToPlayfield_Lo, y
     clc
     adc BlockX
+    sta AddressPointer1+0
+
+    lda BlockToPlayfield_Hi, y
+    adc #0
+    sta AddressPointer1+1
+
+    lda AddressPointer1+0
     sec
     sbc #1
     sta AddressPointer1+0
 
-    lda #0
+    lda AddressPointer1+1
+    sbc #0
     sta AddressPointer1+1
 
     ldy #0
@@ -816,6 +888,33 @@ DrawFullBoard_SPEED:
     .endrepeat
     rts
 
+irqDrawBoard:
+    ldx #0 ; row
+@loopRow:
+    lda PlayfieldPpuRows_Lo, x
+    sta AddressPointer1+0
+    lda PlayfieldPpuRows_Hi, x
+    sta AddressPointer1+1
+
+    lda BlockToPlayfield_Lo, x
+    sta AddressPointer2+0
+    lda BlockToPlayfield_Hi, x
+    sta AddressPointer2+1
+
+    ldy #0
+:
+    lda (AddressPointer2), y
+    sta (AddressPointer1), y
+    iny
+    cpy #10
+    bne :-
+
+    inx
+    cpx #20
+    bne @loopRow
+
+    rts
+
 BlockSpriteLookupY:
     .byte 0,  0,  0,  0
     .byte 8,  8,  8,  8
@@ -849,7 +948,7 @@ BlockToPlayfield_Lo:
         .byte .lobyte(FieldGrid+(i*BoardWidth))
     .endrepeat
 
-PlayfieldStartAddr = $20CC
+PlayfieldStartAddr = $20CC + MMC5_OFFSET
 PlayfieldPpuRows_Hi:
     .repeat BoardHeight, i
         .byte .hibyte(PlayfieldStartAddr+(i*32))
@@ -1039,6 +1138,3 @@ BlockTiles:
     .byte TILE_X, TILE_A, TILE_A, TILE_X
     .byte TILE_X, TILE_A, TILE_A, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-PieceRng:
-    .include "piece-rng.inc"

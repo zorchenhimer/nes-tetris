@@ -1,9 +1,10 @@
 .PHONY: all env clean chr
+.PRECIOUS: images/tiles2.bmp
 
 CHRUTIL = ../go-nes/bin/chrutil
 
 NAME = tetris
-NESCFG = nes_nrom.cfg
+NESCFG = nes_mmc5.cfg
 CAFLAGS = -g -t nes
 LDFLAGS = -C $(NESCFG) --dbgfile bin/$(NAME).dbg -m bin/$(NAME).map
 
@@ -15,7 +16,7 @@ SOURCES = \
 	utils.asm \
 	playfield.i
 
-CHR = tiles.chr
+CHR = tiles.chr tiles2.chr
 
 all: env chr bin/$(NAME).nes
 env: bin/

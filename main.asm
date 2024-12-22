@@ -1,7 +1,7 @@
 
 .include "nes2header.inc"
-nes2mapper 0
-nes2prg 1 * 16 * 1024
+nes2mapper 5
+nes2prg 2 * 16 * 1024
 nes2chr 1 * 8 * 1024
 ;nes2wram 1 * 8 * 1024
 nes2mirror 'V'
@@ -31,6 +31,8 @@ IsPaused: .res 1
 Controller: .res 1
 Controller_Old: .res 1
 
+ptrIRQ: .res 2
+
 .segment "OAM"
 SpriteZero: .res 4
 SpriteBlock: .res 4*4
@@ -40,21 +42,28 @@ Palettes: .res 4*8
 BufferedBlock: .res 4*4
 rng_index: .res 1
 
-.segment "VECTORS0"
+.segment "VECTORS"
     .word NMI
     .word RESET
     .word IRQ
 
-.segment "CHR0"
+.segment "CHR00"
     .incbin "tiles.chr"
 
-;.segment "CHRHEX"
-;    .incbin "hex.chr"
+.segment "CHR01"
+    .incbin "tiles2.chr"
 
-.segment "CHR1"
-    ;.incbin "pattern-a.chr"
+.segment "PAGE00"
 
-.segment "PAGE0"
+    .include "game.asm"
+
+Screen_Playfield:
+    .include "playfield.i"
+
+PieceRng:
+    .include "piece-rng.inc"
+
+.segment "PRGINIT"
 
 ; Button Constants
 BUTTON_A        = 1 << 7
@@ -68,7 +77,24 @@ BUTTON_RIGHT    = 1 << 0
 
     .include "utils.asm"
 
+IrqCall:
+    jmp (ptrIRQ)
+
 IRQ:
+    pha
+    txa
+    pha
+    tya
+    pha
+
+    bit $5204
+    jsr IrqCall
+
+    pla
+    tay
+    pla
+    tax
+    pla
     rti
 
 BareNmiHandler:
@@ -180,7 +206,26 @@ RESET:
     sta Palettes+i
     .endrepeat
 
+    jsr MMC5_Init
     jmp InitMenu
+
+MMC5_Init:
+    ; PRG mode 0: one 32k bank
+    lda #0
+    sta $5100
+
+    ; CHR mode 1: 4k pages
+    lda #1
+    sta $5101
+
+    ; Vertical mirroring
+    lda #$44
+    sta $5105
+
+    ; extended attr mode
+    lda #1
+    sta $5104
+    rts
 
 
 StartFrame:
@@ -213,7 +258,3 @@ Palette_Sp:
 
     .include "scores.asm"
     .include "menu.asm"
-    .include "game.asm"
-
-Screen_Playfield:
-    .include "playfield.i"
