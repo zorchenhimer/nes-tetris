@@ -22,6 +22,10 @@ MaxX: .res 1
 ; Which rows need to be cleared
 ClearRows: .res 20
 
+BagA: .res 7 ; next pieces
+BagB: .res 7 ; next pieces
+HoldPiece: .res 1
+
 .popseg
 
 SPEED = 60
@@ -85,6 +89,8 @@ InitGame:
 
     ldx #4
     jsr LoadPalette
+
+    jsr ShuffleBag
 
     lda #2
     sta CurrentBlock
@@ -293,6 +299,41 @@ DedFrame:
     sta $2001
 
     jmp InitMenu
+
+ShuffleBag:
+    lda #$FF
+    ldx #0
+:
+    sta BagA, x
+    sta BagB, x
+    inx
+    cpx #7
+    bne :-
+
+    lda #0
+    sta TmpX
+
+@loop:
+    inc rng_index
+    ldx rng_index
+    lda PieceRng, x
+
+    ldy #0
+@check:
+    cmp BagA, y
+    beq @loop
+    iny
+    cpy #7
+    bne @check
+
+    ldx TmpX
+    sta BagA, x
+    inc TmpX
+    cpx #6
+    bne @loop
+
+    rts
+
 
 ; Doesn't do any rotational collision stuff, just block gravity.
 ; Handles placing a block on the playfield
@@ -999,3 +1040,5 @@ BlockTiles:
     .byte TILE_X, TILE_A, TILE_A, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+PieceRng:
+    .include "piece-rng.inc"

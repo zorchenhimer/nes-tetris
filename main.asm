@@ -38,6 +38,7 @@ SpriteBlock: .res 4*4
 .segment "BSS"
 Palettes: .res 4*8
 BufferedBlock: .res 4*4
+rng_index: .res 1
 
 .segment "VECTORS0"
     .word NMI
