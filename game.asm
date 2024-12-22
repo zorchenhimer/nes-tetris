@@ -889,7 +889,43 @@ DrawFullBoard_SPEED:
     rts
 
 irqDrawBoard:
-    ldx #0 ; row
+    ;
+    ; Draw bag contents
+    .repeat 4, j
+        lda BagA+j
+        asl a
+        tax
+        lda BlockTiles+0, x
+        sta AddressPointer1+0
+        lda BlockTiles+1, x
+        sta AddressPointer1+1
+
+        .repeat 4, i
+            lda BagRows0+0+(i*2)+(j*4*2)
+            sta AddressPointer2+0
+            lda BagRows0+1+(i*2)+(j*4*2)
+            sta AddressPointer2+1
+
+            ldy #0
+            .repeat 4
+                lda (AddressPointer1), y
+                sta (AddressPointer2), y
+                iny
+            .endrepeat
+
+            clc
+            lda AddressPointer1+0
+            adc #4
+            sta AddressPointer1+0
+            lda AddressPointer1+1
+            adc #0
+            sta AddressPointer1+1
+        .endrepeat
+    .endrepeat
+
+    ;
+    ; Draw playfield
+    ldx #0
 @loopRow:
     lda PlayfieldPpuRows_Lo, x
     sta AddressPointer1+0
@@ -1138,3 +1174,23 @@ BlockTiles:
     .byte TILE_X, TILE_A, TILE_A, TILE_X
     .byte TILE_X, TILE_A, TILE_A, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
+
+BagRows0:
+    .repeat 4, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*0)
+    .endrepeat
+
+BagRows1:
+    .repeat 4, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*1)
+    .endrepeat
+
+BagRows2:
+    .repeat 4, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*2)
+    .endrepeat
+
+BagRows3:
+    .repeat 4, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*3)
+    .endrepeat
