@@ -42,7 +42,7 @@ TILE_C = $12
 ; Column offset for bounding box
 BLOCK_START_X = 4
 
-DEBUG_BLOCK = 5
+DEBUG_BLOCK = 2
 
 NmiGame:
     rts
@@ -148,14 +148,14 @@ FrameGame:
 ;    jmp FramePaused
 ;:
 
-    lda #BUTTON_DOWN ; down
+    lda #BUTTON_DOWN ; down, pressed
     jsr ButtonPressed
     beq :+
     lda #1
     sta SoftDrop
 :
 
-    lda #BUTTON_DOWN ; down
+    lda #BUTTON_DOWN ; down, released
     jsr ButtonReleased
     beq :+
     lda #0
@@ -469,9 +469,9 @@ DoClearRow:
     rts
 
 CheckCollide_Rotate:
-    lda #BoardWidth+1
+    lda #BoardWidth
     sta MaxX
-    lda #255 ; no block in col 1
+    lda #0 ; no block in col 1
     sta MinX
 
     ; Left - Col 1
@@ -479,10 +479,10 @@ CheckCollide_Rotate:
         lda BlockGrid+(i*4)
         bne @FailCol1
     .endrepeat
-    jmp @checkRight
+    jmp @checkCol4
 
 @FailCol1: ; block in col 1
-    lda #0
+    lda #1
     sta MinX
 
 @checkCol4:
@@ -494,8 +494,9 @@ CheckCollide_Rotate:
     jmp @checkCol3
 
 @FailCol4:
-    lda #BoardWidth
+    lda #BoardWidth-2
     sta MaxX
+    jmp @checkLeft
 
 @checkCol3:
     ; Col 3
@@ -510,9 +511,9 @@ CheckCollide_Rotate:
     sta MaxX
 
 @checkLeft:
-    lda MinX
-    cmp BlockX
-    bcc @checkRight
+    lda BlockX
+    cmp MinX
+    bcs @checkRight
     lda #1  ; can't rotate; on left edge
     rts
 
@@ -529,6 +530,22 @@ CheckCollide_WithGrid:
     ; Align grid on playfield
     ldy BlockY
     dey
+    bpl :+
+    ldy #0
+    lda BlockToPlayfield_Lo, y
+    clc
+    adc BlockX
+    sec
+    sbc #1
+    sta AddressPointer1+0
+
+    lda #0
+    sta AddressPointer1+1
+
+    ldy #3
+    ldx #3
+    jmp @nextBlock
+:
     lda BlockToPlayfield_Lo, y
     clc
     adc BlockX
