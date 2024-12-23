@@ -248,7 +248,8 @@ MMC5_Init:
     sta $5105
 
     ; extended attr mode
-    lda #1
+    ;lda #%0000_0001
+    lda #%0000_0000
     sta $5104
     rts
 

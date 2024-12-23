@@ -104,10 +104,10 @@ NmiGame:
     rts
 
 GamePalettes:
-    .byte $0F, $15, $1A, $20
+    .byte $0F, $00, $1A, $20
     .byte $0F, $23, $21, $20
     .byte $0F, $2C, $28, $20
-    .byte $0F, $10, $27, $20
+    .byte $0F, $15, $27, $20
 
 InitGame:
     ; Clear sprites
@@ -135,6 +135,24 @@ InitGame:
     jsr InitBags
 
     jsr NextBlock
+
+    ; Turn off ExtAttr mode to draw the initial attribute data
+    lda #%0000_0010
+    sta $5104
+
+    lda #$C0
+    ldx #0
+:
+    sta $5C00+(0*256), x
+    sta $5C00+(1*256), x
+    sta $5C00+(2*256), x
+    sta $5C00+(3*256), x
+    dex
+    bne :-
+
+    ; Turn ExtAttr mode back on
+    lda #%0000_0001
+    sta $5104
 
     lda #%1000_0000
     sta $2000
@@ -1082,7 +1100,7 @@ BlockTiles:
 ; Z
 ; XX
 ;  XX
-TILE_Z = TILE_1 | PAL_A
+TILE_Z = TILE_1 | PAL_D
 :   .byte TILE_Z, TILE_Z, TILE_X, TILE_X
     .byte TILE_X, TILE_Z, TILE_Z, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
