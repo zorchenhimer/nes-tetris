@@ -900,10 +900,22 @@ irqDrawBoard:
         lda BlockTiles+1, x
         sta AddressPointer1+1
 
-        .repeat 4, i
-            lda BagRows0+0+(i*2)+(j*4*2)
+        lda BagA+j
+        cmp #6
+        bne :+
+        clc
+        lda AddressPointer1+0
+        adc #4
+        sta AddressPointer1+0
+        lda AddressPointer1+1
+        adc #0
+        sta AddressPointer1+1
+:
+
+        .repeat 2, i
+            lda BagRows0+0+(i*2)+(j*2*2)
             sta AddressPointer2+0
-            lda BagRows0+1+(i*2)+(j*4*2)
+            lda BagRows0+1+(i*2)+(j*2*2)
             sta AddressPointer2+1
 
             ldy #0
@@ -1176,21 +1188,21 @@ BlockTiles:
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
 BagRows0:
-    .repeat 4, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*0)
+    .repeat 2, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*0)
     .endrepeat
 
 BagRows1:
-    .repeat 4, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*1)
+    .repeat 2, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*1)
     .endrepeat
 
 BagRows2:
-    .repeat 4, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*2)
+    .repeat 2, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*2)
     .endrepeat
 
 BagRows3:
-    .repeat 4, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*5*3)
+    .repeat 2, i
+        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*3)
     .endrepeat

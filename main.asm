@@ -87,8 +87,28 @@ IRQ:
     tya
     pha
 
+    lda AddressPointer1+0
+    pha
+    lda AddressPointer1+1
+    pha
+
+    lda AddressPointer2+0
+    pha
+    lda AddressPointer2+1
+    pha
+
     bit $5204
     jsr IrqCall
+
+    pla
+    sta AddressPointer2+1
+    pla
+    sta AddressPointer2+0
+
+    pla
+    sta AddressPointer1+1
+    pla
+    sta AddressPointer1+0
 
     pla
     tay
