@@ -20,6 +20,7 @@ MaxX: .res 1
 ; Which rows need to be cleared
 ClearRows: .res 20
 
+BagLeft: .res 1
 BagA: .res 7 ; next pieces
 BagB: .res 7 ; next pieces
 HoldPiece: .res 1
@@ -126,7 +127,8 @@ InitGame:
     ldx #4
     jsr LoadPalette
 
-    jsr ShuffleBag
+    ;jsr ShuffleBag
+    jsr InitBags
 
     lda #2
     sta CurrentBlock
@@ -344,11 +346,70 @@ DedFrame:
 
     jmp InitMenu
 
-ShuffleBag:
+InitBags:
+    lda #7
+    sta BagLeft
     lda #$FF
     ldx #0
 :
     sta BagA, x
+    sta BagB, x
+    inx
+    cpx #7
+    bne :-
+
+    lda #0
+    sta TmpX
+
+@loopA:
+    inc rng_index
+    ldx rng_index
+    lda PieceRng, x
+
+    ldy #0
+@checkA:
+    cmp BagA, y
+    beq @loopA
+    iny
+    cpy #7
+    bne @checkA
+
+    ldx TmpX
+    sta BagA, x
+    inc TmpX
+    cpx #6
+    bne @loopA
+
+    lda #0
+    sta TmpX
+
+@loopB:
+    inc rng_index
+    ldx rng_index
+    lda PieceRng, x
+
+    ldy #0
+@checkB:
+    cmp BagB, y
+    beq @loopB
+    iny
+    cpy #7
+    bne @checkB
+
+    ldx TmpX
+    sta BagB, x
+    inc TmpX
+    cpx #6
+    bne @loopB
+
+    rts
+
+ShuffleBag:
+    lda #7
+    sta BagLeft
+    lda #$FF
+    ldx #0
+:
     sta BagB, x
     inx
     cpx #7
@@ -364,14 +425,14 @@ ShuffleBag:
 
     ldy #0
 @check:
-    cmp BagA, y
+    cmp BagB, y
     beq @loop
     iny
     cpy #7
     bne @check
 
     ldx TmpX
-    sta BagA, x
+    sta BagB, x
     inc TmpX
     cpx #6
     bne @loop
@@ -695,20 +756,27 @@ CheckCollide_WithGrid:
     rts
 
 NextBlock:
-;    inc CurrentBlock
-;    lda CurrentBlock
-;    cmp #7
-;    bne :+
-;    lda #0
-;    sta CurrentBlock
-;:
-    lda #DEBUG_BLOCK
+    dec BagLeft
+    bne :+
+    ; new bag
+    jsr ShuffleBag
+:
+    lda BagA+0
     sta CurrentBlock
-    tay
+
+    ; bump both bags
+    ldx #0
+:
+    lda BagA+1, x
+    sta BagA, x
+    inx
+    cpx #13
+    bne :-
 
     lda #BLOCK_START_X
     sta BlockX
 
+    ldy CurrentBlock
     lda BlockStart_Y, y
     sta BlockY
 
