@@ -2,7 +2,7 @@
 .include "nes2header.inc"
 nes2mapper 5
 nes2prg 2 * 16 * 1024
-nes2chr 1 * 8 * 1024
+nes2chr 2 * 8 * 1024
 ;nes2wram 1 * 8 * 1024
 nes2mirror 'V'
 nes2tv 'N'
@@ -52,6 +52,11 @@ rng_index: .res 1
 
 .segment "CHR01"
     .incbin "tiles2.chr"
+
+.segment "CHR02"
+    .incbin "tiles3.chr"
+
+.segment "CHR03"
 
 .segment "PAGE00"
 

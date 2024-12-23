@@ -14,12 +14,16 @@ SOURCES = \
 	scores.asm \
 	game.asm \
 	utils.asm \
+	piece-rng.inc \
 	playfield.i
 
-CHR = tiles.chr tiles2.chr
+CHR = tiles.chr tiles2.chr tiles3.chr
 
 all: env chr bin/$(NAME).nes
 env: bin/
+
+send: all
+	./edlink-n8 bin/$(NAME).nes
 
 clean:
 	-rm bin/* *.chr *.i
@@ -27,6 +31,9 @@ clean:
 cleanall: clean
 	-rm images/*.bmp *.inc
 	-$(MAKE) -C go-nes/ clean
+
+piece-rng.inc: rng-tables.go
+	go run $< > $@
 
 bin/:
 	-mkdir bin
