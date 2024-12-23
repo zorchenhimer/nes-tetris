@@ -48,8 +48,6 @@ TILE_C = $01
 ; Column offset for bounding box
 BLOCK_START_X = 4
 
-DEBUG_BLOCK = 2
-
 MMC5_OFFSET = $3C00
 
 .enum IRQStates
@@ -687,7 +685,7 @@ CheckCollide_WithGrid:
     adc #0
     sta AddressPointer1+1
 
-    sta AddressPointer1+0
+    lda AddressPointer1+0
     sec
     sbc #1
     sta AddressPointer1+0
