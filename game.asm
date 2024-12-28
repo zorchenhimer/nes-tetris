@@ -27,6 +27,8 @@ HoldPiece: .res 1
 
 FieldGrid: .res 10*20
 
+HeldSwapped: .res 1
+
 .popseg
 
 SPEED = 60
@@ -175,6 +177,9 @@ InitGame:
     lda #SPEED
     sta DropSpeed
 
+    lda #$FF
+    sta HoldPiece
+
 FrameGame:
     lda #IRQStates::DrawBoard
     jsr SetIRQ
@@ -205,6 +210,12 @@ FrameGame:
     beq :+
     lda #0
     sta SoftDrop
+:
+
+    lda #BUTTON_SELECT ; select
+    jsr ButtonReleased
+    beq :+
+    jsr SwapHeldPiece
 :
 
     lda #BUTTON_A ; A
@@ -748,7 +759,49 @@ CheckCollide_WithGrid:
     lda #1
     rts
 
+SwapHeldPiece:
+    lda HeldSwapped
+    beq :+
+    rts
+:
+    lda #$FF
+    sta HeldSwapped
+
+    lda HoldPiece
+    bpl @swap
+    ; nothing was held
+    lda CurrentBlock
+    sta HoldPiece
+    jmp NextBlock_Swap
+@swap:
+
+    lda HoldPiece
+    pha
+    lda CurrentBlock
+    sta HoldPiece
+    pla
+    sta CurrentBlock
+
+    lda #BLOCK_START_X
+    sta BlockX
+
+    ldy CurrentBlock
+    lda BlockStart_Y, y
+    sta BlockY
+
+    lda #0
+    sta BlockRotation
+
+    lda #0
+    sta SoftDrop
+
+    jmp LoadBlock
+
 NextBlock:
+    lda #$00
+    sta HeldSwapped
+
+NextBlock_Swap:
     dec BagLeft
     bne :+
     ; new bag
@@ -828,6 +881,9 @@ PlaceBlock:
     sta AddressPointer1+1
     jmp @loop
 @done:
+
+    lda #0
+    sta HeldSwapped
     rts
 
 ; Reads CurrentBlock & CurrentRotation to find the
@@ -959,7 +1015,46 @@ DrawFullBoard_SPEED:
     .endrepeat
     rts
 
+
+HOLD_ADDR = $20A3 + MMC5_OFFSET
 irqDrawBoard:
+
+    bit HoldPiece
+    bpl :+
+    jmp @noHold
+:
+    ;
+    ; Draw hold piece
+    lda HoldPiece
+    asl a
+    tax
+    lda BlockTiles+0, x
+    sta AddressPointer1+0
+    lda BlockTiles+1, x
+    sta AddressPointer1+1
+
+    lda HoldPiece
+    cmp #5
+    bcc :+
+    clc
+    lda AddressPointer1+0
+    adc #4
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+:
+
+    ldy #0
+    .repeat 2, i
+        .repeat 4, j
+            lda (AddressPointer1), y
+            sta HOLD_ADDR + (i*32) + j
+            iny
+        .endrepeat
+    .endrepeat
+@noHold:
+
     ;
     ; Draw bag contents
     .repeat 4, j
@@ -972,8 +1067,8 @@ irqDrawBoard:
         sta AddressPointer1+1
 
         lda BagA+j
-        cmp #6
-        bne :+
+        cmp #5
+        bcc :+
         clc
         lda AddressPointer1+0
         adc #4
@@ -1021,12 +1116,11 @@ irqDrawBoard:
     sta AddressPointer2+1
 
     ldy #0
-:
+    .repeat 10
     lda (AddressPointer2), y
     sta (AddressPointer1), y
     iny
-    cpy #10
-    bne :-
+    .endrepeat
 
     inx
     cpx #20
