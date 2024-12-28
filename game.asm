@@ -56,17 +56,18 @@ BLOCK_START_X = 4
 
 MMC5_OFFSET = $3C00
 
+GAMEOVER_START_X = 104
+GAMEOVER_START_Y = 109
+
 .enum IRQStates
 DrawBoard
 .endenum
 
 IrqStates:
     .word irqDrawBoard
-    ;.word irqDrawBags
 
 IrqLines:
     .byte 10
-    .byte 130
 
 ; IRQ state index in A
 SetIRQ:
@@ -85,6 +86,11 @@ SetIRQ:
     lda IrqStates+1, y
     sta ptrIRQ+1
     cli
+    rts
+
+DisableIrq:
+    lda #$00
+    sta $5204
     rts
 
 NmiGame:
@@ -134,8 +140,15 @@ InitGame:
     sta AddressPointer1+1
     jsr DrawScreen
 
-    jsr InitBags
+    lda #0
+    ldy #0
+:
+    sta FieldGrid, y
+    iny
+    cpy #200
+    bne :-
 
+    jsr InitBags
     jsr NextBlock
 
     ; Turn off ExtAttr mode to draw the initial attribute data
@@ -161,10 +174,18 @@ InitGame:
 
     lda #$00
     sta $2003
+
     jsr WaitForNMI
 
     lda #%0001_1110
     sta $2001
+
+    lda #$00
+    sta $2005
+    sta $2005
+
+    lda #%1000_0000
+    sta $2000
 
     jsr WaitForNMI
     jsr WaitForNMI
@@ -334,6 +355,88 @@ FrameGame:
 ;    jsr WaitForNMI
 ;    jmp FramePaused
 
+DedTransition:
+    jsr UpdateBlock
+    jsr WaitForNMI
+    jsr DisableIrq
+
+    ; game
+    ; over
+
+    ;ldx #0
+    ;ldy #$A0
+    .repeat 8, i
+        lda #GAMEOVER_START_Y
+        sta GameOverSprites+(i*4)+0
+
+        lda #$A0+i
+        sta GameOverSprites+(i*4)+1
+
+        lda #$03
+        sta GameOverSprites+(i*4)+2
+
+        lda #GAMEOVER_START_X+(i*8)
+        sta GameOverSprites+(i*4)+3
+    .endrepeat
+    ; ----
+    .repeat 8, i
+        lda #GAMEOVER_START_Y+8
+        sta GameOverSprites+(i*4)+0+(1*8*4)
+
+        lda #$B0+i
+        sta GameOverSprites+(i*4)+1+(1*8*4)
+
+        lda #$03
+        sta GameOverSprites+(i*4)+2+(1*8*4)
+
+        lda #GAMEOVER_START_X+(i*8)
+        sta GameOverSprites+(i*4)+3+(1*8*4)
+    .endrepeat
+
+    ; ----
+    .repeat 8, i
+        lda #GAMEOVER_START_Y+16+4
+        sta GameOverSprites+(i*4)+0+(2*8*4)
+
+        lda #$C0+i
+        sta GameOverSprites+(i*4)+1+(2*8*4)
+
+        lda #$03
+        sta GameOverSprites+(i*4)+2+(2*8*4)
+
+        lda #GAMEOVER_START_X+(i*8)
+        sta GameOverSprites+(i*4)+3+(2*8*4)
+    .endrepeat
+    ; ----
+    .repeat 8, i
+        lda #GAMEOVER_START_Y+24+4
+        sta GameOverSprites+(i*4)+0+(3*8*4)
+
+        lda #$D0+i
+        sta GameOverSprites+(i*4)+1+(3*8*4)
+
+        lda #$03
+        sta GameOverSprites+(i*4)+2+(3*8*4)
+
+        lda #GAMEOVER_START_X+(i*8)
+        sta GameOverSprites+(i*4)+3+(3*8*4)
+    .endrepeat
+
+    .repeat 8, i
+        lda #125
+        sta GameOverOops+(i*4)
+
+        lda #$90
+        sta GameOverOops+(i*4)+1
+
+        lda #$03
+        sta GameOverOops+(i*4)+2
+
+        lda #GAMEOVER_START_X+(i*8)
+        sta GameOverOops+(i*4)+3
+    .endrepeat
+    jsr WaitForNMI
+
 DedFrame:
 
     jsr ReadControllers
@@ -443,7 +546,6 @@ ShuffleBag:
 
     rts
 
-
 ; Doesn't do any rotational collision stuff, just block gravity.
 ; Handles placing a block on the playfield
 CheckFallCollision:
@@ -549,21 +651,6 @@ CheckRowClear:
     sta ClearRows, x
     dex
     bpl :-
-
-
-;    ldx #15
-;@bottomLoop:
-;    lda BlockGrid, x
-;    bne @found
-;    dex
-;    jmp @bottomLoop
-;@found:
-;    txa
-;    lsr a
-;    lsr a
-;    clc
-;    adc BlockY
-;    sta BlockY
 
     inc BlockY
     inc BlockY
@@ -802,6 +889,9 @@ NextBlock:
     sta HeldSwapped
 
 NextBlock_Swap:
+    lda #SPEED
+    sta DropSpeed
+
     dec BagLeft
     bne :+
     ; new bag
@@ -832,8 +922,12 @@ NextBlock_Swap:
     lda #0
     sta SoftDrop
 
-    jmp LoadBlock
-    ;rts
+    jsr LoadBlock
+    jsr CheckCollide_WithGrid
+    beq :+
+    jmp DedTransition
+:
+    rts
 
 PlaceBlock:
     ldy BlockY

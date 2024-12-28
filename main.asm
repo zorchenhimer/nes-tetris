@@ -37,6 +37,9 @@ ptrIRQ: .res 2
 SpriteZero: .res 4
 SpriteBlock: .res 4*4
 
+GameOverSprites: .res 8*4*4
+GameOverOops: .res 8*4
+
 .segment "BSS"
 Palettes: .res 4*8
 BufferedBlock: .res 4*4

@@ -33,6 +33,11 @@ Menu_ItemCount = (* - MenuDestinations) / 2
 ;    rts
 
 InitMenu:
+    lda #%0000_0000
+    sta $5104
+
+    jsr DisableIrq
+
     lda #.lobyte(BareNmiHandler)
     sta NmiHandler+0
     lda #.hibyte(BareNmiHandler)

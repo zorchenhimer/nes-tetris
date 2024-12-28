@@ -218,11 +218,11 @@ FillScreen:
     rts
 
 WaitForNMI:
+    lda #0
+    sta Sleeping
 :
     inc rng_index
     bit Sleeping
     bpl :-
-    lda #0
-    sta Sleeping
     rts
 
