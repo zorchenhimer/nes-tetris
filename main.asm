@@ -45,6 +45,9 @@ Palettes: .res 4*8
 BufferedBlock: .res 4*4
 rng_index: .res 1
 
+Bin_Input: .res 3
+Bin_Tiles: .res 6
+
 .segment "VECTORS"
     .word NMI
     .word RESET

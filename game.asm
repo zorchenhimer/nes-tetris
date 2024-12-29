@@ -509,79 +509,21 @@ CalcScore:
 
     .repeat .sizeof(Score), i
     lda Score+i
-    sta TmpScore+i
+    ;sta TmpScore+i
+    sta Bin_Input+i
     .endrepeat
 
-    lda #'0'
-    .repeat .sizeof(Score_Tiles), i
+    jsr BinToDec
+
+    .repeat .sizeof(Bin_Tiles), i
+    lda Bin_Tiles+i
     sta Score_Tiles+i
     .endrepeat
-
-    ; binary to ascii
-    lda #4
-    sta TmpX ; digit index
-    ldx #0   ; ASCII index
-    ;sta TmpY
-@binLoop:
-    ldy TmpX
-    lda Mult3, y
-    tay
-    lda TmpScore+2
-    cmp DecimalPlaces+2, y
-    bcc @binNext
-    bne @binSub
-
-    lda TmpScore+1
-    cmp DecimalPlaces+1, y
-    bcc @binNext
-    bne @binSub
-
-    lda TmpScore+0
-    cmp DecimalPlaces+0, y
-    bcc @binNext
-    ;bne @binSub
-
-    ; not greater than
-    ;jmp @binNext
-
-@binSub:
-    ; the subtractions
-    sec
-    .repeat .sizeof(TmpScore), i
-    lda TmpScore+i
-    sbc DecimalPlaces+i, y
-    sta TmpScore+i
-    .endrepeat
-    inc Score_Tiles, x
-    jmp @binLoop
-
-@binNext:
-    ; next digit
-    inx
-    dec TmpX
-    bpl @binLoop
-
-    ; one's place
-    lda TmpScore+0
-    ora #'0'
-    sta Score_Tiles+5
 
     lda #0
     sta ClearCount
     sta DropScore
     rts
-
-DecimalPlaces:
-    .byte $0A, $00, $00 ; 10
-    .byte $64, $00, $00 ; 100
-    .byte $E8, $03, $00 ; 1000
-    .byte $10, $27, $00 ; 10000
-    .byte $A0, $86, $01 ; 100000
-
-Mult3:
-    .repeat 5, i
-    .byte (i)*3
-    .endrepeat
 
 DedTransition:
     jsr UpdateBlock

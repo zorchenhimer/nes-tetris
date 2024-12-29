@@ -83,53 +83,72 @@ LoadPalette:
 ; Binary value in A, decimal values
 ; output in BinOutput
 BinToDec:
-    lda #0
-    sta BinOutput+0
-    sta BinOutput+1
-    sta BinOutput+2
-@high:
-    lda TmpY
-    beq @hundo
+    lda #'0'
+    .repeat .sizeof(Bin_Tiles), i
+    sta Bin_Tiles+i
+    .endrepeat
 
+    ; binary to ascii
+    lda #4
+    sta TmpX ; digit index
+    ldx #0   ; ASCII index
+    ;sta TmpY
+@binLoop:
+    ldy TmpX
+    lda Mult3, y
+    tay
+    lda Bin_Input+2
+    cmp DecimalPlaces+2, y
+    bcc @binNext
+    bne @binSub
+
+    lda Bin_Input+1
+    cmp DecimalPlaces+1, y
+    bcc @binNext
+    bne @binSub
+
+    lda Bin_Input+0
+    cmp DecimalPlaces+0, y
+    bcc @binNext
+    ;bne @binSub
+
+    ; not greater than
+    ;jmp @binNext
+
+@binSub:
+    ; the subtractions
     sec
-    lda TmpX
-    sbc #100
-    sta TmpX
-    inc BinOutput+0
-    bcs @high
-    dec TmpY
-    jmp @high
+    .repeat .sizeof(Bin_Input), i
+    lda Bin_Input+i
+    sbc DecimalPlaces+i, y
+    sta Bin_Input+i
+    .endrepeat
+    inc Bin_Tiles, x
+    jmp @binLoop
 
-@hundo:
-    lda TmpX
-    cmp #100
-    bcs @addhundo
-    jmp @tens
+@binNext:
+    ; next digit
+    inx
+    dec TmpX
+    bpl @binLoop
 
-@addhundo:
-    inc BinOutput+0
-    sec
-    sbc #100
-    sta TmpX
-    jmp @hundo
-
-@tens:
-    lda TmpX
-    cmp #10
-    bcs @addtens
-    jmp @done
-
-@addtens:
-    inc BinOutput+1
-    sec
-    sbc #10
-    sta TmpX
-    jmp @tens
-
-@done:
-    lda TmpX
-    sta BinOutput+2
+    ; one's place
+    lda Bin_Input+0
+    ora #'0'
+    sta Bin_Tiles+5
     rts
+
+DecimalPlaces:
+    .byte $0A, $00, $00 ; 10
+    .byte $64, $00, $00 ; 100
+    .byte $E8, $03, $00 ; 1000
+    .byte $10, $27, $00 ; 10000
+    .byte $A0, $86, $01 ; 100000
+
+Mult3:
+    .repeat 5, i
+    .byte (i)*3
+    .endrepeat
 
 ClearSprites:
     ldx #0
