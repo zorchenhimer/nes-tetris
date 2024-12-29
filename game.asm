@@ -6,6 +6,17 @@ DropSpeed: .res 1
 
 SoftDrop: .res 1
 
+Level_Tiles: .res 4
+Score_Tiles: .res 6
+Lines_Tiles: .res 6
+Combo_Tiles: .res 4
+
+TmpM: .res 3
+
+MathA: .res 2
+MathB: .res 2
+MathC: .res 2
+
 .segment "BSS"
 BlockGrid: .res 4*4
 BlockX: .res 1
@@ -29,6 +40,18 @@ FieldGrid: .res 10*20
 
 HeldSwapped: .res 1
 
+Level: .res 2
+Score: .res 3
+Lines: .res 3
+Combo: .res 2
+
+TmpScore: .res 3
+
+; Contains tile indicies
+HighScore: .res 6
+
+ClearCount: .res 1 ; rows cleared this frame
+DropScore: .res 1  ; soft and hard drop scores this frame
 .popseg
 
 SPEED = 60
@@ -58,6 +81,8 @@ MMC5_OFFSET = $3C00
 
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
+
+;DEBUG_PIECE = 5
 
 .enum IRQStates
 DrawBoard
@@ -93,6 +118,7 @@ DisableIrq:
     sta $5204
     rts
 
+SCORE_ADDR = $2202
 NmiGame:
     lda #$3F
     sta $2006
@@ -108,6 +134,16 @@ NmiGame:
     sta $2003
     lda #$02
     sta $4014
+
+    lda #.hibyte(SCORE_ADDR)
+    sta $2006
+    lda #.lobyte(SCORE_ADDR)
+    sta $2006
+
+    .repeat .sizeof(Score_Tiles), j
+    lda Score_Tiles+j ;(.sizeof(Score_Tiles)-j)-1
+    sta $2007
+    .endrepeat
 
     rts
 
@@ -150,6 +186,25 @@ InitGame:
 
     jsr InitBags
     jsr NextBlock
+
+    lda #0
+    ldx #0
+:
+    sta Level, x
+    inx
+    cpx #.sizeof(Level) + .sizeof(Score) + .sizeof(Lines) + .sizeof(Combo)
+    bne :-
+
+    lda #'0'
+    ldx #0
+:
+    sta HighScore, x
+    inx
+    cpx #.sizeof(HighScore)
+    bne :-
+
+    lda #1
+    sta Level
 
     ; Turn off ExtAttr mode to draw the initial attribute data
     lda #%0000_0010
@@ -324,11 +379,19 @@ FrameGame:
     dec DropSpeed
     bpl @noDrop
 @doDrop:
+    lda SoftDrop
+    beq :+
+    lda #1
+    sta DropScore
+:
     inc BlockY
     lda #SPEED
     sta DropSpeed
     jsr CheckFallCollision
 @noDrop:
+
+    ; TODO: score stuff
+    jsr CalcScore
 
     lda BlockX
     sta CurrentX
@@ -354,6 +417,171 @@ FrameGame:
 ;
 ;    jsr WaitForNMI
 ;    jmp FramePaused
+
+ClearCountScores:
+    .byte 0, 1, 3, 5, 8
+
+CalcScore:
+    clc
+    lda DropScore
+    adc Score+0
+    sta Score+0
+
+    lda Score+1
+    adc #0
+    sta Score+1
+
+    lda Score+2
+    adc #0
+    sta Score+2
+
+    lda #0
+    sta TmpM+0
+    sta TmpM+1
+    sta TmpM+2
+
+    ; Level * Clear Score
+    ldx ClearCount
+    bne :+
+    jmp @done
+:
+    lda ClearCountScores, x
+    sta MMC5_MultA
+    lda Level
+    sta MMC5_MultB
+
+    lda MMC5_MultA
+    sta MathA+0
+    lda MMC5_MultB
+    sta MathA+1
+
+    ; Clear Score lo * 100
+    lda MathA+0
+    sta MMC5_MultA
+    lda #100
+    sta MMC5_MultB
+
+    lda MMC5_MultA
+    sta MathB+0
+    lda MMC5_MultB
+    sta MathB+1
+
+    ; Clear Score hi * 100
+    lda MathA+1
+    sta MMC5_MultA
+    lda #100
+    sta MMC5_MultB
+
+    lda MMC5_MultA
+    sta MathC+0
+    lda MMC5_MultB
+    sta MathC+1
+
+    lda MathB+0
+    sta TmpM+0
+
+    lda MathB+1
+    sta TmpM+1
+
+    clc
+    lda MathC+0
+    adc TmpM+1
+    sta TmpM+1
+
+    lda MathC+1
+    adc TmpM+2
+    sta TmpM+2
+
+    clc
+    lda Score+0
+    adc TmpM+0
+    sta Score+0
+
+    lda Score+1
+    adc TmpM+1
+    sta Score+1
+
+    lda Score+2
+    adc TmpM+2
+    sta Score+2
+
+@done:
+
+    .repeat .sizeof(Score), i
+    lda Score+i
+    sta TmpScore+i
+    .endrepeat
+
+    lda #'0'
+    .repeat .sizeof(Score_Tiles), i
+    sta Score_Tiles+i
+    .endrepeat
+
+    ; binary to ascii
+    lda #4
+    sta TmpX ; digit index
+    ldx #0   ; ASCII index
+    ;sta TmpY
+@binLoop:
+    ldy TmpX
+    lda Mult3, y
+    tay
+    lda TmpScore+2
+    cmp DecimalPlaces+2, y
+    bcc @binNext
+    bne @binSub
+
+    lda TmpScore+1
+    cmp DecimalPlaces+1, y
+    bcc @binNext
+    bne @binSub
+
+    lda TmpScore+0
+    cmp DecimalPlaces+0, y
+    bcc @binNext
+    ;bne @binSub
+
+    ; not greater than
+    ;jmp @binNext
+
+@binSub:
+    ; the subtractions
+    sec
+    .repeat .sizeof(TmpScore), i
+    lda TmpScore+i
+    sbc DecimalPlaces+i, y
+    sta TmpScore+i
+    .endrepeat
+    inc Score_Tiles, x
+    jmp @binLoop
+
+@binNext:
+    ; next digit
+    inx
+    dec TmpX
+    bpl @binLoop
+
+    ; one's place
+    lda TmpScore+0
+    ora #'0'
+    sta Score_Tiles+5
+
+    lda #0
+    sta ClearCount
+    sta DropScore
+    rts
+
+DecimalPlaces:
+    .byte $0A, $00, $00 ; 10
+    .byte $64, $00, $00 ; 100
+    .byte $E8, $03, $00 ; 1000
+    .byte $10, $27, $00 ; 10000
+    .byte $A0, $86, $01 ; 100000
+
+Mult3:
+    .repeat 5, i
+    .byte (i)*3
+    .endrepeat
 
 DedTransition:
     jsr UpdateBlock
@@ -544,6 +772,7 @@ ShuffleBag:
     cpx #6
     bne @loop
 
+
     rts
 
 ; Doesn't do any rotational collision stuff, just block gravity.
@@ -647,6 +876,7 @@ StartClearRows:
 CheckRowClear:
     ldx #.sizeof(ClearRows)-1
     lda #0
+    sta ClearCount ; total number of cleared rows
 :
     sta ClearRows, x
     dex
@@ -675,6 +905,7 @@ CheckRowClear:
     ldy BlockY
     lda #1
     sta ClearRows, y
+    inc ClearCount
 :
 
 @next:
@@ -909,6 +1140,11 @@ NextBlock_Swap:
     cpx #13
     bne :-
 
+    .ifdef DEBUG_PIECE
+    lda #DEBUG_PIECE
+    sta CurrentBlock
+    .endif
+
     lda #BLOCK_START_X
     sta BlockX
 
@@ -1110,7 +1346,7 @@ DrawFullBoard_SPEED:
     rts
 
 
-HOLD_ADDR = $20A3 + MMC5_OFFSET
+HOLD_ADDR  = $20A3 + MMC5_OFFSET
 irqDrawBoard:
 
     bit HoldPiece
@@ -1219,7 +1455,6 @@ irqDrawBoard:
     inx
     cpx #20
     bne @loopRow
-
     rts
 
 BlockSpriteLookupY:

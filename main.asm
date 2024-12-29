@@ -83,6 +83,9 @@ BUTTON_DOWN     = 1 << 2
 BUTTON_LEFT     = 1 << 1
 BUTTON_RIGHT    = 1 << 0
 
+MMC5_MultA = $5205
+MMC5_MultB = $5206
+
     .include "utils.asm"
 
 IrqCall:
