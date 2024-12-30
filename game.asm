@@ -17,6 +17,9 @@ MathA: .res 2
 MathB: .res 2
 MathC: .res 2
 
+BottomVals: .res 4
+LowestRows: .res 4
+
 .segment "BSS"
 BlockGrid: .res 4*4
 BlockX: .res 1
@@ -24,6 +27,7 @@ BlockY: .res 1
 
 CurrentX: .res 1
 CurrentY: .res 1
+GhostY: .res 1
 
 MinX: .res 1
 MaxX: .res 1
@@ -52,6 +56,8 @@ HighScore: .res 6
 
 ClearCount: .res 1 ; rows cleared this frame
 DropScore: .res 1  ; soft and hard drop scores this frame
+
+LowestY: .res 1
 .popseg
 
 SPEED = 60
@@ -82,7 +88,8 @@ MMC5_OFFSET = $3C00
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
 
-;DEBUG_PIECE = 5
+DEBUG_PIECE = 5
+DEBUG_FIELD = 1
 
 .enum IRQStates
 DrawBoard
@@ -153,6 +160,12 @@ GamePalettes:
     .byte $0F, $2C, $28, $20
     .byte $0F, $15, $27, $20
 
+SpritePalettes:
+    .byte $0F, $00, $0A, $20
+    .byte $0F, $13, $11, $20
+    .byte $0F, $1C, $18, $20
+    .byte $0F, $05, $17, $20
+
 InitGame:
     ; Clear sprites
     jsr ClearSprites
@@ -162,10 +175,10 @@ InitGame:
         sta Palettes+i
     .endrepeat
 
-    .repeat 4*4, i
-        lda GamePalettes+i
-        sta Palettes+i+16
-    .endrepeat
+    ;.repeat 4*4, i
+    ;    lda GamePalettes+i
+    ;    sta Palettes+i+16
+    ;.endrepeat
 
     ldx #0
     jsr FillAttributeTable
@@ -179,6 +192,9 @@ InitGame:
     lda #0
     ldy #0
 :
+    .ifdef DEBUG_FIELD
+    lda DebugField, y
+    .endif
     sta FieldGrid, y
     iny
     cpy #200
@@ -397,6 +413,9 @@ FrameGame:
     sta CurrentX
     lda BlockY
     sta CurrentY
+    clc
+    adc #3
+    sta GhostY
 
     jsr UpdateBlock
     jsr WaitForNMI
@@ -1188,7 +1207,230 @@ LoadBlock:
     bne @loop
     rts
 
+CalculateGhost:
+
+    ;
+    ; Copy bottom vals to zero page
+    lda CurrentBlock
+    asl a
+    tax
+
+    lda BlockRotation
+    asl a
+    asl a
+    sta TmpX
+
+    clc
+    lda BlockBottoms+0, x
+    adc TmpX
+    sta AddressPointer1+0
+    lda BlockBottoms+1, x
+    adc #0
+    sta AddressPointer1+1
+
+    ldy #0
+    ldx #19
+:
+    lda (AddressPointer1), y
+    sta BottomVals, y
+    stx LowestRows, y
+    iny
+    cpy #4
+    bne :-
+
+    lda #$FF
+    sta LowestY
+
+    ; Align to playfield, but we want the offset
+    ; (y-1)*10+x-1 = y*10+x-1-10 = y*10+x-11
+    lda CurrentY
+    sta MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+
+    clc
+    lda MMC5_MultA
+    adc CurrentX
+    sec
+    sbc #11
+
+    ; Offset in the field for the first
+    ; column in the BlockGrid
+    sta TmpY
+
+    lda #0
+    sta TmpA ; Current column
+    ldx CurrentY
+    dex
+    stx TmpB ; Current row
+    ldy TmpY
+
+@fieldColLoop:
+    lda FieldGrid, y
+    beq @nextFieldRow
+
+    lda TmpB
+    tay
+    iny
+    tya
+    ldy TmpA
+    sta LowestRows, y
+    jmp @fieldNextColumn
+
+@nextFieldRow:
+    inc TmpB
+    tya
+    clc
+    adc #10
+    tay
+    jmp @fieldColLoop
+
+@fieldNextColumn:
+    ldx CurrentY
+    dex
+    stx TmpB ; Current row
+
+    inc TmpY ; offset
+    ldy TmpY
+    inc TmpA ; col
+    lda TmpA
+    cmp #4
+    bne @fieldColLoop
+
+    ldx #0
+@bottomLoop:
+    lda BottomVals, x
+    beq @nextBottom
+
+    sec
+    lda LowestRows, x
+    sbc BottomVals, x
+    cmp LowestY
+    bcs @nextBottom
+    sta LowestY
+    ;inc LowestY
+
+@nextBottom:
+    inx
+    cpx #4
+    bne @bottomLoop
+
+    lda LowestY
+    sta GhostY
+
+    rts
+
+CalculateGhost_borked:
+;
+; Figure out ghost position
+    lda #$FF
+    sta LowestY
+    lda CurrentBlock
+    asl a
+    tax
+
+    lda BlockRotation
+    asl a
+    asl a
+    sta TmpX
+
+    clc
+    lda BlockBottoms+0, x
+    adc TmpX
+    sta AddressPointer1+0
+    lda BlockBottoms+1, x
+    adc #0
+    sta AddressPointer1+1
+
+    ; Align to playfield, but we want the offset
+    ; (y-1)*10+x-1 = y*10+x-1-10 = y*10+x-11
+    lda CurrentY
+    sta MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+
+    clc
+    lda MMC5_MultA
+    adc CurrentX
+    sec
+    sbc #11
+    sta TmpY ; Offset in the field for the first
+             ; column in the BlockGrid
+
+    lda CurrentY
+    sta TmpA
+
+    lda #0
+    sta TmpB ; column
+    ; Check block column lowest row
+@loopTop:
+    lda TmpA
+    sta TmpC ; current row
+    ldy TmpB
+    lda (AddressPointer1), y
+    beq @nextBlockColumn
+
+    ldx TmpY
+@rowLoop:
+    lda FieldGrid, x
+    beq @nextFieldRow
+
+    ldy TmpB
+    sec
+    lda TmpC
+    sbc (AddressPointer1), y
+    cmp LowestY
+    bcs @nextBlockColumn
+    sta LowestY
+    jmp @nextBlockColumn
+
+@nextFieldRow:
+    inc TmpC
+    txa
+    clc
+    adc #10
+    cmp #200
+    bcs @nextBlockColumn
+    jmp @rowLoop
+
+@nextBlockColumn:
+    ldy TmpB
+    iny
+    cpy #4
+    beq @done
+    sty TmpB
+    inc TmpY
+    jmp @loopTop
+
+@done:
+
+    lda LowestY
+    bpl @notBottom ; check for bottom of board
+    ldy #0
+    lda (AddressPointer1), y
+    sta TmpX
+    iny
+    lda (AddressPointer1), y
+    cmp TmpX
+    bcs :+
+    sta TmpX
+:   lda (AddressPointer1), y
+    cmp TmpX
+    bcs :+
+    sta TmpX
+:   lda (AddressPointer1), y
+    cmp TmpX
+    bcs :+
+    sta TmpX
+@notBottom:
+    sta GhostY
+    rts
+
 UpdateBlock:
+    jsr CalculateGhost
+
+;
+; Update both block and ghost sprites
     ldx CurrentX
     lda BlockGridLocationX, x
     sta TmpX
@@ -1197,16 +1439,31 @@ UpdateBlock:
     lda BlockGridLocationY, x
     sta TmpY
 
+    ldx GhostY
+    lda BlockGridLocationY, x
+    sta TmpZ
+
     ldx #0
     ldy #0
 @loop:
     lda BlockGrid, x
     sta TmpA
     beq @next
+    sta TmpB
     clc
     lda BlockSpriteLookupY, x
     adc TmpY
     sta SpriteBlock, y
+
+    lda FrameCount
+    and #$01
+    beq :+
+    clc
+    lda BlockSpriteLookupY, x
+    adc TmpZ
+    jmp :++
+:   lda #$FF
+:   sta GhostBlock, y
     iny
 
     ;lda #Block_TileId
@@ -1214,28 +1471,53 @@ UpdateBlock:
     and #$03
     ora #$10
     sta SpriteBlock, y
+    sta GhostBlock, y
     iny
 
-    lda TmpA
-    lsr a
-    lsr a
-    lsr a
-    lsr a
-    lsr a
-    lsr a
+    ;lda TmpA
+    ;lsr a
+    ;lsr a
+    ;lsr a
+    ;lsr a
+    ;lsr a
+    ;lsr a
+    lda #0
     sta SpriteBlock, y
+    lda #1
+    sta GhostBlock, y
     iny
 
     clc
     lda BlockSpriteLookupX, x
     adc TmpX
     sta SpriteBlock, y
+    sta GhostBlock, y
     iny
 
 @next:
     inx
     cpx #16
     bne @loop
+
+    lda TmpB
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ;lsr a
+    ;lsr a
+    tax
+    ldy #0
+:
+    lda GamePalettes, x
+    sta Palettes+16, y
+    lda SpritePalettes, x
+    sta Palettes+20, y
+    inx
+    iny
+    cpy #4
+    bne :-
+
 
     rts
 
@@ -1452,6 +1734,57 @@ BlockStart_Y:
     .byte 0 ; I
     .byte 0 ; O
 
+BlockBottoms:
+    .word :+
+    .word :++
+    .word :+++
+    .word :++++
+    .word :+++++
+    .word :++++++
+    .word :+++++++
+
+; Z
+:   .byte 1, 2, 2, 0
+    .byte 3, 2, 0, 0
+    .byte 1, 2, 2, 0
+    .byte 3, 2, 0, 0
+
+; S
+:   .byte 2, 2, 1, 0
+    .byte 2, 3, 0, 0
+    .byte 2, 2, 1, 0
+    .byte 2, 3, 0, 0
+
+; T
+:   .byte 2, 2, 2, 0
+    .byte 0, 3, 2, 0
+    .byte 2, 3, 2, 0
+    .byte 2, 3, 0, 0
+
+; L
+:   .byte 2, 2, 2, 0
+    .byte 0, 3, 3, 0
+    .byte 3, 2, 2, 0
+    .byte 1, 3, 0, 0
+
+; J
+:   .byte 2, 2, 2, 0
+    .byte 0, 3, 1, 0
+    .byte 2, 2, 3, 0
+    .byte 3, 3, 0, 0
+
+; I
+:   .byte 2, 2, 2, 2
+    .byte 0, 0, 4, 0
+    .byte 3, 3, 3, 3
+    .byte 0, 4, 0, 0
+
+; O
+:   .byte 0, 3, 3, 0
+    .byte 0, 3, 3, 0
+    .byte 0, 3, 3, 0
+    .byte 0, 3, 3, 0
+
 ; Locations for each tile in a block
 BlockTiles:
     .word :+
@@ -1590,14 +1923,14 @@ TILE_I = TILE_1 | PAL_C
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
+    .byte TILE_X, TILE_X, TILE_I, TILE_X
+    .byte TILE_X, TILE_X, TILE_I, TILE_X
+    .byte TILE_X, TILE_X, TILE_I, TILE_X
+    .byte TILE_X, TILE_X, TILE_I, TILE_X
 
     .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_I, TILE_I, TILE_I, TILE_I
     .byte TILE_X, TILE_X, TILE_X, TILE_X
+    .byte TILE_I, TILE_I, TILE_I, TILE_I
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
     .byte TILE_X, TILE_I, TILE_X, TILE_X

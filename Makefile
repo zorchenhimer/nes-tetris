@@ -15,7 +15,8 @@ SOURCES = \
 	game.asm \
 	utils.asm \
 	piece-rng.inc \
-	playfield.i
+	playfield.i \
+	debug-field.i
 
 CHR = tiles.chr tiles2.chr tiles3.chr
 
@@ -52,3 +53,7 @@ images/%.bmp: images/%.aseprite
 
 playfield.i: screens/playfield.tmx
 	go run convert-map.go $< $@
+
+debug-field.i: screens/debug-field.tmx
+	go run convert-map.go $< $@
+

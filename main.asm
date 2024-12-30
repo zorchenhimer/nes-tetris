@@ -21,6 +21,7 @@ NmiHandler: .res 2
 
 TmpA: .res 1
 TmpB: .res 1
+TmpC: .res 1
 TmpX: .res 1
 TmpY: .res 1
 TmpZ: .res 1
@@ -34,8 +35,9 @@ Controller_Old: .res 1
 ptrIRQ: .res 2
 
 .segment "OAM"
-SpriteZero: .res 4
+SpriteZero:  .res 4
 SpriteBlock: .res 4*4
+GhostBlock:  .res 4*4
 
 GameOverSprites: .res 8*4*4
 GameOverOops: .res 8*4
@@ -47,6 +49,8 @@ rng_index: .res 1
 
 Bin_Input: .res 3
 Bin_Tiles: .res 6
+
+FrameCount: .res 1
 
 .segment "VECTORS"
     .word NMI
@@ -70,6 +74,9 @@ Bin_Tiles: .res 6
 
 Screen_Playfield:
     .include "playfield.i"
+
+DebugField:
+    .include "debug-field.i"
 
 PieceRng:
     .include "piece-rng.inc"
@@ -181,6 +188,8 @@ NMI:
 
     lda #$FF
     sta Sleeping
+
+    inc FrameCount
 
     ;pla
     ;tay
