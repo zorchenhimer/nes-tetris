@@ -89,7 +89,7 @@ GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
 
 DEBUG_PIECE = 5
-DEBUG_FIELD = 1
+;DEBUG_FIELD = 1
 
 BlockGridOffset_X = -2
 BlockGridOffset_Y = -1
@@ -422,9 +422,6 @@ FrameGame:
     sta CurrentX
     lda BlockY
     sta CurrentY
-    clc
-    adc #3
-    sta GhostY
 
     jsr UpdateBlock
     jsr WaitForNMI
@@ -1243,7 +1240,7 @@ CalculateGhost:
     sta AddressPointer1+1
 
     ldy #0
-    ldx #19
+    ldx #21
 :
     lda (AddressPointer1), y
     sta BottomVals, y
@@ -1296,6 +1293,9 @@ CalculateGhost:
 
 @nextFieldRow:
     inc TmpB
+    lda TmpB
+    cmp #$14
+    beq @fieldNextColumn
     tya
     clc
     adc #10
@@ -1336,7 +1336,6 @@ CalculateGhost:
 
     lda LowestY
     sta GhostY
-
     rts
 
 CalculateGhost_borked:
@@ -1775,14 +1774,14 @@ BlockBottoms:
 
 ; Z
 :   .byte 1, 2, 2, 0
-    .byte 3, 2, 0, 0
-    .byte 1, 2, 2, 0
+    .byte 0, 3, 2, 0
+    .byte 2, 3, 3, 0
     .byte 3, 2, 0, 0
 
 ; S
 :   .byte 2, 2, 1, 0
-    .byte 2, 3, 0, 0
-    .byte 2, 2, 1, 0
+    .byte 0, 2, 3, 0
+    .byte 3, 3, 2, 0
     .byte 2, 3, 0, 0
 
 ; T
