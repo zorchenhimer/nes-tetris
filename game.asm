@@ -98,6 +98,11 @@ GAMEOVER_START_Y = 109
 BlockGridOffset_X = -2
 BlockGridOffset_Y = -1
 
+SCORE_ADDR = $2202
+LINES_ADDR = $2262
+COMBO_ADDR = $21A4
+LEVEL_ADDR = $22C4
+
 .enum IRQStates
 DrawBoard
 .endenum
@@ -132,7 +137,6 @@ DisableIrq:
     sta $5204
     rts
 
-SCORE_ADDR = $2202
 NmiGame:
     lda #$3F
     sta $2006
@@ -155,7 +159,37 @@ NmiGame:
     sta $2006
 
     .repeat .sizeof(Score_Tiles), j
-    lda Score_Tiles+j ;(.sizeof(Score_Tiles)-j)-1
+    lda Score_Tiles+j
+    sta $2007
+    .endrepeat
+
+    lda #.hibyte(LINES_ADDR)
+    sta $2006
+    lda #.lobyte(LINES_ADDR)
+    sta $2006
+
+    .repeat .sizeof(Lines_Tiles), j
+    lda Lines_Tiles+j
+    sta $2007
+    .endrepeat
+
+    lda #.hibyte(COMBO_ADDR)
+    sta $2006
+    lda #.lobyte(COMBO_ADDR)
+    sta $2006
+
+    .repeat .sizeof(Combo_Tiles), j
+    lda Combo_Tiles+j
+    sta $2007
+    .endrepeat
+
+    lda #.hibyte(LEVEL_ADDR)
+    sta $2006
+    lda #.lobyte(LEVEL_ADDR)
+    sta $2006
+
+    .repeat .sizeof(Level_Tiles), j
+    lda Level_Tiles+j
     sta $2007
     .endrepeat
 
@@ -190,7 +224,7 @@ InitGame:
     sta AddressPointer1+0
     lda #.hibyte(GameOverPalette)
     sta AddressPointer1+1
-    ldx #6
+    ldx #7
     jsr LoadPalette
 
     ldx #0
@@ -536,6 +570,11 @@ CalcScore:
 
 @done:
 
+    clc
+    lda Lines
+    adc ClearCount
+    sta Lines
+
     .repeat .sizeof(Score), i
     lda Score+i
     ;sta TmpScore+i
@@ -547,6 +586,18 @@ CalcScore:
     .repeat .sizeof(Bin_Tiles), i
     lda Bin_Tiles+i
     sta Score_Tiles+i
+    .endrepeat
+
+    .repeat .sizeof(Lines), i
+    lda Lines+i
+    sta Bin_Input+i
+    .endrepeat
+
+    jsr BinToDec
+
+    .repeat .sizeof(Bin_Tiles), i
+    lda Bin_Tiles+i
+    sta Lines_Tiles+i
     .endrepeat
 
     lda #0
@@ -1698,6 +1749,9 @@ irqDrawBoard:
     inx
     cpx #20
     bne @loopRow
+
+    ; TODO: IRQSleep, similar to the NMI sleep
+
     rts
 
 BlockSpriteLookupY:
