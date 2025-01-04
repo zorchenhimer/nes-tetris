@@ -18,7 +18,10 @@ MathB: .res 2
 MathC: .res 2
 
 BottomVals: .res 4
+TopVals: .res 4
 LowestRows: .res 4
+
+TmpBlockOffset: .res 1
 
 .segment "BSS"
 BlockGrid: .res 4*4
@@ -58,6 +61,7 @@ ClearCount: .res 1 ; rows cleared this frame
 DropScore: .res 1  ; soft and hard drop scores this frame
 
 LowestY: .res 1
+GhostYBase: .res 1
 .popseg
 
 SPEED = 60
@@ -88,7 +92,7 @@ MMC5_OFFSET = $3C00
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
 
-DEBUG_PIECE = 5
+;DEBUG_PIECE = 6
 ;DEBUG_FIELD = 1
 
 BlockGridOffset_X = -2
@@ -1221,40 +1225,56 @@ LoadBlock:
 CalculateGhost:
 
     ;
-    ; Copy bottom vals to zero page
+    ; Copy top & bottom vals to zero page
     lda CurrentBlock
     asl a
-    tax
+    asl a
+    asl a
+    asl a
+    sta TmpBlockOffset
 
     lda BlockRotation
     asl a
     asl a
-    sta TmpX
-
     clc
-    lda BlockBottoms+0, x
-    adc TmpX
-    sta AddressPointer1+0
-    lda BlockBottoms+1, x
-    adc #0
-    sta AddressPointer1+1
+    adc TmpBlockOffset
+    tay
 
-    ldy #0
-    ldx #21
+    ldx #0
 :
-    lda (AddressPointer1), y
-    sta BottomVals, y
-    stx LowestRows, y
+    lda BlockBottoms, y
+    sta BottomVals, x
+
+    lda BlockTops, y
+    sta TopVals, x
+
+    lda #21
+    sta LowestRows, x
+    inx
     iny
-    cpy #4
+    cpx #4
     bne :-
 
     lda #$FF
     sta LowestY
 
+    lda #0
+    sta TmpA ; Current column
+
+    ; Find the highest row in each column.
+    ; This is limited to the four columns that
+    ; the piece grid occupies.
+@fieldColTopLoop:
+    ldx TmpA
+    lda TopVals, x
+    clc
+    adc CurrentY
+    sta TmpB ; current row
+    dec TmpB
+
     ; Align to playfield, but we want the offset
     ; (y-1)*10+x-1 = y*10+x-1-10 = y*10+x-11
-    lda CurrentY
+    ;lda CurrentY
     sta MMC5_MultA
     lda #10
     sta MMC5_MultB
@@ -1262,6 +1282,7 @@ CalculateGhost:
     clc
     lda MMC5_MultA
     adc CurrentX
+    adc TmpA
     sec
     sbc #11
 
@@ -1269,16 +1290,7 @@ CalculateGhost:
     ; column in the BlockGrid
     sta TmpY
 
-    lda #0
-    sta TmpA ; Current column
-    ldx CurrentY
-    dex
-    stx TmpB ; Current row
     ldy TmpY
-
-    ; Find the highest row in each column.
-    ; This is limited to the four columns that
-    ; the piece grid occupies.
 @fieldColLoop:
     lda FieldGrid, y
     beq @nextFieldRow
@@ -1303,16 +1315,12 @@ CalculateGhost:
     jmp @fieldColLoop
 
 @fieldNextColumn:
-    ldx CurrentY
-    dex
-    stx TmpB ; Current row
-
     inc TmpY ; offset
     ldy TmpY
     inc TmpA ; col
     lda TmpA
     cmp #4
-    bne @fieldColLoop
+    bne @fieldColTopLoop
 
     ; Find the highest coordinate across
     ; all four columns of the piece grid
@@ -1763,53 +1771,88 @@ BlockRight:
     .byte 0, 1, 0, 2 ; I
     .byte 1, 1, 1, 1 ; O
 
-BlockBottoms:
-    .word :+
-    .word :++
-    .word :+++
-    .word :++++
-    .word :+++++
-    .word :++++++
-    .word :+++++++
+BlockTops:
+    ; Z
+    .byte 0, 0, 1, 4
+    .byte 4, 1, 0, 4
+    .byte 1, 1, 2, 4
+    .byte 1, 0, 4, 4
 
-; Z
-:   .byte 1, 2, 2, 0
+    ; S
+    .byte 1, 0, 0, 4
+    .byte 4, 0, 1, 4
+    .byte 2, 1, 1, 4
+    .byte 0, 1, 4, 4
+
+    ; T
+    .byte 1, 0, 1, 4
+    .byte 4, 0, 1, 4
+    .byte 1, 1, 1, 4
+    .byte 1, 0, 4, 4
+
+    ; L
+    .byte 1, 1, 0, 4
+    .byte 4, 0, 2, 4
+    .byte 1, 1, 1, 4
+    .byte 0, 0, 4, 4
+
+    ; J
+    .byte 0, 1, 1, 4
+    .byte 4, 0, 0, 4
+    .byte 1, 1, 1, 4
+    .byte 2, 0, 4, 4
+
+    ; I
+    .byte 1, 1, 1, 1
+    .byte 4, 4, 0, 4
+    .byte 2, 2, 2, 2
+    .byte 4, 0, 4, 4
+
+    ; O
+    .byte 4, 1, 1, 4
+    .byte 4, 1, 1, 4
+    .byte 4, 1, 1, 4
+    .byte 4, 1, 1, 4
+
+BlockBottoms:
+    ; Z
+    .byte 1, 2, 2, 0
     .byte 0, 3, 2, 0
     .byte 2, 3, 3, 0
     .byte 3, 2, 0, 0
 
-; S
-:   .byte 2, 2, 1, 0
+    ; S
+    .byte 2, 2, 1, 0
     .byte 0, 2, 3, 0
     .byte 3, 3, 2, 0
     .byte 2, 3, 0, 0
 
-; T
-:   .byte 2, 2, 2, 0
+    ; T
+    .byte 2, 2, 2, 0
     .byte 0, 3, 2, 0
     .byte 2, 3, 2, 0
     .byte 2, 3, 0, 0
 
-; L
-:   .byte 2, 2, 2, 0
+    ; L
+    .byte 2, 2, 2, 0
     .byte 0, 3, 3, 0
     .byte 3, 2, 2, 0
     .byte 1, 3, 0, 0
 
-; J
-:   .byte 2, 2, 2, 0
+    ; J
+    .byte 2, 2, 2, 0
     .byte 0, 3, 1, 0
     .byte 2, 2, 3, 0
     .byte 3, 3, 0, 0
 
-; I
-:   .byte 2, 2, 2, 2
+    ; I
+    .byte 2, 2, 2, 2
     .byte 0, 0, 4, 0
     .byte 3, 3, 3, 3
     .byte 0, 4, 0, 0
 
-; O
-:   .byte 0, 3, 3, 0
+    ; O
+    .byte 0, 3, 3, 0
     .byte 0, 3, 3, 0
     .byte 0, 3, 3, 0
     .byte 0, 3, 3, 0
