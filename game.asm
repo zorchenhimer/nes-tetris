@@ -91,6 +91,9 @@ GAMEOVER_START_Y = 109
 DEBUG_PIECE = 5
 DEBUG_FIELD = 1
 
+BlockGridOffset_X = -2
+BlockGridOffset_Y = -1
+
 .enum IRQStates
 DrawBoard
 .endenum
@@ -166,19 +169,25 @@ SpritePalettes:
     .byte $0F, $1C, $18, $20
     .byte $0F, $05, $17, $20
 
+GameOverPalette:
+    .byte $0F, $15, $27, $20
+
 InitGame:
     ; Clear sprites
     jsr ClearSprites
 
-    .repeat 4*4, i
-        lda GamePalettes+i
-        sta Palettes+i
-    .endrepeat
+    lda #.lobyte(GamePalettes)
+    sta AddressPointer1+0
+    lda #.hibyte(GamePalettes)
+    sta AddressPointer1+1
+    jsr LoadBgPalettes
 
-    ;.repeat 4*4, i
-    ;    lda GamePalettes+i
-    ;    sta Palettes+i+16
-    ;.endrepeat
+    lda #.lobyte(GameOverPalette)
+    sta AddressPointer1+0
+    lda #.hibyte(GameOverPalette)
+    sta AddressPointer1+1
+    ldx #6
+    jsr LoadPalette
 
     ldx #0
     jsr FillAttributeTable
@@ -898,6 +907,9 @@ DoClearRow:
     rts
 
 CheckCollide_Rotate:
+    ; TODO: Precalculate this shit.  Might want to precalc
+    ;       the rotations.  Eg, layout in Tiled then calc
+    ;       grids and all lookup tables with a util.
     lda #BoardWidth
     sta MaxX
     lda #0 ; no block in col 1
@@ -957,6 +969,8 @@ CheckCollide_Rotate:
 
 CheckCollide_WithGrid:
     ; Align grid on playfield
+    ; TODO: Use an offset instead of pointer
+    ;       address.  See CalculateGhost.
     ldy BlockY
     dey
     bpl :+
@@ -1265,6 +1279,9 @@ CalculateGhost:
     stx TmpB ; Current row
     ldy TmpY
 
+    ; Find the highest row in each column.
+    ; This is limited to the four columns that
+    ; the piece grid occupies.
 @fieldColLoop:
     lda FieldGrid, y
     beq @nextFieldRow
@@ -1297,6 +1314,8 @@ CalculateGhost:
     cmp #4
     bne @fieldColLoop
 
+    ; Find the highest coordinate across
+    ; all four columns of the piece grid
     ldx #0
 @bottomLoop:
     lda BottomVals, x
@@ -1466,7 +1485,6 @@ UpdateBlock:
 :   sta GhostBlock, y
     iny
 
-    ;lda #Block_TileId
     lda TmpA
     and #$03
     ora #$10
@@ -1474,13 +1492,6 @@ UpdateBlock:
     sta GhostBlock, y
     iny
 
-    ;lda TmpA
-    ;lsr a
-    ;lsr a
-    ;lsr a
-    ;lsr a
-    ;lsr a
-    ;lsr a
     lda #0
     sta SpriteBlock, y
     lda #1
@@ -1504,13 +1515,14 @@ UpdateBlock:
     lsr a
     lsr a
     lsr a
-    ;lsr a
-    ;lsr a
     tax
     ldy #0
 :
+    ; Active block
     lda GamePalettes, x
     sta Palettes+16, y
+
+    ; Ghost block
     lda SpritePalettes, x
     sta Palettes+20, y
     inx
@@ -1734,6 +1746,24 @@ BlockStart_Y:
     .byte 0 ; I
     .byte 0 ; O
 
+BlockLeft:
+    .byte 0, 1, 0, 0 ; Z
+    .byte 0, 1, 0, 0 ; S
+    .byte 0, 1, 0, 0 ; T
+    .byte 0, 1, 0, 0 ; L
+    .byte 0, 1, 0, 0 ; J
+    .byte 0, 2, 0, 1 ; I
+    .byte 1, 1, 1, 1 ; O
+
+BlockRight:
+    .byte 1, 1, 1, 2 ; Z
+    .byte 1, 1, 1, 2 ; S
+    .byte 1, 1, 1, 2 ; T
+    .byte 1, 1, 1, 2 ; L
+    .byte 1, 1, 1, 2 ; J
+    .byte 0, 1, 0, 2 ; I
+    .byte 1, 1, 1, 1 ; O
+
 BlockBottoms:
     .word :+
     .word :++
@@ -1804,14 +1834,14 @@ TILE_Z = TILE_1 | PAL_D
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+    .byte TILE_X, TILE_X, TILE_Z, TILE_X
+    .byte TILE_X, TILE_Z, TILE_Z, TILE_X
     .byte TILE_X, TILE_Z, TILE_X, TILE_X
-    .byte TILE_Z, TILE_Z, TILE_X, TILE_X
-    .byte TILE_Z, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_Z, TILE_Z, TILE_X, TILE_X
     .byte TILE_X, TILE_Z, TILE_Z, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
     .byte TILE_X, TILE_Z, TILE_X, TILE_X
@@ -1828,14 +1858,14 @@ TILE_S = TILE_2 | PAL_A
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte TILE_S, TILE_X, TILE_X, TILE_X
-    .byte TILE_S, TILE_S, TILE_X, TILE_X
     .byte TILE_X, TILE_S, TILE_X, TILE_X
+    .byte TILE_X, TILE_S, TILE_S, TILE_X
+    .byte TILE_X, TILE_X, TILE_S, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
+    .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_S, TILE_S, TILE_X
     .byte TILE_S, TILE_S, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
     .byte TILE_S, TILE_X, TILE_X, TILE_X

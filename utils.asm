@@ -77,11 +77,35 @@ LoadPalette:
     iny
     lda (AddressPointer1), y
     sta Palettes+3, x
+    rts
 
+; Palette data address in AddressPointer1
+; Loads up all four BG palettes.
+LoadBgPalettes:
+    ldy #0
+    ldx #4
+:
+    lda (AddressPointer1), y
+    sta Palettes, y
+    iny
+    lda (AddressPointer1), y
+    sta Palettes, y
+    iny
+    lda (AddressPointer1), y
+    sta Palettes, y
+    iny
+    lda (AddressPointer1), y
+    sta Palettes, y
+    iny
+    dex
+    bpl :-
     rts
 
 ; Binary value in A, decimal values
 ; output in BinOutput
+; TODO: Split this in two?  one for six
+;       characters (this one), and one for
+;       four?
 BinToDec:
     lda #'0'
     .repeat .sizeof(Bin_Tiles), i
@@ -92,10 +116,10 @@ BinToDec:
     lda #4
     sta TmpX ; digit index
     ldx #0   ; ASCII index
-    ;sta TmpY
 @binLoop:
-    ldy TmpX
+    ldy TmpX ; get index into DecimalPlaces
     lda Mult3, y
+
     tay
     lda Bin_Input+2
     cmp DecimalPlaces+2, y
@@ -110,10 +134,6 @@ BinToDec:
     lda Bin_Input+0
     cmp DecimalPlaces+0, y
     bcc @binNext
-    ;bne @binSub
-
-    ; not greater than
-    ;jmp @binNext
 
 @binSub:
     ; the subtractions
@@ -169,13 +189,7 @@ DrawScreen:
     lda #$00
     sta $2006
 
-    ;lda #.lobyte(960)
-    ;sta AddressPointer2+0
-    ;lda #.hibyte(960)
-    ;sta AddressPointer2+1
     ldx #240
-    ;sta TmpA
-
 @loop:
     ldy #0
     lda (AddressPointer1), y
