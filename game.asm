@@ -13,7 +13,7 @@ Combo_Tiles: .res 4
 
 TmpM: .res 3
 
-MathA: .res 2
+MathA: .res 3
 MathB: .res 2
 MathC: .res 2
 
@@ -50,7 +50,8 @@ HeldSwapped: .res 1
 Level: .res 2
 Score: .res 3
 Lines: .res 3
-Combo: .res 2
+Combo: .res 1
+UpdateCombo: .res 1
 
 TmpScore: .res 3
 
@@ -255,7 +256,7 @@ InitGame:
 :
     sta Level, x
     inx
-    cpx #.sizeof(Level) + .sizeof(Score) + .sizeof(Lines) + .sizeof(Combo)
+    cpx #.sizeof(Level) + .sizeof(Score) + .sizeof(Lines)
     bne :-
 
     lda #'0'
@@ -265,6 +266,9 @@ InitGame:
     inx
     cpx #.sizeof(HighScore)
     bne :-
+
+    lda #$FF
+    sta Combo
 
     lda #1
     sta Level
@@ -575,6 +579,60 @@ CalcScore:
     adc ClearCount
     sta Lines
 
+    lda UpdateCombo
+    beq @noCombo
+
+    ; TODO: add combo to score
+
+    ;lda #50
+    ;sta MMC5_MultA
+    ;lda Combo+0
+    ;sta MMC5_MultB
+
+    ;lda MMC5_MultA
+    ;sta MathA+0
+
+    ;lda #50
+    ;sta MMC5_MultA
+    ;lda Combo+1
+    ;sta MMC5_MultB
+
+    ;lda MMC5_MultA
+    ;sta MathA+1
+
+    ;lda MathA+0
+    ;sta MMC5_MultA
+    ;lda 
+
+@noCombo:
+
+    ; Is combo -1? draw 0 if so
+    lda Combo
+    cmp #$FF
+    bne :+
+
+    lda #$30
+    .repeat .sizeof(Combo_Tiles), i
+    sta Combo_Tiles+i
+    .endrepeat
+    jmp @comboDone
+:
+    lda Combo+0
+    sta Bin_Input+0
+    lda #0
+    sta Bin_Input+1
+    lda #0
+    sta Bin_Input+2
+
+    jsr BinToDec_Sm
+
+    .repeat .sizeof(Combo_Tiles), i
+    lda Bin_Tiles+2+i
+    sta Combo_Tiles+i
+    .endrepeat
+
+@comboDone:
+
     .repeat .sizeof(Score), i
     lda Score+i
     ;sta TmpScore+i
@@ -598,6 +656,20 @@ CalcScore:
     .repeat .sizeof(Bin_Tiles), i
     lda Bin_Tiles+i
     sta Lines_Tiles+i
+    .endrepeat
+
+    lda Level+0
+    sta Bin_Input+0
+    lda Level+1
+    sta Bin_Input+1
+    lda #0
+    sta Bin_Input+2
+
+    jsr BinToDec_Sm
+
+    .repeat .sizeof(Level_Tiles), i
+    lda Bin_Tiles+2+i
+    sta Level_Tiles+i
     .endrepeat
 
     lda #0
@@ -933,6 +1005,17 @@ CheckRowClear:
 @next:
     dec TmpX
     bne @loop
+
+    lda ClearCount
+    sta UpdateCombo
+    bne :+
+    lda #$FF
+    sta Combo
+    rts
+:
+
+    clc
+    inc Combo
     rts
 
 ; Row in AddressPointer1

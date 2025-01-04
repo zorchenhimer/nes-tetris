@@ -106,15 +106,22 @@ LoadBgPalettes:
 ; TODO: Split this in two?  one for six
 ;       characters (this one), and one for
 ;       four?
+BinToDec_Sm:
+    lda #2
+    sta TmpX
+    jmp binJmp
+
 BinToDec:
+    ; binary to ascii
+    lda #4
+    sta TmpX ; digit index
+
+binJmp:
     lda #'0'
     .repeat .sizeof(Bin_Tiles), i
     sta Bin_Tiles+i
     .endrepeat
 
-    ; binary to ascii
-    lda #4
-    sta TmpX ; digit index
     ldx #0   ; ASCII index
 @binLoop:
     ldy TmpX ; get index into DecimalPlaces
