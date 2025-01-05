@@ -70,6 +70,9 @@ LowestY:    .res 1
 GhostYBase: .res 1
 DropShake:  .res 1
 
+RepeatLeft: .res 1
+RepeatRight: .res 1
+
 Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
 Option_ScreenShake: .res 1 ; 1 enable shake
 .popseg
@@ -117,6 +120,11 @@ LEVEL_ADDR = $22C4
 
 HOLD_ADDR  = $2139 + MMC5_OFFSET
 NEXT_ADDR_START = $21D9 + MMC5_OFFSET
+
+; Initial wait time in frames before repeating input
+BUTTON_REPEAT_START = 15
+; Held wait time in frames between repeated input
+BUTTON_REPEAT = 3
 
 .enum IRQStates
 DrawBoard
@@ -322,6 +330,8 @@ InitGame:
     lda #$FF
     sta Combo
     sta DropShake
+    sta RepeatLeft
+    sta RepeatRight
 
     lda #1
     sta Level
@@ -465,9 +475,28 @@ FrameGame:
     jsr LoadBlock
 :
 
+    lda #BUTTON_LEFT
+    jsr ButtonReleased
+    beq :+
+    lda #$FF
+    sta RepeatLeft
+:
+
+    lda RepeatLeft
+    bmi :+
+    dec RepeatLeft
+    bpl :+
+    lda #BUTTON_REPEAT
+    sta RepeatLeft
+    jmp @buttonLeft
+:
+
     lda #BUTTON_LEFT ; left
     jsr ButtonPressed
     beq :++
+    lda #BUTTON_REPEAT_START
+    sta RepeatLeft
+@buttonLeft:
     dec BlockX
     bpl :+
     lda #0
@@ -479,8 +508,27 @@ FrameGame:
 :
 
     lda #BUTTON_RIGHT ; right
+    jsr ButtonReleased
+    beq :+
+    lda #$FF
+    sta RepeatRight
+:
+
+    lda RepeatRight
+    bmi :+
+    dec RepeatRight
+    bpl :+
+    lda #BUTTON_REPEAT
+    sta RepeatRight
+    jmp @buttonRight
+:
+
+    lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
     beq :++
+    lda #BUTTON_REPEAT_START
+    sta RepeatRight
+@buttonRight:
     inc BlockX
     lda BlockX
     cmp #BoardWidth
