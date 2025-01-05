@@ -13,6 +13,9 @@ ReadControllers:
     lda $4016
     lsr A           ; Bit0 -> Carry
     rol Controller ; Bit0 <- Carry
+    and #$01
+    ora Controller
+    sta Controller
     dex
     bne @player1
     rts
