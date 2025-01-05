@@ -63,6 +63,8 @@ DropScore: .res 1  ; soft and hard drop scores this frame
 
 LowestY: .res 1
 GhostYBase: .res 1
+
+Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
 .popseg
 
 SPEED = 60
@@ -95,6 +97,8 @@ GAMEOVER_START_Y = 109
 
 ;DEBUG_PIECE = 6
 ;DEBUG_FIELD = 1
+
+DEBUG_FLASH = 0
 
 BlockGridOffset_X = -2
 BlockGridOffset_Y = -1
@@ -272,6 +276,13 @@ InitGame:
 
     lda #1
     sta Level
+
+    .ifdef DEBUG_FLASH
+    lda #DEBUG_FLASH
+    .else
+    lda #1
+    .endif
+    sta Option_GhostFlash
 
     ; Turn off ExtAttr mode to draw the initial attribute data
     lda #%0000_0010
@@ -1509,6 +1520,8 @@ UpdateBlock:
     adc TmpY
     sta SpriteBlock, y
 
+    lda Option_GhostFlash
+    beq @noFlash
     lda FrameCount
     and #$01
     beq :+
@@ -1518,6 +1531,14 @@ UpdateBlock:
     jmp :++
 :   lda #$FF
 :   sta GhostBlock, y
+    jmp @doneFlash
+
+@noFlash:
+    clc
+    lda BlockSpriteLookupY, x
+    adc TmpZ
+    sta GhostBlock, y
+@doneFlash:
     iny
 
     lda TmpA
