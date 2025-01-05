@@ -12,6 +12,9 @@ Menu_CursorY    = 63 ; First row
 .pushseg
 .segment "BSS"
 MenuSelection: .res 1
+MenuPrevious:  .res 1
+MenuSelDir:    .res 1
+UpdateMenu:    .res 1
 
 .popseg
 
@@ -24,8 +27,48 @@ MenuText:
 MenuDestinations:
     .word InitGame
     .word InitScores
-    .word InitScores
-    .word InitScores
+    .word InitModes
+    .word InitVsMode
+    .word InitOptions
+
+MenuDestCount = (* - MenuDestinations) / 2
+
+.enum MenuSel
+Game
+Scores
+Modes
+VsMode
+Options
+.endenum
+
+;InitScores:
+;    jmp InitScores
+
+InitModes:
+    jmp InitModes
+
+InitVsMode:
+    jmp InitVsMode
+
+InitOptions:
+    jmp InitOptions
+
+.enum MenuDir
+Up
+Down
+Left
+Right
+.endenum
+
+MenuMovement:
+    ; U D L R
+    .byte MenuSel::Game,   MenuSel::VsMode,  MenuSel::Game,   MenuSel::Scores
+    .byte MenuSel::Scores, MenuSel::VsMode,  MenuSel::Game,   MenuSel::Modes
+    .byte MenuSel::Modes,  MenuSel::Options, MenuSel::Scores, MenuSel::Modes
+
+    .byte MenuSel::Game,   MenuSel::VsMode,  MenuSel::VsMode, MenuSel::Options
+    .byte MenuSel::Modes,  MenuSel::Options, MenuSel::VsMode, MenuSel::Options
+
 
 Menu_ItemCount = (* - MenuDestinations) / 2
 
@@ -48,8 +91,13 @@ InitMenu:
     ldx #0
     jsr FillAttributeTable
 
-    ldx #' '
-    jsr FillScreen
+    lda #.lobyte(Screen_Menu)
+    sta AddressPointer1+0
+    lda #.hibyte(Screen_Menu)
+    sta AddressPointer1+1
+    jsr DrawScreen
+    ;ldx #' '
+    ;jsr FillScreen
 
     lda #.lobyte(Palette_Bg)
     sta AddressPointer1+0
@@ -69,47 +117,8 @@ InitMenu:
     sta AddressPointer1+0
     sta $2006
 
-    ldx #0
-    ldy #Menu_ItemCount
-@loop:
-    lda MenuText, x
-    beq @next
-    inx
-    sta $2007
-    jmp @loop
-
-@next:
-    inx
-    dey
-    beq @done
-    clc
-    lda AddressPointer1+0
-    adc #Menu_ItemSpacing_Tiles
-    sta AddressPointer1+0
-
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
-    sta $2006
-
-    lda AddressPointer1+0
-    sta $2006
-    jmp @loop
-
-@done:
-
     lda #0
     sta MenuSelection
-
-    lda #Menu_CursorY
-    sta SpriteZero+0
-    lda #Menu_CursorX
-    sta SpriteZero+3
-
-    lda #Menu_CursorTile
-    sta SpriteZero+1
-    lda #0
-    sta SpriteZero+2
 
     lda #%1000_0000
     sta $2000
@@ -126,63 +135,86 @@ FrameMenu:
     lda #BUTTON_START ; start
     jsr ButtonPressed
     beq :+
+    ; NOTE: this is just until i get the new menu working
+    lda #0
+    sta MenuSelection
     jmp Menu_DoSelection
 :
 
     lda #BUTTON_A ; a
     jsr ButtonPressed
     beq :+
+    ; NOTE: this is just until i get the new menu working
+    lda #0
+    sta MenuSelection
     jmp Menu_DoSelection
 :
 
-    lda #BUTTON_SELECT ; select
-    jsr ButtonPressed
-    beq :+
-    inc MenuSelection
-:
+;    lda #BUTTON_SELECT ; select
+;    jsr ButtonPressed
+;    beq :+
+;    inc MenuSelection
+;:
+
+    lda #$FF
+    sta MenuSelDir
 
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
-    dec MenuSelection
+    lda MenuDir::Up
+    sta MenuSelDir
 :
 
     lda #BUTTON_DOWN ; down
     jsr ButtonPressed
     beq :+
-    inc MenuSelection
+    lda MenuDir::Down
+    sta MenuSelDir
 :
 
-    ; Wrap around - top
+    lda #BUTTON_LEFT ; left
+    jsr ButtonPressed
+    beq :+
+    lda MenuDir::Left
+    sta MenuSelDir
+:
+
+    lda #BUTTON_RIGHT ; right
+    jsr ButtonPressed
+    beq :+
+    lda MenuDir::Right
+    sta MenuSelDir
+:
+
+    bit MenuSelDir
+    bmi @noSelection
+
     lda MenuSelection
-    bpl :+
-    ldx #Menu_ItemCount
-    dex
-    stx MenuSelection
-:
-
-    ; Wrap around - bottom
-    lda MenuSelection
-    cmp #Menu_ItemCount
-    bcc :+
-    lda #0
-    sta MenuSelection
-:
-
-    lda #Menu_CursorY
-    sta SpriteZero+0
-
-    ldx MenuSelection
-@loop:
-    beq @done
+    sta MenuPrevious
+    asl a
+    asl a
     clc
-    lda SpriteZero+0
-    adc #Menu_ItemSpacing_Cursor
-    sta SpriteZero+0
-    dex
-    jmp @loop
+    adc MenuSelDir
+    tax
+    lda MenuMovement, x
+    sta MenuSelection
+    lda #1
+    sta UpdateMenu
 
-@done:
+@noSelection:
+
+;    ldx MenuSelection
+;@loop:
+;    beq @done
+;    clc
+;    lda SpriteZero+0
+;    adc #Menu_ItemSpacing_Cursor
+;    sta SpriteZero+0
+;    dex
+;    jmp @loop
+;
+;@done:
 
     jsr WaitForNMI
     jmp FrameMenu
@@ -214,3 +246,6 @@ Menu_DoSelection:
     sta NmiHandler+1
 
     jmp (AddressPointer1)
+
+Screen_Menu:
+    .include "menu-screen.i"

@@ -16,6 +16,7 @@ SOURCES = \
 	utils.asm \
 	piece-rng.inc \
 	playfield.i \
+	menu-screen.i \
 	debug-field.i
 
 CHR = tiles.chr tiles2.chr tiles3.chr
@@ -57,3 +58,5 @@ playfield.i: screens/playfield.tmx
 debug-field.i: screens/debug-field.tmx
 	go run convert-map.go $< $@
 
+menu-screen.i: screens/main-menu.tmx
+	go run convert-map.go $< $@
