@@ -106,8 +106,6 @@ PAL_D  = $C0
 ; Column offset for bounding box
 BLOCK_START_X = 4
 
-MMC5_OFFSET = $3C00
-
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
 
@@ -134,35 +132,6 @@ BUTTON_REPEAT = 3
 
 ; Lines per level
 LEVEL_LENGTH = 10
-
-.enum IRQStates
-DrawBoard
-.endenum
-
-IrqStates:
-    .word irqDrawBoard
-
-IrqLines:
-    .byte 10
-
-; IRQ state index in A
-SetIRQ:
-    ;lda NextIRQ
-    tax
-    asl a
-    tay
-
-    lda IrqLines, x
-    sta $5203
-    lda #$80
-    sta $5204
-
-    lda IrqStates+0, y
-    sta ptrIRQ+0
-    lda IrqStates+1, y
-    sta ptrIRQ+1
-    cli
-    rts
 
 DisableIrq:
     lda #$00
@@ -430,8 +399,7 @@ InitGame:
     sta HoldPiece
 
 FrameGame:
-    lda #IRQStates::DrawBoard
-    jsr SetIRQ
+    SetIRQ 5, IrqDrawBoard
 
     jsr LoadBlock
 
@@ -1841,7 +1809,7 @@ DrawFullBoard_SPEED:
     rts
 
 
-irqDrawBoard:
+IrqDrawBoard:
 
     bit HoldPiece
     bpl :+

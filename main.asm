@@ -14,6 +14,7 @@ nes2end
 
 .segment "ZEROPAGE"
 Sleeping: .res 1
+SleepingIrq: .res 1
 AddressPointer1: .res 2
 AddressPointer2: .res 2
 AddressPointer3: .res 2
@@ -51,6 +52,21 @@ Bin_Input: .res 3
 Bin_Tiles: .res 6
 
 FrameCount: .res 1
+
+MMC5_OFFSET = $3C00
+
+.macro SetIRQ Line, Addr
+    lda #Line
+    sta $5203
+    lda #$80
+    sta $5204
+
+    lda #.lobyte(Addr)
+    sta ptrIRQ+0
+    lda #.hibyte(Addr)
+    sta ptrIRQ+1
+    cli
+.endmacro
 
 .segment "VECTORS"
     .word NMI
@@ -131,6 +147,9 @@ IRQ:
     pla
     sta AddressPointer1+0
 
+    lda #$FF
+    sta SleepingIrq
+
     pla
     tay
     pla
@@ -157,25 +176,6 @@ BareNmiHandler:
 
 NMI:
     pha
-    ;txa
-    ;pha
-    ;tya
-    ;pha
-
-    ;lda #$3F
-    ;sta $2006
-    ;lda #$00
-    ;sta $2006
-
-    ;.repeat 4*8, i
-    ;    lda Palettes+i
-    ;    sta $2007
-    ;.endrepeat
-
-    ;lda #$00
-    ;sta $2003
-    ;lda #$02
-    ;sta $4014
 
     jsr NmiTrampoline
 
@@ -193,10 +193,6 @@ NMI:
 
     inc FrameCount
 
-    ;pla
-    ;tay
-    ;pla
-    ;tax
     pla
     rti
 

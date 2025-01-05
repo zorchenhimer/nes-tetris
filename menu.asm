@@ -14,7 +14,9 @@ Menu_CursorY    = 63 ; First row
 MenuSelection: .res 1
 MenuPrevious:  .res 1
 MenuSelDir:    .res 1
-UpdateMenu:    .res 1
+
+MenuClearFn:  .res 2
+MenuSelectFn: .res 2
 
 .popseg
 
@@ -75,11 +77,143 @@ Menu_ItemCount = (* - MenuDestinations) / 2
 ;NmiMenu:
 ;    rts
 
+MenuPalettes:
+    .word :+
+    .word :++
+    .word :+++
+    .word :++++
+    .word :+++++
+
+:   .byte $0F, $2A, $0A, $1A
+:   .byte $0F, $21, $01, $11
+:   .byte $0F, $27, $07, $17
+:   .byte $0F, $24, $04, $14
+:   .byte $0F, $2C, $0C, $1C
+
+IrqMenu:
+    lda MenuSelectFn+1
+    bne :+
+    rts
+:
+    jsr @clear
+    jsr @select
+
+    lda #0
+    sta MenuSelectFn+1
+    rts
+
+@clear:
+    lda #0
+    jmp (MenuClearFn)
+
+@select:
+    lda #$40
+    jmp (MenuSelectFn)
+
+MenuIrqFunctions:
+    .word menu_Game
+    .word menu_Scores
+    .word menu_Modes
+    .word menu_VsMode
+    .word menu_Options
+
+menu_Game:
+    .repeat 5, i
+        sta $20C4+MMC5_OFFSET+i
+    .endrepeat
+
+    sta $2106+MMC5_OFFSET
+    sta $2126+MMC5_OFFSET
+
+    .repeat 6, j
+        .repeat 5, i
+            sta $2144+MMC5_OFFSET+i+(j*32)
+        .endrepeat
+    .endrepeat
+    rts
+
+menu_Scores:
+    ; HIGH
+    .repeat 4, i
+        sta $20CE+MMC5_OFFSET+i
+    .endrepeat
+
+    ; SCORES
+    .repeat 6, i
+        sta $20ED+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Score List
+    .repeat 4, j
+        .repeat 8, i
+            sta $214C+MMC5_OFFSET+i+(j*32)
+        .endrepeat
+    .endrepeat
+    rts
+
+menu_Modes:
+    ; Game
+    .repeat 4, i
+        sta $20D7+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Modes
+    .repeat 5, i
+        sta $20F7+MMC5_OFFSET+i
+    .endrepeat
+
+    ; ???
+    .repeat 3, i
+        sta $2138+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Playfield
+    .repeat 6, j
+        .repeat 5, i
+            sta $2157+MMC5_OFFSET+i+(j*32)
+        .endrepeat
+    .endrepeat
+    rts
+
+menu_VsMode:
+    ; Two
+    .repeat 3, i
+        sta $2264+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Player
+    .repeat 6, i
+        sta $2268+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Controllers
+    .repeat 2, j
+        .repeat 10, i
+            sta $22A4+MMC5_OFFSET+i+(j*32)
+        .endrepeat
+    .endrepeat
+    rts
+
+menu_Options:
+    ; Options
+    .repeat 7, i
+        sta $2273+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Icons
+    .repeat 2, j
+        .repeat 8, i
+            sta $22B3+MMC5_OFFSET+i+(j*32)
+        .endrepeat
+    .endrepeat
+    rts
+
+
 InitMenu:
     lda #%0000_0000
     sta $5104
 
-    jsr DisableIrq
+    ;jsr DisableIrq
 
     lda #.lobyte(BareNmiHandler)
     sta NmiHandler+0
@@ -110,6 +244,14 @@ InitMenu:
     ldx #4
     jsr LoadPalette
 
+    lda MenuPalettes+0
+    sta AddressPointer1+0
+    lda MenuPalettes+1
+    sta AddressPointer1+1
+
+    ldx #1
+    jsr LoadPalette
+
     lda #.hibyte(Menu_StartAddr)
     sta AddressPointer1+1
     sta $2006
@@ -120,6 +262,16 @@ InitMenu:
     lda #0
     sta MenuSelection
 
+    lda #.lobyte(menu_Game)
+    sta MenuSelectFn+0
+    sta MenuClearFn+0
+    lda #.hibyte(menu_Game)
+    sta MenuSelectFn+1
+    sta MenuClearFn+1
+
+    lda #%0000_0001
+    sta $5104
+
     lda #%1000_0000
     sta PpuControl
     sta $2000
@@ -128,6 +280,7 @@ InitMenu:
     sta $2001
 
     jsr WaitForNMI
+    SetIRQ 5, IrqMenu
     jsr WaitForNMI
 
 FrameMenu:
@@ -137,8 +290,8 @@ FrameMenu:
     jsr ButtonPressed
     beq :+
     ; NOTE: this is just until i get the new menu working
-    lda #0
-    sta MenuSelection
+    ;lda #0
+    ;sta MenuSelection
     jmp Menu_DoSelection
 :
 
@@ -146,8 +299,8 @@ FrameMenu:
     jsr ButtonPressed
     beq :+
     ; NOTE: this is just until i get the new menu working
-    lda #0
-    sta MenuSelection
+    ;lda #0
+    ;sta MenuSelection
     jmp Menu_DoSelection
 :
 
@@ -163,28 +316,28 @@ FrameMenu:
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
-    lda MenuDir::Up
+    lda #MenuDir::Up
     sta MenuSelDir
 :
 
     lda #BUTTON_DOWN ; down
     jsr ButtonPressed
     beq :+
-    lda MenuDir::Down
+    lda #MenuDir::Down
     sta MenuSelDir
 :
 
     lda #BUTTON_LEFT ; left
     jsr ButtonPressed
     beq :+
-    lda MenuDir::Left
+    lda #MenuDir::Left
     sta MenuSelDir
 :
 
     lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
     beq :+
-    lda MenuDir::Right
+    lda #MenuDir::Right
     sta MenuSelDir
 :
 
@@ -194,14 +347,35 @@ FrameMenu:
     lda MenuSelection
     sta MenuPrevious
     asl a
+    tax
     asl a
+    pha
+    lda MenuIrqFunctions+0, x
+    sta MenuClearFn+0
+    lda MenuIrqFunctions+1, x
+    sta MenuClearFn+1
+
+    pla
     clc
     adc MenuSelDir
     tax
     lda MenuMovement, x
     sta MenuSelection
-    lda #1
-    sta UpdateMenu
+
+    asl a
+    tax
+    lda MenuIrqFunctions+0, x
+    sta MenuSelectFn+0
+    lda MenuIrqFunctions+1, x
+    sta MenuSelectFn+1
+
+    lda MenuPalettes+0, x
+    sta AddressPointer1+0
+    lda MenuPalettes+1, x
+    sta AddressPointer1+1
+
+    ldx #1
+    jsr LoadPalette
 
 @noSelection:
 
@@ -217,7 +391,7 @@ FrameMenu:
 ;
 ;@done:
 
-    jsr WaitForNMI
+    jsr WaitForIRQ
     jmp FrameMenu
 
 Menu_DoSelection:

@@ -270,3 +270,12 @@ WaitForNMI:
     bpl :-
     rts
 
+WaitForIRQ:
+    lda #0
+    sta SleepingIrq
+:
+    inc rng_index
+    bit SleepingIrq
+    bpl :-
+    rts
+
