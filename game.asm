@@ -73,6 +73,12 @@ DropShake:  .res 1
 RepeatLeft: .res 1
 RepeatRight: .res 1
 
+LinesToNextLevel: .res 1
+NextDropSpeed:    .res 1
+
+Speed_Soft: .res 1
+Speed_Drop: .res 1
+
 Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
 Option_ScreenShake: .res 1 ; 1 enable shake
 .popseg
@@ -126,6 +132,9 @@ BUTTON_REPEAT_START = 15
 ; Held wait time in frames between repeated input
 BUTTON_REPEAT = 3
 
+; Lines per level
+LEVEL_LENGTH = 10
+
 .enum IRQStates
 DrawBoard
 .endenum
@@ -172,6 +181,27 @@ ShakeTable:
     ;.byte 255, 255, 1
 
 ShakeTable_Length = (* - ShakeTable) / 3
+
+DropSpeeds:
+    .byte 60
+    .byte 55
+    .byte 50
+    .byte 45
+    .byte 40
+    .byte 35
+    .byte 30
+    .byte 25
+    .byte 20
+    .byte 15
+    .byte 10
+    .byte 8
+    .byte 6
+    .byte 4
+    .byte 3
+    .byte 2
+    .byte 1
+    .byte 0 ; one frame per cell
+SPEED_LENGTH = * - DropSpeeds
 
 NmiGame:
     lda #$3F
@@ -333,6 +363,16 @@ InitGame:
     sta RepeatLeft
     sta RepeatRight
 
+    lda #LEVEL_LENGTH-1
+    sta LinesToNextLevel
+
+    ;lda #SPEED
+    lda DropSpeeds+0
+    sta DropSpeed
+    sta Speed_Drop
+    lda #SOFT_SPEED
+    sta Speed_Soft
+
     lda #1
     sta Level
     .ifdef DEBUG_FLASH
@@ -385,9 +425,6 @@ InitGame:
 
     jsr WaitForNMI
     jsr WaitForNMI
-
-    lda #SPEED
-    sta DropSpeed
 
     lda #$FF
     sta HoldPiece
@@ -550,7 +587,7 @@ FrameGame:
     beq @noSoft
     sec
     lda DropSpeed
-    sbc #SOFT_SPEED
+    sbc Speed_Soft
     sta DropSpeed
     bpl @noDrop
     jmp @doDrop
@@ -566,7 +603,7 @@ FrameGame:
     sta DropScore
 :
     inc BlockY
-    lda #SPEED
+    lda Speed_Drop
     sta DropSpeed
     jsr CheckFallCollision
 @noDrop:
@@ -722,6 +759,35 @@ CalcScore:
     sta Score+2
 
 @done:
+
+    ; Level calculation stuff
+    lda ClearCount
+    beq @levelMathDone
+    sec
+    lda LinesToNextLevel
+    sbc ClearCount
+    sta LinesToNextLevel
+    bpl @levelMathDone
+    clc
+    adc #LEVEL_LENGTH
+    sta LinesToNextLevel
+    lda #1
+    sta NextDropSpeed
+    inc Level
+
+    ldx Level
+    dex
+    cpx #SPEED_LENGTH
+    bcc :+
+    ldx #SPEED_LENGTH-1
+:
+
+    lda DropSpeeds, x
+    sta Speed_Drop
+    sta DropSpeed
+
+
+@levelMathDone:
 
     clc
     lda Lines
@@ -1378,7 +1444,7 @@ NextBlock:
     sta HeldSwapped
 
 NextBlock_Swap:
-    lda #SPEED
+    lda Speed_Drop
     sta DropSpeed
 
     dec BagLeft
