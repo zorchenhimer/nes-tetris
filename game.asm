@@ -108,6 +108,9 @@ LINES_ADDR = $2262
 COMBO_ADDR = $21A4
 LEVEL_ADDR = $22C4
 
+HOLD_ADDR  = $20F9 + MMC5_OFFSET
+NEXT_ADDR_START = $2199 + MMC5_OFFSET
+
 .enum IRQStates
 DrawBoard
 .endenum
@@ -1638,7 +1641,6 @@ DrawFullBoard_SPEED:
     rts
 
 
-HOLD_ADDR  = $20A3 + MMC5_OFFSET
 irqDrawBoard:
 
     bit HoldPiece
@@ -2088,20 +2090,20 @@ TILE_O = TILE_2 | PAL_C
 
 BagRows0:
     .repeat 2, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*0)
+        .word NEXT_ADDR_START+(i*32)+(32*3*0)
     .endrepeat
 
 BagRows1:
     .repeat 2, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*1)
+        .word NEXT_ADDR_START+(i*32)+(32*3*1)
     .endrepeat
 
 BagRows2:
     .repeat 2, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*2)
+        .word NEXT_ADDR_START+(i*32)+(32*3*2)
     .endrepeat
 
 BagRows3:
     .repeat 2, i
-        .word $20B9+MMC5_OFFSET+(i*32)+(32*3*3)
+        .word NEXT_ADDR_START+(i*32)+(32*3*3)
     .endrepeat
