@@ -121,6 +121,7 @@ InitMenu:
     sta MenuSelection
 
     lda #%1000_0000
+    sta PpuControl
     sta $2000
 
     lda #%0001_1110

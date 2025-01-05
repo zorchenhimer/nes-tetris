@@ -5,6 +5,7 @@ BlockRotation: .res 1
 DropSpeed: .res 1
 
 SoftDrop: .res 1
+HardDrop: .res 1
 
 Level_Tiles: .res 4
 Score_Tiles: .res 6
@@ -22,6 +23,10 @@ TopVals: .res 4
 LowestRows: .res 4
 
 TmpBlockOffset: .res 1
+
+ScrollX:    .res 1
+ScrollY:    .res 1
+PpuControl: .res 1
 
 .segment "BSS"
 BlockGrid: .res 4*4
@@ -61,10 +66,12 @@ HighScore: .res 6
 ClearCount: .res 1 ; rows cleared this frame
 DropScore: .res 1  ; soft and hard drop scores this frame
 
-LowestY: .res 1
+LowestY:    .res 1
 GhostYBase: .res 1
+DropShake:  .res 1
 
 Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
+Option_ScreenShake: .res 1 ; 1 enable shake
 .popseg
 
 SPEED = 60
@@ -108,8 +115,8 @@ LINES_ADDR = $2262
 COMBO_ADDR = $21A4
 LEVEL_ADDR = $22C4
 
-HOLD_ADDR  = $20F9 + MMC5_OFFSET
-NEXT_ADDR_START = $2199 + MMC5_OFFSET
+HOLD_ADDR  = $2139 + MMC5_OFFSET
+NEXT_ADDR_START = $21D9 + MMC5_OFFSET
 
 .enum IRQStates
 DrawBoard
@@ -144,6 +151,19 @@ DisableIrq:
     lda #$00
     sta $5204
     rts
+
+ShakeTable:
+    ; X, Y, Nametable
+    .byte 1, 1, 0
+    ;.byte 1, 1, 0
+    .byte 255, 1, 1
+    ;.byte 255, 1, 1
+    .byte 1, 255, 0
+    ;.byte 1, 255, 0
+    .byte 255, 255, 1
+    ;.byte 255, 255, 1
+
+ShakeTable_Length = (* - ShakeTable) / 3
 
 NmiGame:
     lda #$3F
@@ -201,6 +221,31 @@ NmiGame:
     sta $2007
     .endrepeat
 
+    ldx DropShake
+    bmi @noShake
+
+    stx MMC5_MultA
+    lda #3
+    sta MMC5_MultB
+    ldx MMC5_MultA
+
+    lda ShakeTable+0, x
+    sta ScrollX
+    lda ShakeTable+1, x
+    sta ScrollY
+    lda ShakeTable+2, x
+    ora #$80
+    sta PpuControl
+
+    dec DropShake
+    rts
+
+@noShake:
+    lda #0
+    sta ScrollX
+    sta ScrollY
+    lda #%1000_0000
+    sta PpuControl
     rts
 
 GamePalettes:
@@ -276,10 +321,10 @@ InitGame:
 
     lda #$FF
     sta Combo
+    sta DropShake
 
     lda #1
     sta Level
-
     .ifdef DEBUG_FLASH
     lda #DEBUG_FLASH
     .else
@@ -306,6 +351,7 @@ InitGame:
     sta $5104
 
     lda #%1000_0000
+    sta PpuControl
     sta $2000
 
     lda #$00
@@ -317,19 +363,18 @@ InitGame:
     sta $2001
 
     lda #$00
+    sta ScrollX
+    sta ScrollY
     sta $2005
     sta $2005
-
-    lda #%1000_0000
-    sta $2000
-
-    jsr WaitForNMI
-    jsr WaitForNMI
 
     lda #.lobyte(NmiGame)
     sta NmiHandler+0
     lda #.hibyte(NmiGame)
     sta NmiHandler+1
+
+    jsr WaitForNMI
+    jsr WaitForNMI
 
     lda #SPEED
     sta DropSpeed
@@ -367,6 +412,13 @@ FrameGame:
     beq :+
     lda #0
     sta SoftDrop
+:
+
+    lda #BUTTON_UP ; up
+    jsr ButtonPressed
+    beq :+
+    jsr DoHardDrop
+    jmp @hardDropDone
 :
 
     lda #BUTTON_SELECT ; select
@@ -471,6 +523,7 @@ FrameGame:
     jsr CheckFallCollision
 @noDrop:
 
+@hardDropDone:
     ; TODO: score stuff
     jsr CalcScore
 
@@ -498,6 +551,40 @@ FrameGame:
 ;
 ;    jsr WaitForNMI
 ;    jmp FramePaused
+
+DoHardDrop:
+    sec
+    lda GhostY
+    sbc CurrentY
+    asl a
+    clc
+    adc DropScore
+    sta DropScore
+
+    lda Option_ScreenShake
+    beq :+
+    lda #ShakeTable_Length-1
+    sta DropShake
+:
+
+    lda GhostY
+    sta BlockY
+    sta CurrentY
+
+    jsr PlaceBlock
+    jsr CheckRowClear
+
+    ldx #.sizeof(ClearRows)-1
+:   lda ClearRows, x
+    bne @StartClearRows
+    dex
+    bpl :-
+
+    jsr NextBlock
+    rts
+
+@StartClearRows:
+    jmp StartClearRows
 
 ClearCountScores:
     .byte 0, 1, 3, 5, 8
@@ -927,7 +1014,6 @@ CheckFallCollision:
     dex
     bpl :-
 
-@no:
     jsr NextBlock
     rts
 

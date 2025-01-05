@@ -179,11 +179,13 @@ NMI:
 
     jsr NmiTrampoline
 
-    lda #0
+    bit $2002
+    lda ScrollX
     sta $2005
+    lda ScrollY
     sta $2005
 
-    lda #%1000_0000
+    lda PpuControl
     sta $2000
 
     lda #$FF
