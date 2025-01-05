@@ -112,12 +112,14 @@ LoadBgPalettes:
 BinToDec_Sm:
     lda #2
     sta TmpX
+    ldx #2
     jmp binJmp
 
 BinToDec:
     ; binary to ascii
     lda #4
     sta TmpX ; digit index
+    ldx #0   ; ASCII index
 
 binJmp:
     lda #'0'
@@ -125,7 +127,6 @@ binJmp:
     sta Bin_Tiles+i
     .endrepeat
 
-    ldx #0   ; ASCII index
 @binLoop:
     ldy TmpX ; get index into DecimalPlaces
     lda Mult3, y
