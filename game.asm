@@ -86,7 +86,7 @@ Option_ScreenShake: .res 1 ; 1 enable shake
 SPEED = 60
 SOFT_SPEED = 35
 
-BlockLocation_X = 88
+BlockLocation_X = 88 - 8
 BlockLocation_Y = 40 - 1
 Block_TileId = $10
 
@@ -104,13 +104,15 @@ PAL_C  = $80
 PAL_D  = $C0
 
 ; Column offset for bounding box
-BLOCK_START_X = 4
+BLOCK_START_X = 5
 
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
 
-;DEBUG_PIECE = 6
+;DEBUG_PIECE = 5
 ;DEBUG_FIELD = 1
+
+DEBUG_BLOCK = 1
 
 DEBUG_FLASH = 0
 
@@ -540,9 +542,9 @@ FrameGame:
 @buttonRight:
     inc BlockX
     lda BlockX
-    cmp #BoardWidth
+    cmp #BoardWidth+1
     bcc :+
-    lda #BoardWidth-1
+    lda #BoardWidth
     sta BlockX
 :
     jsr CheckCollide_Rotate
@@ -1231,9 +1233,9 @@ CheckCollide_Rotate:
     ; TODO: Precalculate this shit.  Might want to precalc
     ;       the rotations.  Eg, layout in Tiled then calc
     ;       grids and all lookup tables with a util.
-    lda #BoardWidth
+    lda #BoardWidth+2 ; TODO: is this correct?
     sta MaxX
-    lda #0 ; no block in col 1
+    lda #0 ; no block in col 1 or 2
     sta MinX
 
     ; Left - Col 1
@@ -1241,13 +1243,27 @@ CheckCollide_Rotate:
         lda BlockGrid+(i*4)
         bne @FailCol1
     .endrepeat
-    jmp @checkCol4
+    jmp @checkCol2
 
 @FailCol1: ; block in col 1
+    lda #2
+    sta MinX
+    jmp @checkCol4
+
+@checkCol2:
+    ; Left - Col 1
+    .repeat 4, i
+        lda BlockGrid+(i*4)+1
+        bne @FailCol2
+    .endrepeat
+    jmp @checkCol4
+
+@FailCol2: ; block in col 2
     lda #1
     sta MinX
 
 @checkCol4:
+
     ; Col 4
     .repeat 4, i
         lda BlockGrid+(i*4)+3
@@ -1256,7 +1272,7 @@ CheckCollide_Rotate:
     jmp @checkCol3
 
 @FailCol4:
-    lda #BoardWidth-2
+    lda #BoardWidth-1;-2 ; -3?
     sta MaxX
     jmp @checkLeft
 
@@ -1269,7 +1285,7 @@ CheckCollide_Rotate:
     jmp @checkLeft
 
 @FailCol3:
-    lda #BoardWidth-1
+    lda #BoardWidth;-1 ; -2?
     sta MaxX
 
 @checkLeft:
@@ -1285,79 +1301,41 @@ CheckCollide_Rotate:
     bcc :+
     lda #1  ; can't rotate; on right edge
     rts
-
 :
 
 CheckCollide_WithGrid:
     ; Align grid on playfield
-    ; TODO: Use an offset instead of pointer
-    ;       address.  See CalculateGhost.
-    ldy BlockY
-    dey
-    bpl :+
-    ldy #0
-    lda BlockToPlayfield_Lo, y
-    clc
-    adc BlockX
-    sta AddressPointer1+0
-
-    lda BlockToPlayfield_Hi, y
-    adc #0
-    sta AddressPointer1+1
-
-    lda AddressPointer1+0
-    sec
-    sbc #1
-    sta AddressPointer1+0
-
-    lda AddressPointer1+1
-    sbc #0
-    sta AddressPointer1+1
-
-    ldy #3
-    ldx #3
-    jmp @nextBlock
-:
-    lda BlockToPlayfield_Lo, y
-    clc
-    adc BlockX
-    sta AddressPointer1+0
-
-    lda BlockToPlayfield_Hi, y
-    adc #0
-    sta AddressPointer1+1
-
-    lda AddressPointer1+0
-    sec
-    sbc #1
-    sta AddressPointer1+0
-
-    lda AddressPointer1+1
-    sbc #0
-    sta AddressPointer1+1
+    lda BlockX
+    sta TmpX
+    lda BlockY
+    jsr GetBlockOffset
+    tay
+    sta TmpY
 
     ldx #0
-    ldy #0
+    lda #3
+    sta TmpX
 @blockLoop:
     lda BlockGrid, x
     beq @nextBlock
-    lda (AddressPointer1), y
+    lda FieldGrid, y
     beq @nextBlock
     jmp @collide
 
 @nextBlock:
     iny
-    cpy #4
-    bne :+
-    ldy #0
+    dec TmpX
+    lda TmpX
+    bpl :+
+    lda #3
+    sta TmpX
     clc
-    lda AddressPointer1+0
+    lda TmpY
     adc #BoardWidth
-    sta AddressPointer1+0
-
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
+    sta TmpY
+    tay
+    cmp #.sizeof(FieldGrid)
+    bcs @done
 :
 
     inx
@@ -1447,6 +1425,7 @@ NextBlock_Swap:
     ldy CurrentBlock
     lda BlockStart_Y, y
     sta BlockY
+    sta CurrentY
 
     lda #0
     sta BlockRotation
@@ -1462,49 +1441,39 @@ NextBlock_Swap:
     rts
 
 PlaceBlock:
-    ldy BlockY
-    dey
-    lda BlockToPlayfield_Lo, y
-    clc
-    adc BlockX
-    sta AddressPointer1+0
+    lda CurrentX
+    sta TmpX
+    lda CurrentY
+    jsr GetBlockOffset
+    tay
+    sta TmpY
 
-    lda BlockToPlayfield_Hi, y
-    adc #0
-    sta AddressPointer1+1
-
-    lda AddressPointer1+0
-    sec
-    sbc #1
-    sta AddressPointer1+0
-
-    lda AddressPointer1+1
-    sbc #0
-    sta AddressPointer1+1
-
-    ldy #0
     ldx #0
+    lda #3
+    sta TmpX
 @loop:
     lda BlockGrid, x
     beq :+
-    sta (AddressPointer1), y
+    sta FieldGrid, y
 :
     inx
     iny
-    cpy #4
-    bcc @loop
+    dec TmpX
+    lda TmpX
+    bpl @loop
 
-    ldy #0
+    lda #3
+    sta TmpX
     cpx #16
     beq @done
 
     clc
-    lda AddressPointer1+0
+    lda TmpY
     adc #BoardWidth
-    sta AddressPointer1+0
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
+    sta TmpY
+    cmp #.sizeof(FieldGrid)
+    bcs @done
+    tay
     jmp @loop
 @done:
 
@@ -1587,14 +1556,15 @@ CalculateGhost:
 @fieldColTopLoop:
     ldx TmpA
     lda TopVals, x
+    cmp #4
+    beq @fieldNextColumn
     clc
     adc CurrentY
     sta TmpB ; current row
     dec TmpB
 
     ; Align to playfield, but we want the offset
-    ; (y-1)*10+x-1 = y*10+x-1-10 = y*10+x-11
-    ;lda CurrentY
+    ; (y-1)*10+x-2 = y*10+x-2-10 = y*10+x-12
     sta MMC5_MultA
     lda #10
     sta MMC5_MultB
@@ -1604,7 +1574,7 @@ CalculateGhost:
     adc CurrentX
     adc TmpA
     sec
-    sbc #11
+    sbc #12
 
     ; Offset in the field for the first
     ; column in the BlockGrid
@@ -1626,7 +1596,7 @@ CalculateGhost:
 @nextFieldRow:
     inc TmpB
     lda TmpB
-    cmp #$14
+    cmp #21
     beq @fieldNextColumn
     tya
     clc
@@ -1851,6 +1821,15 @@ IrqDrawBoard:
     .endrepeat
 @noHold:
 
+    .ifdef DEBUG_BLOCK
+        .repeat 4, i
+            .repeat 4, j
+            lda BlockGrid+j+(i*4)
+            sta $2062+MMC5_OFFSET+j+(i*32)
+            .endrepeat
+        .endrepeat
+    .endif
+
     ;
     ; Draw bag contents
     .repeat 4, j
@@ -1926,6 +1905,18 @@ IrqDrawBoard:
 
     rts
 
+GetBlockOffset:
+    sta MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+
+    clc
+    lda MMC5_MultA
+    adc TmpX
+    sec
+    sbc #12
+    rts
+
 BlockSpriteLookupY:
     .byte 0,  0,  0,  0
     .byte 8,  8,  8,  8
@@ -1940,12 +1931,12 @@ BlockSpriteLookupX:
 
 ; BlockX/BlockY -> SpriteX/SpriteY for anchor
 BlockGridLocationY:
-    .repeat 20, i
+    .repeat 21, i
         .byte BlockLocation_Y+(i*8)
     .endrepeat
 
 BlockGridLocationX:
-    .repeat 10, i
+    .repeat 11, i
         .byte BlockLocation_X+(i*8)
     .endrepeat
 
