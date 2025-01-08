@@ -335,6 +335,10 @@ InitGame:
     lda #LEVEL_LENGTH-1
     sta LinesToNextLevel
 
+    ; TODO: this default needs to go somewhere else
+    lda #1
+    sta Option_ScreenShake
+
     ;lda #SPEED
     lda DropSpeeds+0
     sta DropSpeed
