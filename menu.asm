@@ -90,6 +90,9 @@ MenuPalettes:
 :   .byte $0F, $24, $04, $14
 :   .byte $0F, $2C, $0C, $1C
 
+MenuOutlinePal:
+    .byte $0F, $00, $20, $10
+
 IrqMenu:
     lda MenuSelectFn+1
     bne :+
@@ -104,10 +107,14 @@ IrqMenu:
 
 @clear:
     lda #0
+    ldx #$00
+    ldy #$00
     jmp (MenuClearFn)
 
 @select:
     lda #$40
+    ldx #$01
+    ldy #$02
     jmp (MenuSelectFn)
 
 MenuIrqFunctions:
@@ -118,13 +125,28 @@ MenuIrqFunctions:
     .word menu_Options
 
 menu_Game:
+    ; The box, horiz
+    .repeat 9, i
+        stx $2082+MMC5_OFFSET+i
+        stx $2202+MMC5_OFFSET+i
+    .endrepeat
+
+    ; The box, vert
+    .repeat 11, i
+        stx $20A2+MMC5_OFFSET+(i*32)
+        sty $20AA+MMC5_OFFSET+(i*32)
+    .endrepeat
+
+    ; Start
     .repeat 5, i
         sta $20C4+MMC5_OFFSET+i
     .endrepeat
 
+    ; Top 2/3 of I piece
     sta $2106+MMC5_OFFSET
     sta $2126+MMC5_OFFSET
 
+    ; Rest of playfield
     .repeat 6, j
         .repeat 5, i
             sta $2144+MMC5_OFFSET+i+(j*32)
@@ -133,6 +155,24 @@ menu_Game:
     rts
 
 menu_Scores:
+    ; Box, horiz
+    .repeat 10, i
+        stx $208B+MMC5_OFFSET+i
+        stx $220B+MMC5_OFFSET+i
+    .endrepeat
+
+    ; The box, vert
+    .repeat 11, i
+        stx $20AA+MMC5_OFFSET+(i*32)
+        sty $20B5+MMC5_OFFSET+(i*32)
+    .endrepeat
+
+    sty $208A+MMC5_OFFSET
+    sty $220A+MMC5_OFFSET
+
+    stx $2095+MMC5_OFFSET
+    stx $2215+MMC5_OFFSET
+
     ; HIGH
     .repeat 4, i
         sta $20CE+MMC5_OFFSET+i
@@ -152,6 +192,20 @@ menu_Scores:
     rts
 
 menu_Modes:
+    ; Box, horiz
+    .repeat 8, i
+        stx $2096+MMC5_OFFSET+i
+        stx $2216+MMC5_OFFSET+i
+    .endrepeat
+
+    .repeat 11, i
+        stx $20B5+MMC5_OFFSET+(i*32)
+        stx $20BD+MMC5_OFFSET+(i*32)
+    .endrepeat
+
+    sty $2095+MMC5_OFFSET
+    sty $2215+MMC5_OFFSET
+
     ; Game
     .repeat 4, i
         sta $20D7+MMC5_OFFSET+i
@@ -176,6 +230,18 @@ menu_Modes:
     rts
 
 menu_VsMode:
+    ; Box, horiz
+    .repeat 14, i
+        stx $2222+MMC5_OFFSET+i
+        stx $2302+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Box, vert
+    .repeat 6, i
+        stx $2242+MMC5_OFFSET+(i*32)
+        stx $224F+MMC5_OFFSET+(i*32)
+    .endrepeat
+
     ; Two
     .repeat 3, i
         sta $2264+MMC5_OFFSET+i
@@ -195,6 +261,18 @@ menu_VsMode:
     rts
 
 menu_Options:
+    ; Box, horiz
+    .repeat 14, i
+        stx $2230+MMC5_OFFSET+i
+        stx $2310+MMC5_OFFSET+i
+    .endrepeat
+
+    ; Box, vert
+    .repeat 6, i
+        stx $2250+MMC5_OFFSET+(i*32)
+        stx $225D+MMC5_OFFSET+(i*32)
+    .endrepeat
+
     ; Options
     .repeat 7, i
         sta $2273+MMC5_OFFSET+i
@@ -252,6 +330,14 @@ InitMenu:
     ldx #1
     jsr LoadPalette
 
+    ;lda #.lobyte(MenuOutlinePal)
+    ;sta AddressPointer1+0
+    ;lda #.hibyte(MenuOutlinePal)
+    ;sta AddressPointer1+1
+
+    ;ldx #2
+    ;jsr LoadPalette
+
     lda #.hibyte(Menu_StartAddr)
     sta AddressPointer1+1
     sta $2006
@@ -269,6 +355,20 @@ InitMenu:
     sta MenuSelectFn+1
     sta MenuClearFn+1
 
+    ; Turn off ExtAttr mode to draw the initial attribute data
+    lda #%0000_0010
+    sta $5104
+    lda #0
+    ldx #0
+:
+    sta $5C00+(0*256), x
+    sta $5C00+(1*256), x
+    sta $5C00+(2*256), x
+    sta $5C00+(3*256), x
+    dex
+    bne :-
+
+    ; Turn ExtAttr mode back on
     lda #%0000_0001
     sta $5104
 
