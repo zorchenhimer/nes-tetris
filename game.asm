@@ -8,7 +8,7 @@ SoftDrop: .res 1
 HardDrop: .res 1
 
 Level_Tiles: .res 4
-Score_Tiles: .res 6
+Score_Tiles: .res 8
 Lines_Tiles: .res 6
 Combo_Tiles: .res 2
 
@@ -27,6 +27,10 @@ TmpBlockOffset: .res 1
 ScrollX:    .res 1
 ScrollY:    .res 1
 PpuControl: .res 1
+
+bcdInput:   .res 3  ; bin
+bcdScratch: .res 4  ; bcd
+bcdOutput:  .res 8  ; ascii
 
 .segment "BSS"
 BlockGrid: .res 4*4
@@ -83,6 +87,7 @@ Flag_PlayfieldReady: .res 1
 
 Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
 Option_ScreenShake: .res 1 ; 1 enable shake
+
 .popseg
 
 SPEED = 60
@@ -828,27 +833,51 @@ CalcScore:
     .repeat .sizeof(Score), i
     lda Score+i
     ;sta TmpScore+i
-    sta Bin_Input+i
+    ;sta Bin_Input+i
+    sta bcdInput+i
     .endrepeat
 
-    jsr BinToDec
+    ; 14,117 cycles
+    ;jsr BinToDec
+    ; ~3,000 cycles (!!)
+    jsr BinToDec_Shift
 
-    .repeat .sizeof(Bin_Tiles), i
-    lda Bin_Tiles+i
+    .repeat .sizeof(bcdOutput), i
+    lda bcdOutput+i
     sta Score_Tiles+i
     .endrepeat
 
+    .repeat 7, i
+        lda Score_Tiles+i
+        cmp #$30
+        bne @scoreTiles_done
+        lda #' '
+        sta Score_Tiles+i
+    .endrepeat
+@scoreTiles_done:
+
     .repeat .sizeof(Lines), i
     lda Lines+i
-    sta Bin_Input+i
+    ;sta Bin_Input+i
+    sta bcdInput+i
     .endrepeat
 
-    jsr BinToDec
+    jsr BinToDec_Shift
 
-    .repeat .sizeof(Bin_Tiles), i
-    lda Bin_Tiles+i
+    .repeat .sizeof(Lines_Tiles), i
+    ;lda Bin_Tiles+i
+    lda bcdOutput+i+2
     sta Lines_Tiles+i
     .endrepeat
+
+    .repeat 5, i
+        lda Lines_Tiles+i
+        cmp #$30
+        bne @linesTiles_done
+        lda #' '
+        sta Lines_Tiles+i
+    .endrepeat
+@linesTiles_done:
 
     lda Level+0
     sta Bin_Input+0
@@ -2304,3 +2333,184 @@ ComboTiles_B:
     .endrepeat
     .byte '0'
     .byte '1'
+
+BinToDec_Shift:
+    lda #0
+    .repeat .sizeof(bcdScratch), i
+        sta bcdScratch+i
+    .endrepeat
+
+    .repeat 23
+    clc
+    rol bcdInput+0
+    rol bcdInput+1
+    rol bcdInput+2
+    rol bcdScratch+0
+    rol bcdScratch+1
+    rol bcdScratch+2
+    rol bcdScratch+3
+
+    ; One
+    lda bcdScratch+0
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+0
+    adc #$03
+    sta bcdScratch+0
+:
+
+    ; Ten
+    lda bcdScratch+0
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+0
+    adc #$30
+    sta bcdScratch+0
+    lda bcdScratch+1
+    adc #0
+    sta bcdScratch+1
+:
+
+    ; Hundred
+    lda bcdScratch+1
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+1
+    adc #$03
+    sta bcdScratch+1
+:
+
+    ; 1k
+    lda bcdScratch+1
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+1
+    adc #$30
+    sta bcdScratch+1
+    lda bcdScratch+2
+    adc #0
+    sta bcdScratch+2
+:
+
+    ; 10k
+    lda bcdScratch+2
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+2
+    adc #$03
+    sta bcdScratch+2
+:
+
+    ; 100k
+    lda bcdScratch+2
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+2
+    adc #$30
+    sta bcdScratch+2
+    lda bcdScratch+3
+    adc #0
+    sta bcdScratch+3
+:
+
+    ; 1mil
+    lda bcdScratch+3
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+3
+    adc #$03
+    sta bcdScratch+3
+:
+
+    ; 10mil
+    lda bcdScratch+3
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+3
+    adc #$30
+    sta bcdScratch+3
+:
+    .endrepeat
+
+    clc
+    rol bcdInput+0
+    rol bcdInput+1
+    rol bcdInput+2
+    rol bcdScratch+0
+    rol bcdScratch+1
+    rol bcdScratch+2
+    rol bcdScratch+3
+
+    ; make it ascii
+
+    lda bcdScratch+3
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+0
+
+    lda bcdScratch+3
+    and #$0F
+    ora #$30
+    sta bcdOutput+1
+
+    ;;;
+    lda bcdScratch+2
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+2
+
+    lda bcdScratch+2
+    and #$0F
+    ora #$30
+    sta bcdOutput+3
+
+    ;;;
+    lda bcdScratch+1
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+4
+
+    lda bcdScratch+1
+    and #$0F
+    ora #$30
+    sta bcdOutput+5
+
+    ;;;
+    lda bcdScratch+0
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+6
+
+    lda bcdScratch+0
+    and #$0F
+    ora #$30
+    sta bcdOutput+7
+    rts
