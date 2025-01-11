@@ -16,6 +16,7 @@ SOURCES = \
 	utils.asm \
 	piece-rng.inc \
 	playfield.i \
+	playfield-rle.i \
 	menu-screen.i \
 	debug-field.i
 
@@ -54,6 +55,9 @@ images/%.bmp: images/%.aseprite
 
 playfield.i: screens/playfield.tmx
 	go run convert-map.go $< $@
+
+playfield-rle.i: screens/playfield.tmx convert-map.go
+	go run convert-map.go $< $@ --rle
 
 debug-field.i: screens/debug-field.tmx
 	go run convert-map.go $< $@

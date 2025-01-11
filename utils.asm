@@ -193,7 +193,52 @@ ClearSprites:
     bne @loop
     rts
 
-; Tile data in AdressPointer1
+; Run Length Encoded tile data at AddressPointer1
+DrawScreen_RLE:
+    lda #$20
+    sta $2006
+    lda #$00
+    sta $2006
+
+@top:
+    ldy #0
+    lda (AddressPointer1), y
+    bne :+
+    rts
+:
+    bmi @rle
+    tax
+    iny
+@raw:
+    lda (AddressPointer1), y
+    sta $2007
+    iny
+    dex
+    bne @raw
+    jmp @next
+
+@rle:
+    and #$7F
+    tax
+    iny
+    lda (AddressPointer1), y
+:   sta $2007
+    dex
+    bne :-
+    iny
+
+@next:
+    tya
+    clc
+    adc AddressPointer1+0
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jmp @top
+    ;rts
+
+; Tile data in AddressPointer1
 DrawScreen:
     lda #$20
     sta $2006

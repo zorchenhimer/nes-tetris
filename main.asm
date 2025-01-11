@@ -89,7 +89,8 @@ MMC5_OFFSET = $3C00
     .include "game.asm"
 
 Screen_Playfield:
-    .include "playfield.i"
+    ;.include "playfield.i"
+    .include "playfield-rle.i"
 
 DebugField:
     .include "debug-field.i"
