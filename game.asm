@@ -10,7 +10,7 @@ HardDrop: .res 1
 Level_Tiles: .res 4
 Score_Tiles: .res 6
 Lines_Tiles: .res 6
-Combo_Tiles: .res 4
+Combo_Tiles: .res 2
 
 TmpM: .res 3
 
@@ -79,6 +79,8 @@ NextDropSpeed:    .res 1
 Speed_Soft: .res 1
 Speed_Drop: .res 1
 
+Flag_PlayfieldReady: .res 1
+
 Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
 Option_ScreenShake: .res 1 ; 1 enable shake
 .popseg
@@ -121,7 +123,7 @@ BlockGridOffset_Y = -1
 
 SCORE_ADDR = $2202
 LINES_ADDR = $2262
-COMBO_ADDR = $21A4
+COMBO_ADDR = $21A6
 LEVEL_ADDR = $22C4
 
 HOLD_ADDR  = $2139 + MMC5_OFFSET
@@ -334,12 +336,20 @@ InitGame:
     sta RepeatLeft
     sta RepeatRight
 
+    lda #' '
+    sta Combo_Tiles+0
+    lda #'0'
+    sta Combo_Tiles+1
+
     lda #LEVEL_LENGTH-1
     sta LinesToNextLevel
 
     ; TODO: this default needs to go somewhere else
     lda #1
     sta Option_ScreenShake
+
+    lda #1
+    sta Flag_PlayfieldReady
 
     ;lda #SPEED
     lda DropSpeeds+0
@@ -405,7 +415,7 @@ InitGame:
     sta HoldPiece
 
 FrameGame:
-    SetIRQ 5, IrqDrawBoard
+    SetIRQ 2, IrqDrawBoard
 
     jsr LoadBlock
 
@@ -592,7 +602,8 @@ FrameGame:
     sta CurrentY
 
     jsr UpdateBlock
-    jsr WaitForNMI
+    ;jsr WaitForNMI
+    jsr WaitForIRQ
     jmp FrameGame
 
 ;FramePaused:
@@ -800,25 +811,17 @@ CalcScore:
     cmp #$FF
     bne :+
 
-    lda #$30
-    .repeat .sizeof(Combo_Tiles), i
-    sta Combo_Tiles+i
-    .endrepeat
+    lda #' '
+    sta Combo_Tiles+0
+    lda #'0'
+    sta Combo_Tiles+1
     jmp @comboDone
 :
-    lda Combo+0
-    sta Bin_Input+0
-    lda #0
-    sta Bin_Input+1
-    lda #0
-    sta Bin_Input+2
-
-    jsr BinToDec_Sm
-
-    .repeat .sizeof(Combo_Tiles), i
-    lda Bin_Tiles+2+i
-    sta Combo_Tiles+i
-    .endrepeat
+    ldy Combo
+    lda ComboTiles_A, y
+    sta Combo_Tiles+0
+    lda ComboTiles_B, y
+    sta Combo_Tiles+1
 
 @comboDone:
 
@@ -1141,6 +1144,7 @@ StartClearRows:
 @bottom:
     dec TmpA
     bpl @top
+
     jmp NextBlock
     ;rts
 
@@ -1182,13 +1186,16 @@ CheckRowClear:
     lda BlockToPlayfield_Hi, y
     sta AddressPointer1+1
 
-    jsr CheckSingleRow
-    beq :+
+    ldy #0
+    .repeat 10
+        lda (AddressPointer1), y
+        beq @next
+        iny
+    .endrepeat
     ldy BlockY
     lda #1
     sta ClearRows, y
     inc ClearCount
-:
 
 @next:
     dec TmpX
@@ -1206,27 +1213,13 @@ CheckRowClear:
     inc Combo
     rts
 
-; Row in AddressPointer1
-CheckSingleRow:
-    ldy #0
-    .repeat 10
-        lda (AddressPointer1), y
-        beq @nope
-        iny
-    .endrepeat
-
-    lda #1
-@nope:
-    rts
-
 DoClearRow:
     ldy #0
-:
+    .repeat 10
     lda (AddressPointer2), y
     sta (AddressPointer1), y
     iny
-    cpy #10
-    bne :-
+    .endrepeat
     rts
 
 CheckCollide_Rotate:
@@ -1479,6 +1472,9 @@ PlaceBlock:
 
     lda #0
     sta HeldSwapped
+
+    lda #1
+    sta Flag_PlayfieldReady
     rts
 
 ; Reads CurrentBlock & CurrentRotation to find the
@@ -1876,6 +1872,13 @@ IrqDrawBoard:
         .endrepeat
     .endrepeat
 
+    lda Flag_PlayfieldReady
+    bne :+
+    rts
+:
+    lda #0
+    sta Flag_PlayfieldReady
+
     ;
     ; Draw playfield
     ldx #0
@@ -2270,3 +2273,34 @@ BagRows3:
     .repeat 2, i
         .word NEXT_ADDR_START+(i*32)+(32*3*3)
     .endrepeat
+
+; Tens
+ComboTiles_A:
+    .repeat 10
+        .byte ' '
+    .endrepeat
+
+    .repeat 10
+        .byte '1'
+    .endrepeat
+
+    .repeat 10
+        .byte '2'
+    .endrepeat
+
+    .byte '3'
+    .byte '3'
+
+; Ones
+ComboTiles_B:
+    .repeat 10, i
+        .byte '0' + i
+    .endrepeat
+    .repeat 10, i
+        .byte '0' + i
+    .endrepeat
+    .repeat 10, i
+        .byte '0' + i
+    .endrepeat
+    .byte '0'
+    .byte '1'
