@@ -14,7 +14,7 @@ func main() {
 		table = append(table, []byte{0, 1, 2, 3, 4, 5, 6}...)
 	}
 
-	table = append(table, []byte{2, 5, 6}...)
+	table = append(table, []byte{2, 2, 5, 6}...)
 
 	rng := rand.New(rand.NewSource(time.Now().Unix()))
 	shuf := func(i, j int) { table[i], table[j] = table[j], table[i] }
