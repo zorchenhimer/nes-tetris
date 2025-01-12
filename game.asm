@@ -2337,9 +2337,6 @@ BinToDec_Shift:
     lda bcdScratch+0
     adc #$30
     sta bcdScratch+0
-    lda bcdScratch+1
-    adc #0
-    sta bcdScratch+1
 :
 
     ; Hundred
@@ -2362,9 +2359,6 @@ BinToDec_Shift:
     lda bcdScratch+1
     adc #$30
     sta bcdScratch+1
-    lda bcdScratch+2
-    adc #0
-    sta bcdScratch+2
 :
 
     ; 10k
@@ -2387,9 +2381,6 @@ BinToDec_Shift:
     lda bcdScratch+2
     adc #$30
     sta bcdScratch+2
-    lda bcdScratch+3
-    adc #0
-    sta bcdScratch+3
 :
 
     ; 1mil
@@ -2409,9 +2400,6 @@ BinToDec_Shift:
     cmp #$50
     bcc :+
     clc
-    lda bcdScratch+3
-    adc #$30
-    sta bcdScratch+3
 :
     .endrepeat
 
