@@ -14,6 +14,7 @@ SOURCES = \
 	scores.asm \
 	game.asm \
 	utils.asm \
+	options.asm \
 	piece-rng.inc \
 	playfield.i \
 	playfield-rle.i \

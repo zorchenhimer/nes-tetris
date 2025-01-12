@@ -12,6 +12,23 @@ nes2end
 .feature underline_in_numbers
 .feature addrsize
 
+;DEBUG_PIECE = 5
+;DEBUG_FIELD = 1
+DEBUG_BLOCK = 1
+;DEBUG_FLASH = 0
+
+;
+; Defaults
+;
+
+GHOST_FLASH = 0
+SCREEN_SHAKE = 1
+
+; Initial wait time in frames before repeating input
+BUTTON_REPEAT_START = 15
+; Held wait time in frames between repeated input
+BUTTON_REPEAT = 3
+
 .segment "ZEROPAGE"
 Sleeping: .res 1
 SleepingIrq: .res 1
@@ -35,6 +52,11 @@ Controller_Old: .res 1
 
 ptrIRQ: .res 2
 
+ScrollX:    .res 1
+ScrollY:    .res 1
+
+PpuControl: .res 1
+
 .segment "OAM"
 SpriteZero:  .res 4
 SpriteBlock: .res 4*4
@@ -53,7 +75,12 @@ Bin_Tiles: .res 6
 
 FrameCount: .res 1
 
-MMC5_OFFSET = $3C00
+Option_GhostFlash:  .res 1 ; 1 enable flash, 0 disable flash
+Option_ScreenShake: .res 1 ; 1 enable shake
+Option_ShiftStart:  .res 1
+Option_ShiftRepeat: .res 1
+
+MMC5_OFFSET = $3C00 ; Offset from $2000
 
 .macro SetIRQ Line, Addr
     lda #Line
@@ -66,6 +93,11 @@ MMC5_OFFSET = $3C00
     lda #.hibyte(Addr)
     sta ptrIRQ+1
     cli
+.endmacro
+
+.macro DisableIRQ
+    lda #$00
+    sta $5204
 .endmacro
 
 .segment "VECTORS"
@@ -87,6 +119,7 @@ MMC5_OFFSET = $3C00
 .segment "PAGE00"
 
     .include "game.asm"
+    .include "options.asm"
 
 Screen_Playfield:
     ;.include "playfield.i"
@@ -249,6 +282,16 @@ RESET:
     .endrepeat
 
     jsr MMC5_Init
+
+    lda #GHOST_FLASH
+    sta Option_GhostFlash
+    lda #SCREEN_SHAKE
+    sta Option_ScreenShake
+    lda #BUTTON_REPEAT_START
+    sta Option_ShiftStart
+    lda #BUTTON_REPEAT
+    sta Option_ShiftRepeat
+
     jmp InitMenu
 
 MMC5_Init:

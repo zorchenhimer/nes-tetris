@@ -52,9 +52,6 @@ InitModes:
 InitVsMode:
     jmp InitVsMode
 
-InitOptions:
-    jmp InitOptions
-
 .enum MenuDir
 Up
 Down
@@ -70,7 +67,6 @@ MenuMovement:
 
     .byte MenuSel::Game,   MenuSel::VsMode,  MenuSel::VsMode, MenuSel::Options
     .byte MenuSel::Modes,  MenuSel::Options, MenuSel::VsMode, MenuSel::Options
-
 
 Menu_ItemCount = (* - MenuDestinations) / 2
 
@@ -288,10 +284,13 @@ menu_Options:
 
 
 InitMenu:
+    DisableIRQ
+
+    lda #0
+    sta $2001
+
     lda #%0000_0000
     sta $5104
-
-    ;jsr DisableIrq
 
     lda #.lobyte(BareNmiHandler)
     sta NmiHandler+0
@@ -355,18 +354,7 @@ InitMenu:
     sta MenuSelectFn+1
     sta MenuClearFn+1
 
-    ; Turn off ExtAttr mode to draw the initial attribute data
-    lda #%0000_0010
-    sta $5104
-    lda #0
-    ldx #0
-:
-    sta $5C00+(0*256), x
-    sta $5C00+(1*256), x
-    sta $5C00+(2*256), x
-    sta $5C00+(3*256), x
-    dex
-    bne :-
+    jsr ClearExtAttr
 
     ; Turn ExtAttr mode back on
     lda #%0000_0001

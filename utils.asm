@@ -324,3 +324,55 @@ WaitForIRQ:
     bpl :-
     rts
 
+; For use when drawing is off
+ClearExtAttr:
+    ; Turn off ExtAttr mode to draw the initial attribute data
+    lda #%0000_0010
+    sta $5104
+    lda #0
+    ldx #0
+:
+    sta $5C00+(0*256), x
+    sta $5C00+(1*256), x
+    sta $5C00+(2*256), x
+    sta $5C00+(3*256), x
+    dex
+    bne :-
+
+    ; Turn ExtAttr mode back on
+    lda #%0000_0001
+    sta $5104
+    rts
+
+BinToDec_8bit:
+    tax
+    lda @hundreds, x
+    sta bcdOutput+0
+    lda @tens, x
+    sta bcdOutput+1
+    lda @ones, x
+    sta bcdOutput+2
+    rts
+
+@hundreds:
+    .repeat 256, i
+        .if i < 100
+            .byte ' '
+        .else
+            .byte '0' + (i / 100)
+        .endif
+    .endrepeat
+
+@tens:
+    .repeat 256, i
+        .if i < 10
+            .byte ' '
+        .else
+            .byte '0' + ((i / 10) .mod 10)
+        .endif
+    .endrepeat
+
+@ones:
+    .repeat 256, i
+        .byte '0' + (i .mod 10)
+    .endrepeat

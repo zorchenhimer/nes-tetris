@@ -24,10 +24,6 @@ LowestRows: .res 4
 
 TmpBlockOffset: .res 1
 
-ScrollX:    .res 1
-ScrollY:    .res 1
-PpuControl: .res 1
-
 bcdInput:   .res 3  ; bin
 bcdScratch: .res 4  ; bcd
 bcdOutput:  .res 8  ; ascii
@@ -85,9 +81,6 @@ Speed_Drop: .res 1
 
 Flag_PlayfieldReady: .res 1
 
-Option_GhostFlash: .res 1 ; 1 enable flash, 0 disable flash
-Option_ScreenShake: .res 1 ; 1 enable shake
-
 .popseg
 
 SPEED = 60
@@ -116,13 +109,6 @@ BLOCK_START_X = 5
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
 
-;DEBUG_PIECE = 5
-;DEBUG_FIELD = 1
-
-DEBUG_BLOCK = 1
-
-DEBUG_FLASH = 0
-
 BlockGridOffset_X = -2
 BlockGridOffset_Y = -1
 
@@ -134,18 +120,8 @@ LEVEL_ADDR = $22C4
 HOLD_ADDR  = $2139 + MMC5_OFFSET
 NEXT_ADDR_START = $21D9 + MMC5_OFFSET
 
-; Initial wait time in frames before repeating input
-BUTTON_REPEAT_START = 15
-; Held wait time in frames between repeated input
-BUTTON_REPEAT = 3
-
 ; Lines per level
 LEVEL_LENGTH = 10
-
-DisableIrq:
-    lda #$00
-    sta $5204
-    rts
 
 ShakeTable:
     ; X, Y, Nametable
@@ -351,10 +327,6 @@ InitGame:
     lda #LEVEL_LENGTH-1
     sta LinesToNextLevel
 
-    ; TODO: this default needs to go somewhere else
-    lda #1
-    sta Option_ScreenShake
-
     lda #1
     sta Flag_PlayfieldReady
 
@@ -367,12 +339,6 @@ InitGame:
 
     lda #1
     sta Level
-    .ifdef DEBUG_FLASH
-    lda #DEBUG_FLASH
-    .else
-    lda #1
-    .endif
-    sta Option_GhostFlash
 
     ; Turn off ExtAttr mode to draw the initial attribute data
     lda #%0000_0010
@@ -514,7 +480,7 @@ FrameGame:
     bmi :+
     dec RepeatLeft
     bpl :+
-    lda #BUTTON_REPEAT
+    lda Option_ShiftRepeat
     sta RepeatLeft
     jmp @buttonLeft
 :
@@ -522,7 +488,7 @@ FrameGame:
     lda #BUTTON_LEFT ; left
     jsr ButtonPressed
     beq :++
-    lda #BUTTON_REPEAT_START
+    lda Option_ShiftStart
     sta RepeatLeft
 @buttonLeft:
     dec BlockX
@@ -546,7 +512,7 @@ FrameGame:
     bmi :+
     dec RepeatRight
     bpl :+
-    lda #BUTTON_REPEAT
+    lda Option_ShiftRepeat
     sta RepeatRight
     jmp @buttonRight
 :
@@ -554,7 +520,7 @@ FrameGame:
     lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
     beq :++
-    lda #BUTTON_REPEAT_START
+    lda Option_ShiftStart
     sta RepeatRight
 @buttonRight:
     inc BlockX
@@ -610,6 +576,7 @@ FrameGame:
 
     jsr UpdateBlock
     ;jsr WaitForNMI
+
     jsr WaitForIRQ
     jmp FrameGame
 
@@ -903,7 +870,7 @@ CalcScore:
 DedTransition:
     jsr UpdateBlock
     jsr WaitForNMI
-    jsr DisableIrq
+    DisableIRQ
 
     ; game
     ; over
@@ -1757,8 +1724,6 @@ UpdateBlock:
     iny
     cpy #4
     bne :-
-
-
     rts
 
 DrawFullBoard:
