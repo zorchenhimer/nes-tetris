@@ -3,7 +3,7 @@
 nes2mapper 5
 nes2prg 2 * 16 * 1024
 nes2chr 2 * 8 * 1024
-;nes2wram 1 * 8 * 1024
+nes2bram 1 * 8 * 1024
 nes2mirror 'V'
 nes2tv 'N'
 nes2end
@@ -75,11 +75,6 @@ Bin_Tiles: .res 6
 
 FrameCount: .res 1
 
-Option_GhostFlash:  .res 1 ; 1 enable flash, 0 disable flash
-Option_ScreenShake: .res 1 ; 1 enable shake
-Option_ShiftStart:  .res 1
-Option_ShiftRepeat: .res 1
-
 MMC5_OFFSET = $3C00 ; Offset from $2000
 
 .macro SetIRQ Line, Addr
@@ -130,6 +125,9 @@ DebugField:
 
 PieceRng:
     .include "piece-rng.inc"
+
+Screen_Scores:
+    .include "scores-screen.i"
 
 .segment "PRGINIT"
 
@@ -282,16 +280,7 @@ RESET:
     .endrepeat
 
     jsr MMC5_Init
-
-    lda #GHOST_FLASH
-    sta Option_GhostFlash
-    lda #SCREEN_SHAKE
-    sta Option_ScreenShake
-    lda #BUTTON_REPEAT_START
-    sta Option_ShiftStart
-    lda #BUTTON_REPEAT
-    sta Option_ShiftRepeat
-
+    jsr InitRam
     jmp InitMenu
 
 MMC5_Init:

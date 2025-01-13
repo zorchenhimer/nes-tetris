@@ -201,6 +201,11 @@ InitOptions:
     lda #%0001_1110
     sta $2001
 
+    lda #$02
+    sta $5102
+    lda #$01
+    sta $5103
+
 FrameOptions:
     SetIRQ 2, irqOptions
 
@@ -243,6 +248,9 @@ FrameOptions:
     lda #BUTTON_B ; b
     jsr ButtonPressed
     beq :+
+    lda #$00
+    sta $5102
+    sta $5103
     jsr WaitForNMI
     jmp InitMenu
 :

@@ -507,6 +507,7 @@ Menu_DoSelection:
     sta NmiHandler+0
     lda #.hibyte(BareNmiHandler)
     sta NmiHandler+1
+    DisableIRQ
 
     jmp (AddressPointer1)
 
