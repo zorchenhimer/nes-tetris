@@ -218,6 +218,7 @@ FrameOptions:
     jsr ButtonPressed
     beq :+
     inc Opt_Selection
+    lda Opt_Selection
     cmp #OptionItems_Len
     bcc :+
     lda #0
@@ -228,7 +229,8 @@ FrameOptions:
     jsr ButtonPressed
     beq :+
     dec Opt_Selection
-    bcc :+
+    lda Opt_Selection
+    bpl :+
     lda #OptionItems_Len-1
     sta Opt_Selection
 :
