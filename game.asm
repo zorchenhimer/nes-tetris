@@ -24,10 +24,6 @@ LowestRows: .res 4
 
 TmpBlockOffset: .res 1
 
-bcdInput:   .res 3  ; bin
-bcdScratch: .res 4  ; bcd
-bcdOutput:  .res 8  ; ascii
-
 .segment "BSS"
 BlockGrid: .res 4*4
 BlockX: .res 1

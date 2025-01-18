@@ -57,6 +57,10 @@ ScrollY:    .res 1
 
 PpuControl: .res 1
 
+bcdInput:   .res 3  ; bin
+bcdScratch: .res 4  ; bcd
+bcdOutput:  .res 8  ; ascii
+
 .segment "OAM"
 SpriteZero:  .res 4
 SpriteBlock: .res 4*4

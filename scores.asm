@@ -1,13 +1,22 @@
 .struct ScoreEntry
     Name   .byte 16
-    Value  .byte 6
+    ValueA .byte 3
+    ValueB .byte 3 ; maybe something else?
 .endstruct
 
 HS_SAVE_COUNT = 10
 HS_LIST_SIZE = .sizeof(ScoreEntry) * HS_SAVE_COUNT
 
+.struct ScoreDisplay
+    Name  .byte 16
+    Value .byte 8 ; only ValueA
+.endstruct
+
+HS_DISPLAY_SIZE = .sizeof(ScoreDisplay) * HS_SAVE_COUNT
+
 .out .sprintf(".sizeof(ScoreEntry): %d", .sizeof(ScoreEntry))
 .out .sprintf("HS_LIST_SIZE: %d", HS_LIST_SIZE)
+.out .sprintf("HS_DISPLAY_SIZE: %d", HS_DISPLAY_SIZE)
 
 .pushseg
 .segment "SAVERAM"
@@ -35,8 +44,11 @@ Option_ShiftRepeat: .res 1
 .segment "BSS"
 CurrentList: .res 1
 
-Scores_ScreenA: .res HS_LIST_SIZE
-Scores_ScreenB: .res HS_LIST_SIZE
+Scores_ScreenA: .res HS_DISPLAY_SIZE
+Scores_ScreenB: .res HS_DISPLAY_SIZE
+
+Scores_A: .res .sizeof(ScoreEntry)
+;Scores_B: .res .sizeof(ScoreDisplay)
 
 .popseg
 
@@ -48,7 +60,8 @@ Save_CheckVal_Check:
     sta AddressPointer1+0
     lda #.hibyte(addr)
     sta AddressPointer1+1
-    jsr Save_ClearTable
+    ;jsr Save_ClearTable
+    jsr Save_ResetTable
 .endmacro
 
 InitRam:
@@ -116,7 +129,7 @@ Save_ClearTable:
     dex
     bne @name
 
-    ldx #.sizeof(ScoreEntry::Value)
+    ldx #.sizeof(ScoreEntry::ValueA)
     lda #0
 @val:
     sta (AddressPointer1), y
@@ -126,6 +139,19 @@ Save_ClearTable:
 
     dec TmpX
     bne @entries
+    rts
+
+; reset with dummy values
+; Table in AddressPointer1
+Save_ResetTable:
+    ldy #0
+    ldx #HS_LIST_SIZE
+@outer:
+    lda DummyData, y
+    sta (AddressPointer1), y
+    iny
+    dex
+    bne @outer
     rts
 
 SaveEntryOffsets:
@@ -175,6 +201,9 @@ SaveTypeNames:
 InitScores:
     jsr ClearSprites
 
+    lda #0
+    sta $2000
+
     ldx #0
     jsr FillAttributeTable
 
@@ -187,6 +216,19 @@ InitScores:
     jsr DrawScreen_RLE
 
     jsr ClearExtAttr
+
+    lda #.lobyte(Save_Standard)
+    sta AddressPointer1+0
+    lda #.hibyte(Save_Standard)
+    sta AddressPointer1+1
+
+    lda #.lobyte(Scores_ScreenA)
+    sta AddressPointer2+0
+    lda #.hibyte(Scores_ScreenA)
+    sta AddressPointer2+1
+
+    jsr LoadScores
+    jsr DrawScores
 
     lda #%1000_0000
     sta PpuControl
@@ -202,13 +244,154 @@ FrameScores:
     jsr WaitForNMI
     jmp FrameScores
 
+HS_NAME_START = $21A5
+DrawScores:
+    lda #.lobyte(HS_NAME_START)
+    sta AddressPointer1+0
+    lda #.hibyte(HS_NAME_START)
+    sta AddressPointer1+1
+
+    lda #HS_SAVE_COUNT
+    sta TmpX
+
+    ldy #0
+@entry:
+    lda AddressPointer1+1
+    sta $2006
+    lda AddressPointer1+0
+    sta $2006
+
+    ldx #.sizeof(ScoreDisplay::Name)
+@name:
+    lda Scores_ScreenA, y
+    sta $2007
+    iny
+    dex
+    bne @name
+
+    lda #' '
+    sta $2007
+
+    ldx #.sizeof(ScoreDisplay::Value)
+@zero:
+    lda Scores_ScreenA, y
+    cmp #$30
+    bne @value
+    iny
+    lda #' '
+    sta $2007
+    dex
+    cpx #1
+    bne @zero
+
+@value:
+    lda Scores_ScreenA, y
+    sta $2007
+    iny
+    dex
+    bne @value
+
+    dec TmpX
+    beq @done
+
+    clc
+    lda AddressPointer1+0
+    adc #32
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jmp @entry
+
+@done:
+    rts
+
 ; AddressPointer1 - source
 ; AddressPointer2 - destination
 LoadScores:
-    ldx #HS_LIST_SIZE
+    lda #HS_SAVE_COUNT
+    sta TmpX ; Current entry index
+
+@entry:
     ldy #0
-:   lda (AddressPointer1), y
+@copyA:
+    lda (AddressPointer1), y
     sta (AddressPointer2), y
-    dex
-    bne :-
+    iny
+    cpy #.sizeof(ScoreEntry::Name)
+    bne @copyA
+
+    ldx #0
+@copyB:
+    lda (AddressPointer1), y
+    sta bcdInput, x
+    iny
+    inx
+    cpx #.sizeof(ScoreEntry::ValueA)
+    bne @copyB
+
+    jsr BinToDec_Shift
+
+    clc
+    tya
+    adc #.sizeof(ScoreEntry::ValueB)
+    adc AddressPointer1+0
+    sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+
+    ldy #ScoreDisplay::Value
+    ldx #0
+@copyC:
+    lda bcdOutput, x
+    sta (AddressPointer2), y
+    iny
+    inx
+    cpx #.sizeof(ScoreDisplay::Value)
+    bne @copyC
+
+    clc
+    tya
+    adc AddressPointer2+0
+    sta AddressPointer2+0
+
+    lda AddressPointer2+1
+    adc #0
+    sta AddressPointer2+1
+
+    dec TmpX
+    bne @entry
     rts
+
+DummyData:
+    .byte "< one          >"
+    .byte 1, 0, 0, 0, 0, 0
+
+    .byte "< two          >"
+    .byte 2, 0, 0, 0, 0, 0
+
+    .byte "< three        >"
+    .byte 3, 0, 0, 0, 0, 0
+
+    .byte "< four         >"
+    .byte 4, 0, 0, 0, 0, 0
+
+    .byte "< five         >"
+    .byte 5, 0, 0, 0, 0, 0
+
+    .byte "< six          >"
+    .byte 6, 0, 0, 0, 0, 0
+
+    .byte "< seven        >"
+    .byte 7, 0, 0, 0, 0, 0
+
+    .byte "< eight        >"
+    .byte 8, 0, 0, 0, 0, 0
+
+    .byte "< nine         >"
+    .byte 9, 0, 0, 0, 0, 0
+
+    .byte "< ten          >"
+    .byte 10, 0, 0, 0, 0, 0
