@@ -306,9 +306,7 @@ InitMenu:
     sta AddressPointer1+0
     lda #.hibyte(Screen_Menu)
     sta AddressPointer1+1
-    jsr DrawScreen
-    ;ldx #' '
-    ;jsr FillScreen
+    jsr DrawScreen_RLE
 
     lda #.lobyte(Palette_Bg)
     sta AddressPointer1+0

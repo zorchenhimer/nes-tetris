@@ -68,4 +68,4 @@ debug-field.i: screens/debug-field.tmx
 	go run convert-map.go $< $@
 
 menu-screen.i: screens/main-menu.tmx
-	go run convert-map.go $< $@
+	go run convert-map.go $< $@ --rle

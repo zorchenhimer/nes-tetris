@@ -376,3 +376,172 @@ BinToDec_8bit:
     .repeat 256, i
         .byte '0' + (i .mod 10)
     .endrepeat
+
+BinToDec_Shift:
+    lda #0
+    .repeat .sizeof(bcdScratch), i
+        sta bcdScratch+i
+    .endrepeat
+
+    .repeat 23
+    clc
+    rol bcdInput+0
+    rol bcdInput+1
+    rol bcdInput+2
+    rol bcdScratch+0
+    rol bcdScratch+1
+    rol bcdScratch+2
+    rol bcdScratch+3
+
+    ; One
+    lda bcdScratch+0
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+0
+    adc #$03
+    sta bcdScratch+0
+:
+
+    ; Ten
+    lda bcdScratch+0
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+0
+    adc #$30
+    sta bcdScratch+0
+:
+
+    ; Hundred
+    lda bcdScratch+1
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+1
+    adc #$03
+    sta bcdScratch+1
+:
+
+    ; 1k
+    lda bcdScratch+1
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+1
+    adc #$30
+    sta bcdScratch+1
+:
+
+    ; 10k
+    lda bcdScratch+2
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+2
+    adc #$03
+    sta bcdScratch+2
+:
+
+    ; 100k
+    lda bcdScratch+2
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+    lda bcdScratch+2
+    adc #$30
+    sta bcdScratch+2
+:
+
+    ; 1mil
+    lda bcdScratch+3
+    and #$0F
+    cmp #$05
+    bcc :+
+    clc
+    lda bcdScratch+3
+    adc #$03
+    sta bcdScratch+3
+:
+
+    ; 10mil
+    lda bcdScratch+3
+    and #$F0
+    cmp #$50
+    bcc :+
+    clc
+:
+    .endrepeat
+
+    clc
+    rol bcdInput+0
+    rol bcdInput+1
+    rol bcdInput+2
+    rol bcdScratch+0
+    rol bcdScratch+1
+    rol bcdScratch+2
+    rol bcdScratch+3
+
+    ; make it ascii
+
+    lda bcdScratch+3
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+0
+
+    lda bcdScratch+3
+    and #$0F
+    ora #$30
+    sta bcdOutput+1
+
+    ;;;
+    lda bcdScratch+2
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+2
+
+    lda bcdScratch+2
+    and #$0F
+    ora #$30
+    sta bcdOutput+3
+
+    ;;;
+    lda bcdScratch+1
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+4
+
+    lda bcdScratch+1
+    and #$0F
+    ora #$30
+    sta bcdOutput+5
+
+    ;;;
+    lda bcdScratch+0
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta bcdOutput+6
+
+    lda bcdScratch+0
+    and #$0F
+    ora #$30
+    sta bcdOutput+7
+    rts

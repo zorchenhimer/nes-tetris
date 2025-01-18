@@ -1,7 +1,7 @@
 
 .include "nes2header.inc"
 nes2mapper 5
-nes2prg 2 * 16 * 1024
+nes2prg 4 * 16 * 1024
 nes2chr 2 * 8 * 1024
 nes2bram 1 * 8 * 1024
 nes2mirror 'V'
@@ -111,7 +111,7 @@ MMC5_OFFSET = $3C00 ; Offset from $2000
 
 .segment "CHR03"
 
-.segment "PAGE00"
+.segment "PAGE_GAME"
 
     .include "game.asm"
     .include "options.asm"
@@ -126,10 +126,15 @@ DebugField:
 PieceRng:
     .include "piece-rng.inc"
 
-Screen_Scores:
-    .include "scores-screen.i"
+.segment "PAGE_GAME2"
 
-.segment "PRGINIT"
+.segment "PAGE_UTIL"
+    .include "utils.asm"
+
+.segment "PAGE_00"
+.segment "PAGE_01"
+
+.segment "PAGE_INIT"
 
 ; Button Constants
 BUTTON_A        = 1 << 7
@@ -143,8 +148,6 @@ BUTTON_RIGHT    = 1 << 0
 
 MMC5_MultA = $5205
 MMC5_MultB = $5206
-
-    .include "utils.asm"
 
 IrqCall:
     jmp (ptrIRQ)
@@ -284,9 +287,22 @@ RESET:
     jmp InitMenu
 
 MMC5_Init:
-    ; PRG mode 0: one 32k bank
-    lda #0
+    ; PRG mode 2
+    ; 8k  @ $6000-$7FFF
+    ; 16k @ $8000-$BFFF
+    ; 8k  @ $C000-$DFFF
+    ; 8k  @ $E000-$FFFF
+    lda #2
     sta $5100
+
+    lda #%1000_0000 ; game
+    sta $5115
+
+    lda #%1000_0100 ; util
+    sta $5116
+
+    lda #$07
+    sta $5117
 
     ; CHR mode 1: 4k pages
     lda #1
@@ -333,3 +349,6 @@ Palette_Sp:
 
     .include "scores.asm"
     .include "menu.asm"
+
+Screen_Scores:
+    .include "scores-screen.i"
