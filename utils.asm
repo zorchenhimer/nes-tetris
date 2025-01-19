@@ -101,7 +101,7 @@ LoadBgPalettes:
     sta Palettes, y
     iny
     dex
-    bpl :-
+    bne :-
     rts
 
 ; Binary value in A, decimal values
