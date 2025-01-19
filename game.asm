@@ -1416,9 +1416,12 @@ NextBlock_Swap:
 
     lda #0
     sta BlockRotation
-
-    lda #0
     sta SoftDrop
+
+    lda #$FF
+    sta RepeatRight
+    sta RepeatLeft
+
 
     jsr LoadBlock
     jsr CheckCollide_WithGrid
