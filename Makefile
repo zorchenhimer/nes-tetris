@@ -61,7 +61,7 @@ playfield.i: screens/playfield.tmx
 playfield-rle.i: screens/playfield.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
-scores-screen.i: screens/scores-mockup.tmx convert-map.go
+scores-screen.i: screens/scores.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
 debug-field.i: screens/debug-field.tmx

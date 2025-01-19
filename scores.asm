@@ -1,7 +1,8 @@
 .struct ScoreEntry
-    Name   .byte 16
-    ValueA .byte 3
-    ValueB .byte 3 ; maybe something else?
+    Name  .byte 16
+    Time  .byte 2
+    Lines .byte 3
+    Score .byte 3 ; maybe something else?
 .endstruct
 
 HS_SAVE_COUNT = 10
@@ -9,10 +10,16 @@ HS_LIST_SIZE = .sizeof(ScoreEntry) * HS_SAVE_COUNT
 
 .struct ScoreDisplay
     Name  .byte 16
-    Value .byte 8 ; only ValueA
+    Time  .byte 8
+    Lines .byte 8
+    Score .byte 8 ; only ValueA
 .endstruct
 
 HS_DISPLAY_SIZE = .sizeof(ScoreDisplay) * HS_SAVE_COUNT
+
+HS_TITLE_ADDR = $2066
+HS_TITLE_LEN  = 19
+HS_NAME_START = $20C4
 
 .out .sprintf(".sizeof(ScoreEntry): %d", .sizeof(ScoreEntry))
 .out .sprintf("HS_LIST_SIZE: %d", HS_LIST_SIZE)
@@ -45,15 +52,23 @@ Option_ShiftRepeat: .res 1
 CurrentList: .res 1
 
 Scores_ScreenA: .res HS_DISPLAY_SIZE
-Scores_ScreenB: .res HS_DISPLAY_SIZE
+;Scores_ScreenB: .res HS_DISPLAY_SIZE
+Title_ScreenA: .res HS_TITLE_LEN
+;Title_ScreenB: .res HS_TITLE_LEN
 
-Scores_A: .res .sizeof(ScoreEntry)
+;Scores_A: .res .sizeof(ScoreEntry)
 ;Scores_B: .res .sizeof(ScoreDisplay)
 
 .popseg
 
 Save_CheckVal_Check:
     .byte "Zorch"
+
+Save_Palettes:
+    .byte $0F, $20, $00, $10
+    .byte $0F, $21, $00, $10
+    .byte $0F, $25, $00, $10
+    .byte $0F, $2B, $00, $10
 
 .macro ClearSaveTable addr
     lda #.lobyte(addr)
@@ -115,32 +130,6 @@ InitRam:
     sta $5103
     rts
 
-; Table to clear in AddressPointer1
-Save_ClearTable:
-    lda #10
-    sta TmpX
-    ldy #0
-@entries:
-    ldx #.sizeof(ScoreEntry::Name)
-    lda #' '
-@name:
-    sta (AddressPointer1), y
-    iny
-    dex
-    bne @name
-
-    ldx #.sizeof(ScoreEntry::ValueA)
-    lda #0
-@val:
-    sta (AddressPointer1), y
-    iny
-    dex
-    bne @val
-
-    dec TmpX
-    bne @entries
-    rts
-
 ; reset with dummy values
 ; Table in AddressPointer1
 Save_ResetTable:
@@ -173,7 +162,7 @@ SaveTypeList:
     .word Save_NoHold
     .word Save_Classic
 
-SaveTypeNames:
+SaveTypeTitles:
     .word :+
     .word :++
     .word :+++
@@ -192,11 +181,36 @@ SaveTypeNames:
 :   .asciiz "Only T Blocks"
 :   .asciiz "Only L Blocks"
 :   .asciiz "Only J Blocks"
-:   .asciiz "Time Attack - Lines"
-:   .asciiz "Time Attack - Score"
+:   .asciiz "Time Attack: Lines"
+:   .asciiz "Time Attack: Score"
 :   .asciiz "Dirty Board"
 :   .asciiz "No Hold"
 :   .asciiz "Classic"
+
+SaveTypeColumn:
+    .word :+
+    .word :++
+    .word :+++
+    .word :++++
+    .word :+++++
+    .word :++++++
+    .word :+++++++
+    .word :++++++++
+    .word :+++++++++
+    .word :++++++++++
+    .word :+++++++++++
+
+:   .asciiz "Scores"
+:   .asciiz "Scores"
+:   .asciiz "Scores"
+:   .asciiz "Scores"
+:   .asciiz "Scores"
+:   .asciiz "Scores"
+:   .asciiz "Times"
+:   .asciiz "Times"
+:   .asciiz "Times"
+:   .asciiz "Scores"
+:   .asciiz "Scores"
 
 InitScores:
     jsr ClearSprites
@@ -207,6 +221,59 @@ InitScores:
     ldx #0
     jsr FillAttributeTable
 
+    lda #.lobyte(Save_Palettes)
+    sta AddressPointer1+0
+    lda #.hibyte(Save_Palettes)
+    sta AddressPointer1+1
+    jsr LoadBgPalettes
+
+    jsr ClearExtAttr
+
+    lda #%0000_0010
+    sta $5104
+
+    ;
+    ; Time colors
+    ldx #0
+    lda #%0100_0000
+:
+    .repeat 11, i
+        sta MMC5_OFFSET+HS_NAME_START-32+(i*64), x
+    .endrepeat
+
+    inx
+    cpx #8
+    bne :-
+
+    ;
+    ; Lines colors
+    ldx #0
+    lda #%1000_0000
+:
+    .repeat 11, i
+        sta MMC5_OFFSET+HS_NAME_START-32+9+(i*64), x
+    .endrepeat
+
+    inx
+    cpx #8
+    bne :-
+
+    ;
+    ; Scores colors
+    ldx #0
+    lda #%1100_0000
+:
+    .repeat 11, i
+        sta MMC5_OFFSET+HS_NAME_START-32+18+(i*64), x
+    .endrepeat
+
+    inx
+    cpx #8
+    bne :-
+
+    lda #%0000_0001
+    sta $5104
+
     ;ldx #0
     ;jsr FillScreen
     lda #.lobyte(Screen_Scores)
@@ -215,18 +282,12 @@ InitScores:
     sta AddressPointer1+1
     jsr DrawScreen_RLE
 
-    jsr ClearExtAttr
-
-    lda #.lobyte(Save_Standard)
-    sta AddressPointer1+0
-    lda #.hibyte(Save_Standard)
-    sta AddressPointer1+1
-
     lda #.lobyte(Scores_ScreenA)
     sta AddressPointer2+0
     lda #.hibyte(Scores_ScreenA)
     sta AddressPointer2+1
 
+    lda #0 ; Index of list
     jsr LoadScores
     jsr DrawScores
 
@@ -244,17 +305,33 @@ FrameScores:
     jsr WaitForNMI
     jmp FrameScores
 
-HS_NAME_START = $21A5
+; Currently only draws ScreenA
 DrawScores:
+    lda #.hibyte(HS_TITLE_ADDR)
+    sta $2006
+    lda #.lobyte(HS_TITLE_ADDR)
+    sta $2006
+
+    ldx #0
+:   lda Title_ScreenA, x
+    sta $2007
+    inx
+    cpx #HS_TITLE_LEN
+    bne :-
+
     lda #.lobyte(HS_NAME_START)
     sta AddressPointer1+0
     lda #.hibyte(HS_NAME_START)
     sta AddressPointer1+1
 
+    lda #.lobyte(Scores_ScreenA)
+    sta AddressPointer2+0
+    lda #.hibyte(Scores_ScreenA)
+    sta AddressPointer2+1
+
     lda #HS_SAVE_COUNT
     sta TmpX
 
-    ldy #0
 @entry:
     lda AddressPointer1+1
     sta $2006
@@ -262,34 +339,83 @@ DrawScores:
     sta $2006
 
     ldx #.sizeof(ScoreDisplay::Name)
+    ldy #ScoreDisplay::Name
 @name:
-    lda Scores_ScreenA, y
+    lda (AddressPointer2), y
     sta $2007
     iny
     dex
     bne @name
 
+    clc
+    lda AddressPointer1+0
+    adc #32
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+
+    lda AddressPointer1+1
+    sta $2006
+    lda AddressPointer1+0
+    sta $2006
+
+    ldy #ScoreDisplay::Time
+    ldx #.sizeof(ScoreDisplay::Time)
+:
+    lda (AddressPointer2), y
+    sta $2007
+    iny
+    dex
+    bne :-
+
     lda #' '
     sta $2007
 
-    ldx #.sizeof(ScoreDisplay::Value)
-@zero:
-    lda Scores_ScreenA, y
+    ldx #.sizeof(ScoreDisplay::Lines)
+    ldy #ScoreDisplay::Lines
+@zeroLines:
+    lda (AddressPointer2), y
     cmp #$30
-    bne @value
+    bne :+
     iny
     lda #' '
     sta $2007
     dex
     cpx #1
-    bne @zero
+    bne @zeroLines
+:
 
-@value:
-    lda Scores_ScreenA, y
+@valueLines:
+    lda (AddressPointer2), y
     sta $2007
     iny
     dex
-    bne @value
+    bne @valueLines
+
+    lda #' '
+    sta $2007
+
+    ldx #.sizeof(ScoreDisplay::Score)
+    ldy #ScoreDisplay::Score
+@zeroScore:
+    lda (AddressPointer2), y
+    cmp #$30
+    bne :+
+    iny
+    lda #' '
+    sta $2007
+    dex
+    cpx #1
+    bne @zeroScore
+:
+
+@valueScore:
+    lda (AddressPointer2), y
+    sta $2007
+    iny
+    dex
+    bne @valueScore
 
     dec TmpX
     beq @done
@@ -301,19 +427,61 @@ DrawScores:
     lda AddressPointer1+1
     adc #0
     sta AddressPointer1+1
+
+    clc
+    lda AddressPointer2+0
+    adc #.sizeof(ScoreDisplay)
+    sta AddressPointer2+0
+    lda AddressPointer2+1
+    adc #0
+    sta AddressPointer2+1
     jmp @entry
 
 @done:
     rts
 
-; AddressPointer1 - source
+; A - source index
 ; AddressPointer2 - destination
 LoadScores:
+    asl a
+    tax
+
+    lda SaveTypeTitles+0, x
+    sta AddressPointer1+0
+    lda SaveTypeTitles+1, x
+    sta AddressPointer1+1
+
+    ;
+    ; Title
+    ldy #0
+@titleCopy:
+    lda (AddressPointer1), y
+    beq :+
+    sta Title_ScreenA, y
+    iny
+    jmp @titleCopy
+:
+    lda #' '
+@titleClear:
+    cpy #HS_TITLE_LEN
+    beq :+
+    sta Title_ScreenA, y
+    iny
+    jmp @titleClear
+:
+
+    lda SaveTypeList+0, x
+    sta AddressPointer1+0
+    lda SaveTypeList+1, x
+    sta AddressPointer1+1
+
     lda #HS_SAVE_COUNT
     sta TmpX ; Current entry index
 
 @entry:
     ldy #0
+    ;
+    ; Name
 @copyA:
     lda (AddressPointer1), y
     sta (AddressPointer2), y
@@ -321,77 +489,144 @@ LoadScores:
     cpy #.sizeof(ScoreEntry::Name)
     bne @copyA
 
+    ;
+    ; Time
     ldx #0
+    ldy #ScoreEntry::Time
 @copyB:
     lda (AddressPointer1), y
     sta bcdInput, x
     iny
     inx
-    cpx #.sizeof(ScoreEntry::ValueA)
+    cpx #.sizeof(ScoreEntry::Time)
     bne @copyB
+
+    ldy #ScoreDisplay::Time
+    ldx #0
+    lda #'0'
+:
+    sta (AddressPointer2), y
+    iny
+    inx
+    cpx #.sizeof(ScoreDisplay::Time)
+    bne :-
+
+    ;
+    ; Lines
+    ldx #0
+    ldy #ScoreEntry::Lines
+@copyC:
+    lda (AddressPointer1), y
+    sta bcdInput, x
+    iny
+    inx
+    cpx #.sizeof(ScoreEntry::Lines)
+    bne @copyC
 
     jsr BinToDec_Shift
 
-    clc
-    tya
-    adc #.sizeof(ScoreEntry::ValueB)
-    adc AddressPointer1+0
-    sta AddressPointer1+0
-
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
-
-    ldy #ScoreDisplay::Value
+    ldy #ScoreDisplay::Lines
     ldx #0
-@copyC:
+@copyD:
     lda bcdOutput, x
     sta (AddressPointer2), y
     iny
     inx
-    cpx #.sizeof(ScoreDisplay::Value)
-    bne @copyC
+    cpx #.sizeof(ScoreDisplay::Lines)
+    bne @copyD
+
+    ;
+    ; Score
+    ldx #0
+    ldy #ScoreEntry::Score
+@copyE:
+    lda (AddressPointer1), y
+    sta bcdInput, x
+    iny
+    inx
+    cpx #.sizeof(ScoreEntry::Score)
+    bne @copyE
+
+    jsr BinToDec_Shift
+
+    ldy #ScoreDisplay::Score
+    ldx #0
+@copyF:
+    lda bcdOutput, x
+    sta (AddressPointer2), y
+    iny
+    inx
+    cpx #.sizeof(ScoreDisplay::Score)
+    bne @copyF
 
     clc
-    tya
-    adc AddressPointer2+0
-    sta AddressPointer2+0
+    lda AddressPointer1+0
+    adc #.sizeof(ScoreEntry) ; .sizeof(ScoreEntry)
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
 
+    clc
+    lda AddressPointer2+0
+    adc #.sizeof(ScoreDisplay) ; .sizeof(ScoreDisplay)
+    sta AddressPointer2+0
     lda AddressPointer2+1
     adc #0
     sta AddressPointer2+1
 
     dec TmpX
-    bne @entry
-    rts
+    beq :+
+    jmp @entry
+:   rts
 
 DummyData:
     .byte "< one          >"
-    .byte 1, 0, 0, 0, 0, 0
+    .byte 0, 0    ; time
+    .byte 1, 0, 0 ; lines
+    .byte 2, 0, 0 ; score
 
     .byte "< two          >"
-    .byte 2, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 3, 0, 0
+    .byte 4, 0, 0
 
     .byte "< three        >"
-    .byte 3, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 5, 0, 0
+    .byte 6, 0, 0
 
     .byte "< four         >"
-    .byte 4, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 7, 0, 0
+    .byte 8, 0, 0
 
     .byte "< five         >"
-    .byte 5, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 9, 0, 0
+    .byte 10, 0, 0
 
     .byte "< six          >"
-    .byte 6, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 11, 0, 0
+    .byte 12, 0, 0
 
     .byte "< seven        >"
-    .byte 7, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 13, 0, 0
+    .byte 14, 0, 0
 
     .byte "< eight        >"
-    .byte 8, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 15, 0, 0
+    .byte 16, 0, 0
 
     .byte "< nine         >"
-    .byte 9, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 17, 0, 0
+    .byte 18, 0, 0
 
     .byte "< ten          >"
-    .byte 10, 0, 0, 0, 0, 0
+    .byte 0, 0
+    .byte 19, 0, 0
+    .byte 20, 0, 0
