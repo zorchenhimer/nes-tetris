@@ -60,7 +60,7 @@ func encode(data []uint32, output io.Writer) {
 			var d []uint8
 			val := data[i]
 			for ; i < len(data); i++ {
-				if val != data[i] {
+				if val != data[i] || len(d) > 126 {
 					i--
 					break
 				}
@@ -74,7 +74,7 @@ func encode(data []uint32, output io.Writer) {
 			var d []uint8
 			var x int
 			for x = i; x < len(data); x++ {
-				if data[x] == data[x+1] { // this can probably go OOB
+				if data[x] == data[x+1] || len(d) > 126 { // this can probably go OOB
 					break
 				}
 				d = append(d, uint8(data[x]-1))

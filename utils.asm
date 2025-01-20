@@ -194,8 +194,8 @@ ClearSprites:
     rts
 
 ; Run Length Encoded tile data at AddressPointer1
+; PPU Hi Address A
 DrawScreen_RLE:
-    lda #$20
     sta $2006
     lda #$00
     sta $2006

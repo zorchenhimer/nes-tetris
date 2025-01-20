@@ -276,8 +276,8 @@ InitGame:
     lda #.hibyte(Screen_Playfield)
     sta AddressPointer1+1
     ;jsr DrawScreen
+    lda #$20
     jsr DrawScreen_RLE
-
 
     lda #0
     ldy #0
