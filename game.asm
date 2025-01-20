@@ -414,6 +414,8 @@ FrameGame:
     sta SoftDrop
 :
 
+    lda Option_EnableHardDrop
+    beq :+
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
@@ -421,6 +423,8 @@ FrameGame:
     jmp @hardDropDone
 :
 
+    lda Option_EnableHold
+    beq :+
     lda #BUTTON_SELECT ; select
     jsr ButtonReleased
     beq :+
@@ -1723,6 +1727,15 @@ UpdateBlock:
     iny
     cpy #4
     bne :-
+
+    lda Option_ShowGhost
+    bne :+
+    lda #$0F
+    sta Palettes+5+16
+    sta Palettes+6+16
+    sta Palettes+7+16
+:
+
     rts
 
 DrawFullBoard:
@@ -1812,18 +1825,27 @@ IrqDrawBoard:
     .endrepeat
 @noHold:
 
-    .ifdef DEBUG_BLOCK
-        .repeat 4, i
-            .repeat 4, j
-            lda BlockGrid+j+(i*4)
-            sta $2062+MMC5_OFFSET+j+(i*32)
-            .endrepeat
+    ;.ifdef DEBUG_BLOCK
+    lda Option_ShowCurrent
+    beq :+
+    .repeat 4, i
+        .repeat 4, j
+        lda BlockGrid+j+(i*4)
+        sta $2062+MMC5_OFFSET+j+(i*32)
         .endrepeat
-    .endif
+    .endrepeat
+:
 
     ;
     ; Draw bag contents
     .repeat 4, j
+    .if j = 1
+        lda Option_ShowNext
+        bne :+
+        jmp @noBag
+:
+    .endif
+
         lda BagA+j
         asl a
         tax
@@ -1867,6 +1889,7 @@ IrqDrawBoard:
         .endrepeat
     .endrepeat
 
+@noBag:
     lda Flag_PlayfieldReady
     bne :+
     rts

@@ -47,6 +47,11 @@ Option_GhostFlash:  .res 1 ; 1 enable flash, 0 disable flash
 Option_ScreenShake: .res 1 ; 1 enable shake
 Option_ShiftStart:  .res 1
 Option_ShiftRepeat: .res 1
+Option_ShowNext:    .res 1
+Option_ShowCurrent: .res 1
+Option_ShowGhost:   .res 1
+Option_EnableHold:  .res 1
+Option_EnableHardDrop: .res 1
 
 .segment "BSS"
 Save_CurrentList: .res 1
