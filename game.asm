@@ -872,6 +872,11 @@ DedTransition:
     jsr WaitForNMI
     DisableIRQ
 
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
+
     ; game
     ; over
 
@@ -947,6 +952,64 @@ DedTransition:
         lda #GAMEOVER_START_X+(i*8)
         sta GameOverOops+(i*4)+3
     .endrepeat
+
+    lda #'{'
+    sta CurrentScore+ScoreEntry::Name+0
+
+    lda Score+0
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta CurrentScore+ScoreEntry::Name+1
+
+    lda Score+0
+    and #$0F
+    ora #$30
+    sta CurrentScore+ScoreEntry::Name+2
+
+    lda Score+1
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta CurrentScore+ScoreEntry::Name+3
+
+    lda Score+1
+    and #$0F
+    ora #$30
+    sta CurrentScore+ScoreEntry::Name+4
+
+    lda Score+2
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora #$30
+    sta CurrentScore+ScoreEntry::Name+5
+
+    lda Score+2
+    and #$0F
+    ora #$30
+    sta CurrentScore+ScoreEntry::Name+6
+    lda #'}'
+    sta CurrentScore+ScoreEntry::Name+7
+
+    .repeat 3, i
+    lda Lines+i
+    sta CurrentScore+ScoreEntry::Lines+i
+    .endrepeat
+
+    .repeat 3, i
+    lda Score+i
+    sta CurrentScore+ScoreEntry::Score+i
+    .endrepeat
+
+    jsr CheckForNewHighScore
+    sta TmpX
+
     jsr WaitForNMI
 
 DedFrame:
@@ -954,8 +1017,13 @@ DedFrame:
     jsr ReadControllers
     lda #BUTTON_START
     jsr ButtonPressed
-    bne :+
+    bne :++
     jsr WaitForNMI
+
+    lda TmpX
+    beq :+
+    jmp InitScores_EnterName
+:
     jmp DedFrame
 
 :   jsr WaitForNMI

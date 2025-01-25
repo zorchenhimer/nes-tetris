@@ -20,6 +20,7 @@ SOURCES = \
 	playfield-rle.i \
 	menu-screen.i \
 	scores-screen.i \
+	new-high-score.i \
 	debug-field.i
 
 CHR = tiles.chr tiles2.chr tiles3.chr
@@ -62,6 +63,9 @@ playfield-rle.i: screens/playfield.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
 scores-screen.i: screens/scores.tmx convert-map.go
+	go run convert-map.go $< $@ --rle
+
+new-high-score.i: screens/new-high-score.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
 debug-field.i: screens/debug-field.tmx

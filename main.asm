@@ -12,6 +12,8 @@ nes2end
 .feature underline_in_numbers
 .feature addrsize
 
+MMC5_OFFSET = $3C00 ; Offset from $2000
+
 ;DEBUG_PIECE = 5
 ;DEBUG_FIELD = 1
 DEBUG_BLOCK = 1
@@ -28,6 +30,37 @@ SCREEN_SHAKE = 1
 BUTTON_REPEAT_START = 15
 ; Held wait time in frames between repeated input
 BUTTON_REPEAT = 3
+
+.macro SetIRQ Line, Addr
+    lda #Line
+    sta $5203
+    lda #$80
+    sta $5204
+
+    lda #.lobyte(Addr)
+    sta ptrIRQ+0
+    lda #.hibyte(Addr)
+    sta ptrIRQ+1
+    cli
+.endmacro
+
+.macro DisableIRQ
+    lda #$00
+    sta $5204
+.endmacro
+
+.macro EnableRam
+    lda #$02
+    sta $5102
+    lda #$01
+    sta $5103
+.endmacro
+
+.macro DisableRam
+    lda #$00
+    sta $5102
+    sta $5103
+.endmacro
 
 .segment "ZEROPAGE"
 Sleeping: .res 1
@@ -61,6 +94,9 @@ bcdInput:   .res 3  ; bin
 bcdScratch: .res 4  ; bcd
 bcdOutput:  .res 8  ; ascii
 
+; Index into high scores tables
+CurrentGameType: .res 1
+
 .segment "OAM"
 SpriteZero:  .res 4
 SpriteBlock: .res 4*4
@@ -79,25 +115,11 @@ Bin_Tiles: .res 6
 
 FrameCount: .res 1
 
-MMC5_OFFSET = $3C00 ; Offset from $2000
+    .include "scores.asm"
 
-.macro SetIRQ Line, Addr
-    lda #Line
-    sta $5203
-    lda #$80
-    sta $5204
+CurrentScore: .tag ScoreEntry
 
-    lda #.lobyte(Addr)
-    sta ptrIRQ+0
-    lda #.hibyte(Addr)
-    sta ptrIRQ+1
-    cli
-.endmacro
-
-.macro DisableIRQ
-    lda #$00
-    sta $5204
-.endmacro
+    .include "utils.asm"
 
 .segment "VECTORS"
     .word NMI
@@ -132,8 +154,6 @@ PieceRng:
 
 .segment "PAGE_GAME2"
 
-.segment "PAGE_UTIL"
-    .include "utils.asm"
 
 .segment "PAGE_00"
 .segment "PAGE_01"
@@ -288,6 +308,10 @@ RESET:
 
     jsr MMC5_Init
     jsr InitRam
+
+    lda #0
+    sta CurrentGameType
+
     jmp InitMenu
 
 MMC5_Init:
@@ -351,8 +375,10 @@ Palette_Bg:
 Palette_Sp:
     .byte $0F, $27, $00, $10
 
-    .include "scores.asm"
     .include "menu.asm"
 
 Screen_Scores:
     .include "scores-screen.i"
+
+Screen_NewHighScore:
+    .include "new-high-score.i"

@@ -68,7 +68,7 @@ ScoreAnim_Frame:     .res 1
 ScoreAnim_Scroll:    .res 1
 Score_DrawTitle:     .res 1
 
-.popseg
+.segment "PAGE_INIT"
 
 Save_CheckVal_Check:
     .byte "Zorch"
@@ -183,10 +183,7 @@ InitRam:
     rts
 @reset:
 
-    lda #$02
-    sta $5102
-    lda #$01
-    sta $5103
+    EnableRam
 
     lda #GHOST_FLASH
     sta Option_GhostFlash
@@ -217,9 +214,8 @@ InitRam:
     dey
     bne :-
 
-    lda #$00
-    sta $5102
-    sta $5103
+    DisableRam
+
     rts
 
 ; reset with dummy values
@@ -319,6 +315,11 @@ InitScores:
     jsr LoadScores
     jsr DrawScores
 
+    lda #.lobyte(NMI_Scores)
+    sta NmiHandler+0
+    lda #.hibyte(NMI_Scores)
+    sta NmiHandler+1
+
     lda #%1000_0000
     sta PpuControl
     sta $2000
@@ -333,11 +334,6 @@ InitScores:
     sta ScoreAnim_Direction
     sta ScoreAnim_DirectionIrq
     sta ScoreAnim_Scroll
-
-    lda #.lobyte(NMI_Scores)
-    sta NmiHandler+0
-    lda #.hibyte(NMI_Scores)
-    sta NmiHandler+1
 
     SetIRQ 35, IRQ_Scores
     jsr WaitForIRQ
@@ -402,6 +398,121 @@ FrameScores:
     jsr WaitForIRQ
     jmp FrameScores
 
+CheckForNewHighScore:
+    lda CurrentGameType
+    asl a
+    tax
+    lda SaveTypeList+0, x
+    sta AddressPointer1+0
+    lda SaveTypeList+1, x
+    sta AddressPointer1+1
+
+    ; start checking from the end of the list
+    ldy #.sizeof(ScoreEntry)*(HS_SAVE_COUNT-1)+ScoreEntry::Score
+
+    lda #10
+    sta TmpX
+
+@loop:
+    lda CurrentScore+ScoreEntry::Score+0
+    cmp (AddressPointer1), y
+    iny
+    lda CurrentScore+ScoreEntry::Score+1
+    sbc (AddressPointer1), y
+    iny
+    lda CurrentScore+ScoreEntry::Score+2
+    sbc (AddressPointer1), y
+    bcs @next
+    jmp @done
+
+@next:
+    dey
+    dey
+
+    dec TmpX
+    beq @done
+
+    tya
+    sec
+    sbc #.sizeof(ScoreEntry)
+    tay
+    jmp @loop
+
+@done:
+
+    lda TmpX
+    cmp #10
+    bne :+
+    ; didn't find a new high score
+    lda #0
+    rts
+:
+
+    ; new high score
+    lda TmpX
+    sta MMC5_MultA
+    lda #.sizeof(ScoreEntry)
+    sta MMC5_MultB
+
+    clc
+    lda MMC5_MultA
+    sta TmpY
+    adc AddressPointer1+0
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+
+    clc
+    lda AddressPointer1+0
+    adc #.sizeof(ScoreEntry)
+    sta AddressPointer2+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer2+1
+
+    lda TmpX
+    cmp #9
+    beq @noMemCpy
+
+    sec
+    lda #9
+    sbc TmpX
+    sta MMC5_MultA
+    lda #.sizeof(ScoreEntry)
+    sta MMC5_MultB
+    ldy MMC5_MultA
+
+    EnableRam
+    jsr MemCopyRev
+
+@noMemCpy:
+
+    ldy #ScoreEntry::Name
+    .repeat .sizeof(ScoreEntry::Name), i
+        lda CurrentScore+ScoreEntry::Name+i
+        sta (AddressPointer1), y
+        iny
+    .endrepeat
+
+    ldy #ScoreEntry::Score
+    .repeat 3, i
+        lda CurrentScore+ScoreEntry::Score+i
+        sta (AddressPointer1), y
+        iny
+    .endrepeat
+
+    ldy #ScoreEntry::Lines
+    .repeat 3, i
+        lda CurrentScore+ScoreEntry::Lines+i
+        sta (AddressPointer1), y
+        iny
+    .endrepeat
+    DisableRam
+
+    lda #1
+    rts
+
 IRQ_Scores:
     lda ScoreAnim_Scroll
     bmi @rts
@@ -441,6 +552,16 @@ IRQ_Scores:
     rts
 
 NMI_Scores:
+    lda #$3F
+    sta $2006
+    lda #$00
+    sta $2006
+
+    .repeat 4*8, i
+        lda Palettes+i
+        sta $2007
+    .endrepeat
+
     lda ScoreAnim_Direction
     bmi @rts
     lda ScoreAnim_Direction
@@ -974,6 +1095,64 @@ LoadScores:
     jmp @entry
 :   rts
 
+InitScores_EnterName:
+    DisableIRQ
+
+    lda #0
+    sta $2001
+
+    lda #0
+    sta $2000
+
+    jsr ClearSprites
+
+    ldx #0
+    jsr FillAttributeTable
+    jsr ClearExtAttr
+
+    lda #.lobyte(Screen_NewHighScore)
+    sta AddressPointer1+0
+    lda #.hibyte(Screen_NewHighScore)
+    sta AddressPointer1+1
+
+    lda #$20
+    jsr DrawScreen_RLE
+
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
+
+    lda #0
+    sta ScrollX
+    sta ScrollY
+
+    lda #%1000_0000
+    sta PpuControl
+    sta $2000
+
+    jsr WaitForNMI
+
+    lda #%0001_1110
+    sta $2001
+    jsr WaitForNMI
+
+Frame_EnterName:
+    jsr ReadControllers
+
+    lda #BUTTON_B ; B
+    jsr ButtonPressed
+    beq :+
+    jsr WaitForNMI
+
+    lda #0
+    sta $2001
+    jmp InitScores
+:
+
+    jsr WaitForNMI
+    jmp Frame_EnterName
+
 DummyData:
     .byte "< one          >"
     .byte 0, 0    ; time
@@ -1024,3 +1203,5 @@ DummyData:
     .byte 0, 0
     .byte 1, 0, 0 ; lines
     .byte 1, 0, 0 ; score
+
+.popseg

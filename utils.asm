@@ -1,3 +1,6 @@
+.pushseg
+.segment "PAGE_UTIL"
+
 ReadControllers:
     lda Controller
     sta Controller_Old
@@ -558,3 +561,19 @@ BinToDec_Shift:
 :
 
     rts
+
+; AddressPointer1 - source
+; AddressPointer2 - destination
+; Y - length
+MemCopyRev:
+    dey
+@loop:
+    lda (AddressPointer1), y
+    sta (AddressPointer2), y
+    dey
+    bne @loop
+    lda (AddressPointer1), y
+    sta (AddressPointer2), y
+    rts
+
+.popseg
