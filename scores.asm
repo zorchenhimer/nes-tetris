@@ -977,50 +977,50 @@ LoadScores:
 DummyData:
     .byte "< one          >"
     .byte 0, 0    ; time
-    .byte 1, 0, 0 ; lines
-    .byte 2, 0, 0 ; score
+    .byte 10, 0, 0 ; lines
+    .byte 10, 0, 0 ; score
 
     .byte "< two          >"
     .byte 0, 0
-    .byte 3, 0, 0
-    .byte 4, 0, 0
+    .byte 9, 0, 0
+    .byte 9, 0, 0
 
     .byte "< three        >"
     .byte 0, 0
-    .byte 5, 0, 0
-    .byte 6, 0, 0
+    .byte 8, 0, 0
+    .byte 8, 0, 0
 
     .byte "< four         >"
     .byte 0, 0
     .byte 7, 0, 0
-    .byte 8, 0, 0
+    .byte 7, 0, 0
 
     .byte "< five         >"
     .byte 0, 0
-    .byte 9, 0, 0
-    .byte 10, 0, 0
+    .byte 6, 0, 0
+    .byte 6, 0, 0
 
     .byte "< six          >"
     .byte 0, 0
-    .byte 11, 0, 0
-    .byte 12, 0, 0
+    .byte 5, 0, 0
+    .byte 5, 0, 0
 
     .byte "< seven        >"
     .byte 0, 0
-    .byte 13, 0, 0
-    .byte 14, 0, 0
+    .byte 4, 0, 0
+    .byte 4, 0, 0
 
     .byte "< eight        >"
     .byte 0, 0
-    .byte 15, 0, 0
-    .byte 16, 0, 0
+    .byte 3, 0, 0
+    .byte 3, 0, 0
 
     .byte "< nine         >"
     .byte 0, 0
-    .byte 17, 0, 0
-    .byte 18, 0, 0
+    .byte 2, 0, 0
+    .byte 2, 0, 0
 
     .byte "< ten          >"
     .byte 0, 0
-    .byte 19, 0, 0
-    .byte 20, 0, 0
+    .byte 1, 0, 0 ; lines
+    .byte 1, 0, 0 ; score

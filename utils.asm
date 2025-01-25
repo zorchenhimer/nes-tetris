@@ -544,4 +544,17 @@ BinToDec_Shift:
     and #$0F
     ora #$30
     sta bcdOutput+7
+
+    ldx #0
+    ldy #' '
+:
+    lda bcdOutput, x
+    cmp #$30
+    bne :+
+    sty bcdOutput, x
+    inx
+    cpx #7
+    bne :-
+:
+
     rts
