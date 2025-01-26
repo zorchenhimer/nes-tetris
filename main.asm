@@ -62,6 +62,16 @@ BUTTON_REPEAT = 3
     sta $5103
 .endmacro
 
+.enum InitIndex
+Game
+Scores
+Modes
+VsMode
+Options
+NewScore
+Menu
+.endenum
+
 .segment "ZEROPAGE"
 Sleeping: .res 1
 SleepingIrq: .res 1
@@ -312,7 +322,8 @@ RESET:
     lda #0
     sta CurrentGameType
 
-    jmp InitMenu
+    lda #InitIndex::Menu
+    jmp GotoInit
 
 MMC5_Init:
     ; PRG mode 2

@@ -252,9 +252,6 @@ GameOverPalette:
     .byte $0F, $15, $27, $20
 
 InitGame:
-    ; Clear sprites
-    jsr ClearSprites
-
     lda #.lobyte(GamePalettes)
     sta AddressPointer1+0
     lda #.hibyte(GamePalettes)
@@ -267,17 +264,6 @@ InitGame:
     sta AddressPointer1+1
     ldx #7
     jsr LoadPalette
-
-    ldx #0
-    jsr FillAttributeTable
-
-    lda #.lobyte(Screen_Playfield)
-    sta AddressPointer1+0
-    lda #.hibyte(Screen_Playfield)
-    sta AddressPointer1+1
-    ;jsr DrawScreen
-    lda #$20
-    jsr DrawScreen_RLE
 
     lda #0
     ldy #0
@@ -1017,21 +1003,21 @@ DedFrame:
     jsr ReadControllers
     lda #BUTTON_START
     jsr ButtonPressed
-    bne :++
+    beq @nope
     jsr WaitForNMI
 
     lda TmpX
-    beq :+
-    jmp InitScores_EnterName
-:
+    beq @toMenu
+    lda #InitIndex::NewScore
+    jmp GotoInit
+@nope:
+
+    jsr WaitForNMI
     jmp DedFrame
 
-:   jsr WaitForNMI
-    lda #0
-    sta $2000
-    sta $2001
-
-    jmp InitMenu
+@toMenu:
+    lda #InitIndex::Menu
+    jmp GotoInit
 
 InitBags:
     lda #7

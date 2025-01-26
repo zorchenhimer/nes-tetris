@@ -71,8 +71,6 @@ OptItems_Pointers:
     .word $0000
 
 InitOptions:
-    DisableIRQ
-
     lda #.lobyte(OptPal_Off)
     sta AddressPointer1+0
     lda #.hibyte(OptPal_Off)
@@ -87,13 +85,6 @@ InitOptions:
     ldx #1
     jsr LoadPalette
 
-    ldx #0
-    jsr FillAttributeTable
-    ldx #' '
-    jsr FillScreen
-
-    jsr ClearExtAttr
-
     lda #.hibyte(OptTitle_ADDR)
     sta $2006
     lda #.lobyte(OptTitle_ADDR)
@@ -106,8 +97,6 @@ InitOptions:
     inx
     jmp :-
 :
-
-    jsr ClearSprites
 
     lda #0
     sta TmpX
@@ -269,11 +258,9 @@ FrameOptions:
     lda #BUTTON_B ; b
     jsr ButtonPressed
     beq :+
-    lda #$00
-    sta $5102
-    sta $5103
-    jsr WaitForNMI
-    jmp InitMenu
+    DisableRam
+    lda #InitIndex::Menu
+    jmp GotoInit
 :
 
     lda Opt_Selection

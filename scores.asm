@@ -232,21 +232,11 @@ Save_ResetTable:
     rts
 
 InitScores:
-    jsr ClearSprites
-
-    lda #0
-    sta $2000
-
-    ldx #0
-    jsr FillAttributeTable
-
     lda #.lobyte(Save_Palettes)
     sta AddressPointer1+0
     lda #.hibyte(Save_Palettes)
     sta AddressPointer1+1
     jsr LoadBgPalettes
-
-    jsr ClearExtAttr
 
     lda #%0000_0010
     sta $5104
@@ -293,22 +283,6 @@ InitScores:
     lda #%0000_0001
     sta $5104
 
-    ;ldx #0
-    ;jsr FillScreen
-    lda #.lobyte(Screen_Scores)
-    sta AddressPointer1+0
-    lda #.hibyte(Screen_Scores)
-    sta AddressPointer1+1
-    lda #$20
-    jsr DrawScreen_RLE
-
-    lda #.lobyte(Screen_Scores)
-    sta AddressPointer1+0
-    lda #.hibyte(Screen_Scores)
-    sta AddressPointer1+1
-    lda #$24
-    jsr DrawScreen_RLE
-
     lda #0 ; Index of list
     sta Save_CurrentList
 
@@ -351,11 +325,9 @@ FrameScores:
     jsr ButtonPressed
     beq :+
 
-    lda #$00
-    sta $5102
-    sta $5103
-    jsr WaitForNMI
-    jmp InitMenu
+    DisableRam
+    lda #InitIndex::Menu
+    jmp GotoInit
 :
 
     lda #BUTTON_RIGHT ; right
@@ -398,6 +370,9 @@ FrameScores:
     jsr WaitForIRQ
     jmp FrameScores
 
+; TODO: don't update the score in this routine.  Return the
+;       index of the score if applicable, #$FF otherwise. Use
+;       a second routine to update the table.
 CheckForNewHighScore:
     lda CurrentGameType
     asl a
@@ -1096,40 +1071,8 @@ LoadScores:
 :   rts
 
 InitScores_EnterName:
-    DisableIRQ
-
-    lda #0
-    sta $2001
-
-    lda #0
-    sta $2000
-
-    jsr ClearSprites
-
-    ldx #0
-    jsr FillAttributeTable
-    jsr ClearExtAttr
-
-    lda #.lobyte(Screen_NewHighScore)
-    sta AddressPointer1+0
-    lda #.hibyte(Screen_NewHighScore)
-    sta AddressPointer1+1
-
-    lda #$20
-    jsr DrawScreen_RLE
-
-    lda #.lobyte(BareNmiHandler)
-    sta NmiHandler+0
-    lda #.hibyte(BareNmiHandler)
-    sta NmiHandler+1
-
-    lda #0
-    sta ScrollX
-    sta ScrollY
-
     lda #%1000_0000
     sta PpuControl
-    sta $2000
 
     jsr WaitForNMI
 
@@ -1143,11 +1086,8 @@ Frame_EnterName:
     lda #BUTTON_B ; B
     jsr ButtonPressed
     beq :+
-    jsr WaitForNMI
-
-    lda #0
-    sta $2001
-    jmp InitScores
+    lda #InitIndex::Scores
+    jmp GotoInit
 :
 
     jsr WaitForNMI

@@ -20,12 +20,6 @@ MenuSelectFn: .res 2
 
 .popseg
 
-MenuText:
-    .asciiz "Start"
-    .asciiz "High Scores"
-    .asciiz "High Scores"
-    .asciiz "High Scores"
-
 MenuDestinations:
     .word InitGame
     .word InitScores
@@ -284,31 +278,6 @@ menu_Options:
 
 
 InitMenu:
-    DisableIRQ
-
-    lda #0
-    sta $2001
-
-    lda #%0000_0000
-    sta $5104
-
-    lda #.lobyte(BareNmiHandler)
-    sta NmiHandler+0
-    lda #.hibyte(BareNmiHandler)
-    sta NmiHandler+1
-
-    jsr ClearSprites
-
-    ldx #0
-    jsr FillAttributeTable
-
-    lda #.lobyte(Screen_Menu)
-    sta AddressPointer1+0
-    lda #.hibyte(Screen_Menu)
-    sta AddressPointer1+1
-    lda #$20
-    jsr DrawScreen_RLE
-
     lda #.lobyte(Palette_Bg)
     sta AddressPointer1+0
     lda #.hibyte(Palette_Bg)
@@ -328,14 +297,6 @@ InitMenu:
     ldx #1
     jsr LoadPalette
 
-    ;lda #.lobyte(MenuOutlinePal)
-    ;sta AddressPointer1+0
-    ;lda #.hibyte(MenuOutlinePal)
-    ;sta AddressPointer1+1
-
-    ;ldx #2
-    ;jsr LoadPalette
-
     lda #.hibyte(Menu_StartAddr)
     sta AddressPointer1+1
     sta $2006
@@ -353,20 +314,17 @@ InitMenu:
     sta MenuSelectFn+1
     sta MenuClearFn+1
 
-    jsr ClearExtAttr
-
     ; Turn ExtAttr mode back on
     lda #%0000_0001
     sta $5104
 
     lda #%1000_0000
     sta PpuControl
-    sta $2000
 
+    jsr WaitForNMI
     lda #%0001_1110
     sta $2001
 
-    jsr WaitForNMI
     SetIRQ 5, IrqMenu
     jsr WaitForNMI
 
@@ -376,19 +334,16 @@ FrameMenu:
     lda #BUTTON_START ; start
     jsr ButtonPressed
     beq :+
-    ; NOTE: this is just until i get the new menu working
-    ;lda #0
-    ;sta MenuSelection
-    jmp Menu_DoSelection
+    lda MenuSelection
+    jmp GotoInit
+
 :
 
     lda #BUTTON_A ; a
     jsr ButtonPressed
     beq :+
-    ; NOTE: this is just until i get the new menu working
-    ;lda #0
-    ;sta MenuSelection
-    jmp Menu_DoSelection
+    lda MenuSelection
+    jmp GotoInit
 :
 
 ;    lda #BUTTON_SELECT ; select
@@ -466,49 +421,8 @@ FrameMenu:
 
 @noSelection:
 
-;    ldx MenuSelection
-;@loop:
-;    beq @done
-;    clc
-;    lda SpriteZero+0
-;    adc #Menu_ItemSpacing_Cursor
-;    sta SpriteZero+0
-;    dex
-;    jmp @loop
-;
-;@done:
-
     jsr WaitForIRQ
     jmp FrameMenu
-
-Menu_DoSelection:
-    lda MenuSelection
-    asl a
-    tax
-
-    lda MenuDestinations+0, x
-    sta AddressPointer1+0
-    lda MenuDestinations+1, x
-    sta AddressPointer1+1
-
-    lda #0
-    sta SpriteZero+0
-    sta SpriteZero+1
-    sta SpriteZero+2
-    sta SpriteZero+3
-
-    jsr WaitForNMI
-
-    lda #0
-    sta $2001
-
-    lda #.lobyte(BareNmiHandler)
-    sta NmiHandler+0
-    lda #.hibyte(BareNmiHandler)
-    sta NmiHandler+1
-    DisableIRQ
-
-    jmp (AddressPointer1)
 
 Screen_Menu:
     .include "menu-screen.i"

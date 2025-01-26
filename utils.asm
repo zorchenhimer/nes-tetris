@@ -296,7 +296,6 @@ FillAttributeTable:
 
 ; Fill value in X
 FillScreen:
-    lda #$20
     sta $2006
     lda #$00
     sta $2006
@@ -306,10 +305,21 @@ FillScreen:
             stx $2007
         .endrepeat
     .endrepeat
-
     rts
 
 WaitForNMI:
+    lda NmiHandler+1
+    bne :+
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
+:
+
+    lda PpuControl
+    ora #$80
+    sta $2000
+
     lda #0
     sta Sleeping
 :
@@ -319,6 +329,7 @@ WaitForNMI:
     rts
 
 WaitForIRQ:
+    cli
     lda #0
     sta SleepingIrq
 :
@@ -575,5 +586,98 @@ MemCopyRev:
     lda (AddressPointer1), y
     sta (AddressPointer2), y
     rts
+
+Init_Routines:
+    .word InitGame
+    .word InitScores
+    .word InitModes
+    .word InitVsMode
+    .word InitOptions
+    .word InitScores_EnterName
+    .word InitMenu
+
+Init_ScreensNT0:
+    .word Screen_Playfield
+    .word Screen_Scores
+    .word $0000 ; modes
+    .word $0000 ; vs
+    .word $0000 ; options
+    .word Screen_NewHighScore
+    .word Screen_Menu
+
+Init_ScreensNT1:
+    .word $0000 ; game
+    .word Screen_Scores
+    .word $0000 ; modes
+    .word $0000 ; vs
+    .word $0000 ; options
+    .word $0000 ; new score
+    .word $0000 ; menu
+
+; Destination index in A
+GotoInit:
+    asl a
+    pha
+
+    ; do some common stuff
+    jsr WaitForNMI
+    jsr ClearSprites
+    DisableIRQ
+
+    lda #0
+    sta $2001
+    sta $2000
+
+    lda #$00
+    sta ScrollX
+    sta ScrollY
+
+    ldx #0
+    jsr FillAttributeTable
+    jsr ClearExtAttr
+
+    pla
+    tax
+    pha
+    lda Init_ScreensNT0+1, x
+    beq @clearNt0
+    sta AddressPointer1+1
+    lda Init_ScreensNT0+0, x
+    sta AddressPointer1+0
+    lda #$20
+    jsr DrawScreen_RLE
+    jmp :+
+@clearNt0:
+    ldx #' '
+    lda #$20
+    jsr FillScreen
+:
+
+    pla
+    tax
+    pha
+    lda Init_ScreensNT1+1, x
+    beq @clearNt1
+    sta AddressPointer1+1
+    lda Init_ScreensNT1+0, x
+    sta AddressPointer1+0
+    lda #$24
+    jsr DrawScreen_RLE
+    jmp :+
+@clearNt1:
+    ldx #' '
+    lda #$24
+    jsr FillScreen
+:
+
+    pla
+    tax
+    lda Init_Routines+0, x
+    sta AddressPointer1+0
+    lda Init_Routines+1, x
+    sta AddressPointer1+1
+
+    jmp (AddressPointer1)
+    ;rts
 
 .popseg
