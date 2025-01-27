@@ -21,11 +21,77 @@ HS_TITLE_ADDR = $2066
 HS_TITLE_LEN  = 19
 HS_NAME_START = $20C4
 
+.enum EnTbl
+LtrA
+LtrB
+LtrC
+LtrD
+LtrE
+LtrF
+LtrG
+LtrH
+LtrI
+LtrJ
+LtrK
+LtrL
+LtrM
+LtrN
+LtrO
+LtrP
+LtrQ
+LtrR
+LtrS
+LtrT
+LtrU
+LtrV
+LtrW
+LtrX
+LtrY
+LtrZ
+One
+Two
+Three
+Four
+Five
+Six
+Seven
+Eight
+Nine
+Zero
+Dash
+Equal
+Erase
+Space
+End
+Tilde
+BracketLeft
+BracketRight
+Pipe
+Semicolon
+Quote
+Comma
+Period
+Slash
+.endenum
+
+.enum EnDir
+Up
+Down
+Left
+Right
+.endenum
+
 .out .sprintf(".sizeof(ScoreEntry): %d", .sizeof(ScoreEntry))
 .out .sprintf("HS_LIST_SIZE: %d", HS_LIST_SIZE)
 .out .sprintf("HS_DISPLAY_SIZE: %d", HS_DISPLAY_SIZE)
 
 .pushseg
+.segment "ZEROPAGE"
+
+EN_Shifted: .res 1
+EN_Selection: .res 1
+EN_Cursor: .res 1
+
 .segment "SAVERAM"
 Save_Standard:  .res HS_LIST_SIZE
 Save_BlockZ:    .res HS_LIST_SIZE
@@ -52,6 +118,7 @@ Option_ShowCurrent: .res 1
 Option_ShowGhost:   .res 1
 Option_EnableHold:  .res 1
 Option_EnableHardDrop: .res 1
+Debug_ClearSave: .res 1
 
 .segment "BSS"
 Save_CurrentList: .res 1
@@ -67,6 +134,12 @@ ScoreAnim_DirectionIrq: .res 1 ; 0 = right; 1 = left; 256 = nothing
 ScoreAnim_Frame:     .res 1
 ScoreAnim_Scroll:    .res 1
 Score_DrawTitle:     .res 1
+
+NewHsIndex: .res 1
+
+.segment "OAM"
+EN_SelectSprites: .res 4*4
+EN_CursorSprite: .res 4
 
 .segment "PAGE_INIT"
 
@@ -172,6 +245,9 @@ SaveTypeColumn:
 .endmacro
 
 InitRam:
+    lda Debug_ClearSave
+    bne @reset
+
     ldx #0
 @loop:
     lda Save_CheckVal, x
@@ -193,6 +269,8 @@ InitRam:
     sta Option_ShiftStart
     lda #BUTTON_REPEAT
     sta Option_ShiftRepeat
+    lda #0
+    sta Debug_ClearSave
 
     ClearSaveTable Save_Standard
     ClearSaveTable Save_BlockZ
@@ -241,6 +319,16 @@ InitScores:
     lda #%0000_0010
     sta $5104
 
+    lda #$3F
+    sta $2006
+    lda #$00
+    sta $2006
+
+    .repeat 4*8, i
+        lda Palettes+i
+        sta $2007
+    .endrepeat
+
     ;
     ; Time colors
     ldx #0
@@ -285,7 +373,6 @@ InitScores:
 
     lda #0 ; Index of list
     sta Save_CurrentList
-
     jsr LoadScores
     jsr DrawScores
 
@@ -419,12 +506,25 @@ CheckForNewHighScore:
     cmp #10
     bne :+
     ; didn't find a new high score
-    lda #0
+    lda #$FF
+    sta NewHsIndex
     rts
 :
+    sta NewHsIndex
+    rts ; TmpX is in A
+
+
+SetNewHighScore:
+    lda CurrentGameType
+    asl a
+    tax
+    lda SaveTypeList+0, x
+    sta AddressPointer1+0
+    lda SaveTypeList+1, x
+    sta AddressPointer1+1
 
     ; new high score
-    lda TmpX
+    lda NewHsIndex
     sta MMC5_MultA
     lda #.sizeof(ScoreEntry)
     sta MMC5_MultB
@@ -446,43 +546,36 @@ CheckForNewHighScore:
     adc #0
     sta AddressPointer2+1
 
-    lda TmpX
+    EnableRam
+    lda NewHsIndex
     cmp #9
     beq @noMemCpy
 
     sec
     lda #9
-    sbc TmpX
+    sbc NewHsIndex
     sta MMC5_MultA
     lda #.sizeof(ScoreEntry)
     sta MMC5_MultB
     ldy MMC5_MultA
 
-    EnableRam
     jsr MemCopyRev
 
 @noMemCpy:
+    lda AddressPointer1+0
+    sta AddressPointer2+0
+    lda AddressPointer1+2
+    sta AddressPointer2+2
 
-    ldy #ScoreEntry::Name
-    .repeat .sizeof(ScoreEntry::Name), i
-        lda CurrentScore+ScoreEntry::Name+i
-        sta (AddressPointer1), y
-        iny
-    .endrepeat
+    ldy #.sizeof(ScoreEntry)
 
-    ldy #ScoreEntry::Score
-    .repeat 3, i
-        lda CurrentScore+ScoreEntry::Score+i
-        sta (AddressPointer1), y
-        iny
-    .endrepeat
+    lda #.lobyte(CurrentScore)
+    sta AddressPointer1+0
+    lda #.hibyte(CurrentScore)
+    sta AddressPointer1+1
 
-    ldy #ScoreEntry::Lines
-    .repeat 3, i
-        lda CurrentScore+ScoreEntry::Lines+i
-        sta (AddressPointer1), y
-        iny
-    .endrepeat
+    jsr MemCopyRev
+
     DisableRam
 
     lda #1
@@ -527,15 +620,7 @@ IRQ_Scores:
     rts
 
 NMI_Scores:
-    lda #$3F
-    sta $2006
-    lda #$00
-    sta $2006
-
-    .repeat 4*8, i
-        lda Palettes+i
-        sta $2007
-    .endrepeat
+    ;jsr BareNmiHandler
 
     lda ScoreAnim_Direction
     bmi @rts
@@ -1070,28 +1155,457 @@ LoadScores:
     jmp @entry
 :   rts
 
+Palette_EnterNameBg:
+    .byte $0F, $20, $0F, $0F
+
+Palette_EnterNameSp:
+    .byte $0F, $13, $0F, $0F
+
 InitScores_EnterName:
     lda #%1000_0000
     sta PpuControl
 
+    lda #.lobyte(Palette_EnterNameBg)
+    sta AddressPointer1+0
+    lda #.hibyte(Palette_EnterNameBg)
+    sta AddressPointer1+1
+    ldx #0
+    jsr LoadPalette
+
+    lda #.lobyte(Palette_EnterNameSp)
+    sta AddressPointer1+0
+    lda #.hibyte(Palette_EnterNameSp)
+    sta AddressPointer1+1
+    ldx #4
+    jsr LoadPalette
+
     jsr WaitForNMI
+
+    lda #0
+    sta EN_Shifted
+
+    ; attributes
+    lda #%0010_0000
+    .repeat 4, i
+        sta EN_SelectSprites+2+(i*4)
+    .endrepeat
+    sta EN_CursorSprite+2
+
+    ; tiles
+    lda #$8E
+    sta EN_SelectSprites+1+(0*4)
+    lda #$8F
+    sta EN_SelectSprites+1+(1*4)
+    lda #$9E
+    sta EN_SelectSprites+1+(2*4)
+    lda #$9F
+    sta EN_SelectSprites+1+(3*4)
+
+    lda #$84
+    sta EN_CursorSprite+1
+
+    lda #EnTbl::One
+    sta EN_Selection
+
+    lda #.lobyte(nmiName)
+    sta NmiHandler+0
+    lda #.hibyte(nmiName)
+    sta NmiHandler+1
 
     lda #%0001_1110
     sta $2001
     jsr WaitForNMI
 
 Frame_EnterName:
+    SetIRQ 57, irqNameTop
+
+    jsr WaitForIRQ
+
     jsr ReadControllers
 
-    lda #BUTTON_B ; B
+    lda #BUTTON_SELECT ; select
     jsr ButtonPressed
     beq :+
+    inc EN_Shifted
+    lda EN_Shifted
+    and #$01
+    sta EN_Shifted
+:
+
+    lda #BUTTON_LEFT ; left
+    jsr ButtonPressed
+    beq :+
+    lda #EnDir::Left
+    jsr EN_UpdateSelection
+:
+
+    lda #BUTTON_RIGHT ; right
+    jsr ButtonPressed
+    beq :+
+    lda #EnDir::Right
+    jsr EN_UpdateSelection
+:
+
+    lda #BUTTON_UP ; up
+    jsr ButtonPressed
+    beq :+
+    lda #EnDir::Up
+    jsr EN_UpdateSelection
+:
+
+    lda #BUTTON_DOWN ; down
+    jsr ButtonPressed
+    beq :+
+    lda #EnDir::Down
+    jsr EN_UpdateSelection
+:
+
+    lda #BUTTON_A
+    jsr ButtonPressed
+    beq :+
+    jsr EN_DoSelect
+:
+
+    jsr EN_UpdateSprites
+    jsr WaitForNMI
+
+    lda #%0001_1000
+    sta $2001
+    jmp Frame_EnterName
+
+EnTbl_Directions:
+    ;     Up,           Down,             Left,         Right
+    .byte EnTbl::LtrQ,  EnTbl::LtrZ,      EnTbl::LtrA,  EnTbl::LtrS ; A
+    .byte EnTbl::LtrH,  EnTbl::Space,     EnTbl::LtrV,  EnTbl::LtrN ; B
+    .byte EnTbl::LtrF,  EnTbl::Space,     EnTbl::LtrX,  EnTbl::LtrV ; C
+    .byte EnTbl::LtrE,  EnTbl::LtrX,      EnTbl::LtrS,  EnTbl::LtrF ; D
+    .byte EnTbl::Four,  EnTbl::LtrD,      EnTbl::LtrW,  EnTbl::LtrR ; E
+    .byte EnTbl::LtrR,  EnTbl::LtrC,      EnTbl::LtrD,  EnTbl::LtrG ; F
+    .byte EnTbl::LtrT,  EnTbl::LtrV,      EnTbl::LtrF,  EnTbl::LtrH ; G
+    .byte EnTbl::LtrY,  EnTbl::LtrB,      EnTbl::LtrG,  EnTbl::LtrJ ; H
+    .byte EnTbl::Nine,  EnTbl::LtrK,      EnTbl::LtrU,  EnTbl::LtrO ; I
+    .byte EnTbl::LtrU,  EnTbl::LtrN,      EnTbl::LtrH,  EnTbl::LtrK ; J
+    .byte EnTbl::LtrI,  EnTbl::LtrM,      EnTbl::LtrJ,  EnTbl::LtrL ; K
+    .byte EnTbl::LtrO,  EnTbl::Comma,     EnTbl::LtrK,  EnTbl::Semicolon ; L
+    .byte EnTbl::LtrK,  EnTbl::Space,     EnTbl::LtrN,  EnTbl::Comma ; M
+    .byte EnTbl::LtrJ,  EnTbl::Space,     EnTbl::LtrB,  EnTbl::LtrM ; N
+    .byte EnTbl::Zero,  EnTbl::LtrL,      EnTbl::LtrI,  EnTbl::LtrP ; O
+    .byte EnTbl::Dash,  EnTbl::Semicolon, EnTbl::LtrO,  EnTbl::BracketLeft ; P
+    .byte EnTbl::Two,   EnTbl::LtrA,      EnTbl::Tilde, EnTbl::LtrW ; Q
+    .byte EnTbl::Five,  EnTbl::LtrF,      EnTbl::LtrE,  EnTbl::LtrT ; R
+    .byte EnTbl::LtrW,  EnTbl::LtrZ,      EnTbl::LtrA,  EnTbl::LtrD ; S
+    .byte EnTbl::Six,   EnTbl::LtrG,      EnTbl::LtrR,  EnTbl::LtrY ; T
+    .byte EnTbl::Eight, EnTbl::LtrJ,      EnTbl::LtrY,  EnTbl::LtrI ; U
+    .byte EnTbl::LtrG,  EnTbl::Space,     EnTbl::LtrC,  EnTbl::LtrB ; V
+    .byte EnTbl::Three, EnTbl::LtrS,      EnTbl::LtrQ,  EnTbl::LtrE ; W
+    .byte EnTbl::LtrD,  EnTbl::Space,     EnTbl::LtrZ,  EnTbl::LtrC ; X
+    .byte EnTbl::Seven, EnTbl::LtrH,      EnTbl::LtrT,  EnTbl::LtrU ; Y
+    .byte EnTbl::LtrS,  EnTbl::Space,     EnTbl::LtrZ,  EnTbl::LtrX ; Z
+
+    .byte EnTbl::One,          EnTbl::Tilde,        EnTbl::One,          EnTbl::Two ; 1
+    .byte EnTbl::Two,          EnTbl::LtrQ,         EnTbl::One,          EnTbl::Three ; 2
+    .byte EnTbl::Three,        EnTbl::LtrW,         EnTbl::Two,          EnTbl::Four ; 3
+    .byte EnTbl::Four,         EnTbl::LtrE,         EnTbl::Three,        EnTbl::Five ; 4
+    .byte EnTbl::Five,         EnTbl::LtrR,         EnTbl::Four,         EnTbl::Six ; 5
+    .byte EnTbl::Six,          EnTbl::LtrT,         EnTbl::Five,         EnTbl::Seven ; 6
+    .byte EnTbl::Seven,        EnTbl::LtrY,         EnTbl::Six,          EnTbl::Eight ; 7
+    .byte EnTbl::Eight,        EnTbl::LtrU,         EnTbl::Seven,        EnTbl::Nine ; 8
+    .byte EnTbl::Nine,         EnTbl::LtrI,         EnTbl::Eight,        EnTbl::Zero ; 9
+    .byte EnTbl::Zero,         EnTbl::LtrO,         EnTbl::Nine,         EnTbl::Dash ; 0
+    .byte EnTbl::Dash,         EnTbl::LtrP,         EnTbl::Zero,         EnTbl::Equal ; dash
+    .byte EnTbl::Equal,        EnTbl::BracketLeft,  EnTbl::Dash,         EnTbl::Equal ; equal
+
+    .byte EnTbl::LtrZ,         EnTbl::Erase,        EnTbl::Erase,        EnTbl::Space ; erase
+    .byte EnTbl::LtrB,         EnTbl::Space,        EnTbl::Erase,        EnTbl::End ; space
+    .byte EnTbl::Slash,        EnTbl::End,          EnTbl::Space,        EnTbl::End ; end
+
+    .byte EnTbl::One,          EnTbl::LtrA,         EnTbl::Tilde,        EnTbl::LtrQ ; tilde
+    .byte EnTbl::Equal,        EnTbl::Quote,        EnTbl::LtrP,         EnTbl::BracketRight ; [
+    .byte EnTbl::Equal,        EnTbl::Pipe,         EnTbl::BracketLeft,  EnTbl::BracketRight ; ]
+    .byte EnTbl::BracketRight, EnTbl::Slash,        EnTbl::Quote,        EnTbl::Pipe ; |
+    .byte EnTbl::LtrP,         EnTbl::Period,       EnTbl::LtrL,         EnTbl::Quote ; ;
+    .byte EnTbl::BracketLeft,  EnTbl::Slash,        EnTbl::Semicolon,    EnTbl::Pipe ; '
+    .byte EnTbl::LtrL,         EnTbl::Space,        EnTbl::LtrM,         EnTbl::Period ; ,
+    .byte EnTbl::Semicolon,    EnTbl::Space,        EnTbl::Comma,        EnTbl::Slash ; .
+    .byte EnTbl::Quote,        EnTbl::Space,        EnTbl::Period,       EnTbl::Slash ; /
+
+EnTbl_Values:
+    .byte "aA"
+    .byte "bB"
+    .byte "cC"
+    .byte "dD"
+    .byte "eE"
+    .byte "fF"
+    .byte "gG"
+    .byte "hH"
+    .byte "iI"
+    .byte "jJ"
+    .byte "kK"
+    .byte "lL"
+    .byte "mM"
+    .byte "nN"
+    .byte "oO"
+    .byte "pP"
+    .byte "qQ"
+    .byte "rR"
+    .byte "sS"
+    .byte "tT"
+    .byte "uU"
+    .byte "vV"
+    .byte "wW"
+    .byte "xX"
+    .byte "yY"
+    .byte "zZ"
+    .byte "1!"
+    .byte "2@"
+    .byte "3#"
+    .byte "4$"
+    .byte "5%"
+    .byte "6^"
+    .byte "7&"
+    .byte "8*"
+    .byte "9("
+    .byte "0)"
+    .byte "-_"
+    .byte "=+"
+    .byte $08, $08 ; backspace
+    .byte "  "
+    .byte $03, $03 ; end
+    .byte "`~"
+    .byte "[{"
+    .byte "]}"
+    .byte "|\"
+    .byte ";:"
+    .byte "'", '"'
+    .byte ",<"
+    .byte ".>"
+    .byte "/?"
+
+ENSP_HOME_X = 20
+ENSP_HOME_Y = 59
+.macro ENSP cY, cX
+    .byte ENSP_HOME_X+(16*(cX-1))
+    .byte ENSP_HOME_Y+(16*(cY-1))
+.endmacro
+
+EnTbl_Sprites:
+;     Row, Col
+    ENSP 3, 2 ; A
+    ENSP 4, 7 ; B
+    ENSP 4, 5 ; C
+    ENSP 3, 4 ; D
+    ENSP 2, 4 ; E
+    ENSP 3, 5 ; F
+    ENSP 3, 6 ; G
+    ENSP 3, 7 ; H
+    ENSP 2, 9 ; I
+    ENSP 3, 8 ; J
+    ENSP 3, 9 ; K
+    ENSP 3, 10; L
+    ENSP 4, 9 ; M
+    ENSP 4, 8 ; N
+    ENSP 2, 10; O
+    ENSP 2, 11; P
+    ENSP 2, 2 ; Q
+    ENSP 2, 5 ; R
+    ENSP 3, 3 ; S
+    ENSP 2, 6 ; T
+    ENSP 2, 8 ; U
+    ENSP 4, 6 ; V
+    ENSP 2, 3 ; W
+    ENSP 4, 4 ; X
+    ENSP 2, 7 ; Y
+    ENSP 4, 3 ; Z
+
+    ; numbers
+    .repeat 10, i
+        ENSP 1, i+1
+    .endrepeat
+
+    ENSP 1, 11 ; dash
+    ENSP 1, 12 ; equal
+    ENSP 5, 1  ; erase
+    ENSP 5, 6  ; space
+    ENSP 5, 12 ; end
+
+    ENSP 2, 1 ; tilde
+    ENSP 2, 12 ; [
+    ENSP 2, 13 ; ]
+    ENSP 3, 13 ; |
+    ENSP 3, 11 ; ;
+    ENSP 3, 12 ; '
+    ENSP 4, 10 ; ,
+    ENSP 4, 11 ; .
+    ENSP 4, 12 ; /
+
+EN_DoSelect:
+    lda EN_Selection
+    asl a
+    tax
+    lda EN_Shifted
+    beq :+
+    inx
+:
+    lda EnTbl_Values, x
+    cmp #$08 ; backspace
+    bne @noBS
+    ldx EN_Cursor
+    cpx #.sizeof(ScoreEntry::Name)-1
+    bne :+
+    lda CurrentScore+ScoreEntry::Name, x
+    beq :+
+    inx
+:
+    dex
+    bpl :+
+    ldx #0
+:
+    stx EN_Cursor
+
+    lda #$00
+    sta CurrentScore+ScoreEntry::Name, x
+    rts
+
+@noBS:
+
+    cmp #$03 ; end
+    bne :+
+    jsr SetNewHighScore
     lda #InitIndex::Scores
     jmp GotoInit
 :
 
-    jsr WaitForNMI
-    jmp Frame_EnterName
+    ldx EN_Cursor
+    sta CurrentScore+ScoreEntry::Name, x
+    inx
+    cpx #.sizeof(ScoreEntry::Name)
+    bcc :+
+    ldx #.sizeof(ScoreEntry::Name)-1
+:
+    stx EN_Cursor
+    rts
+
+EN_UpdateSelection:
+    sta TmpX
+    lda EN_Selection
+    asl a
+    asl a
+    clc
+    adc TmpX
+    tax
+    lda EnTbl_Directions, x
+    sta EN_Selection
+    rts
+
+EN_CURSOR_HOME_X = 64
+EN_CURSOR_HOME_Y = 39
+EN_UpdateSprites:
+    ;
+    ; Keyboard Selection
+    lda EN_Selection
+    asl a
+    tax
+
+    lda EnTbl_Sprites+0, x
+    sta TmpX
+    lda EnTbl_Sprites+1, x
+    sta TmpY
+
+    lda TmpX
+    sta EN_SelectSprites+3+(0*4)
+    lda TmpY
+    sta EN_SelectSprites+0+(0*4)
+
+    clc
+    lda TmpX
+    adc #8
+    sta EN_SelectSprites+3+(1*4)
+    lda TmpY
+    sta EN_SelectSprites+0+(1*4)
+
+    clc
+    lda TmpX
+    sta EN_SelectSprites+3+(2*4)
+    lda TmpY
+    adc #8
+    sta EN_SelectSprites+0+(2*4)
+
+    clc
+    lda TmpX
+    adc #8
+    sta EN_SelectSprites+3+(3*4)
+    lda TmpY
+    adc #8
+    sta EN_SelectSprites+0+(3*4)
+
+    ;
+    ; Cursor
+    lda #EN_CURSOR_HOME_Y
+    sta EN_CursorSprite+0
+
+    lda EN_Cursor
+    asl a
+    asl a
+    asl a
+    clc
+    adc #EN_CURSOR_HOME_X
+    sta EN_CursorSprite+3
+
+    rts
+
+irqNameTop:
+    ;SetIRQ 82, irqNameBottom
+    lda EN_Shifted
+    bne :+
+    SetIRQ 137, irqNameBottom
+    rts
+:
+    SetIRQ 82, irqNameBottom
+    lda #0
+    sta $2001
+
+    bit $2002
+    ;lda #0
+    ;sta $2005
+    ;;lda #136
+    ;lda #72
+    ;sta $2005
+    lda #$22
+    sta $2006
+    lda #$20
+    sta $2006
+
+    lda PpuControl
+    sta $2000
+    lda #%0001_1000
+    sta $2001
+    rts
+
+irqNameBottom:
+    lda #%0001_0000
+    sta $2001
+    rts
+
+EN_CURSOR_PPU = $20A8
+nmiName:
+    jsr BareNmiHandler
+    lda #.hibyte(EN_CURSOR_PPU)
+    sta $2006
+    lda #.lobyte(EN_CURSOR_PPU)
+    sta $2006
+
+    .repeat .sizeof(ScoreEntry::Name), i
+    lda CurrentScore+ScoreEntry::Name+i
+    bne :+
+    lda #'_'
+:
+    sta $2007
+    .endrepeat
+
+    ;lda #0
+    ;sta NmiHandler+0
+    ;sta NmiHandler+1
+    rts
 
 DummyData:
     .byte "< one          >"

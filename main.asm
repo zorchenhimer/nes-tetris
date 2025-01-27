@@ -319,8 +319,12 @@ RESET:
     jsr MMC5_Init
     jsr InitRam
 
+    lda #$FF
+    sta NewHsIndex
+
     lda #0
     sta CurrentGameType
+    sta EN_Cursor
 
     lda #InitIndex::Menu
     jmp GotoInit

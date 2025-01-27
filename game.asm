@@ -939,63 +939,17 @@ DedTransition:
         sta GameOverOops+(i*4)+3
     .endrepeat
 
-    lda #'{'
-    sta CurrentScore+ScoreEntry::Name+0
-
-    lda Score+0
-    lsr a
-    lsr a
-    lsr a
-    lsr a
-    ora #$30
-    sta CurrentScore+ScoreEntry::Name+1
-
-    lda Score+0
-    and #$0F
-    ora #$30
-    sta CurrentScore+ScoreEntry::Name+2
-
-    lda Score+1
-    lsr a
-    lsr a
-    lsr a
-    lsr a
-    ora #$30
-    sta CurrentScore+ScoreEntry::Name+3
-
-    lda Score+1
-    and #$0F
-    ora #$30
-    sta CurrentScore+ScoreEntry::Name+4
-
-    lda Score+2
-    lsr a
-    lsr a
-    lsr a
-    lsr a
-    ora #$30
-    sta CurrentScore+ScoreEntry::Name+5
-
-    lda Score+2
-    and #$0F
-    ora #$30
-    sta CurrentScore+ScoreEntry::Name+6
-    lda #'}'
-    sta CurrentScore+ScoreEntry::Name+7
-
-    .repeat 3, i
-    lda Lines+i
-    sta CurrentScore+ScoreEntry::Lines+i
-    .endrepeat
-
-    .repeat 3, i
+    .repeat .sizeof(Score), i
     lda Score+i
     sta CurrentScore+ScoreEntry::Score+i
     .endrepeat
 
-    jsr CheckForNewHighScore
-    sta TmpX
+    .repeat .sizeof(Lines), i
+    lda Lines+i
+    sta CurrentScore+ScoreEntry::Lines+i
+    .endrepeat
 
+    jsr CheckForNewHighScore
     jsr WaitForNMI
 
 DedFrame:
@@ -1006,8 +960,8 @@ DedFrame:
     beq @nope
     jsr WaitForNMI
 
-    lda TmpX
-    beq @toMenu
+    lda NewHsIndex
+    bmi @toMenu
     lda #InitIndex::NewScore
     jmp GotoInit
 @nope:

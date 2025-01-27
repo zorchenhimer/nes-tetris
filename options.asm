@@ -34,6 +34,7 @@ OptItems_Names:
     .word :+++++++
     .word :++++++++
     .word :+++++++++
+    .word :++++++++++
     .word $0000
 
 :   .asciiz "Enable ghost flash"
@@ -45,12 +46,14 @@ OptItems_Names:
 :   .asciiz "Dbg show ghost"
 :   .asciiz "Dbg enable hold"
 :   .asciiz "Dbg enable hard drop"
+:   .asciiz "Dbg clear save"
 
 OptItems_Types:
     .byte 0
     .byte 0
     .byte 1
     .byte 1
+    .byte 0
     .byte 0
     .byte 0
     .byte 0
@@ -68,6 +71,7 @@ OptItems_Pointers:
     .word Option_ShowGhost
     .word Option_EnableHold
     .word Option_EnableHardDrop
+    .word Debug_ClearSave
     .word $0000
 
 InitOptions:

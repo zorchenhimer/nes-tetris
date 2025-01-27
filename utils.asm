@@ -619,6 +619,10 @@ GotoInit:
     asl a
     pha
 
+    lda #0
+    sta NmiHandler+0
+    sta NmiHandler+1
+
     ; do some common stuff
     jsr WaitForNMI
     jsr ClearSprites
@@ -627,6 +631,12 @@ GotoInit:
     lda #0
     sta $2001
     sta $2000
+
+    ; send cleared sprites
+    lda #$00
+    sta $2003
+    lda #$02
+    sta $4014
 
     lda #$00
     sta ScrollX
