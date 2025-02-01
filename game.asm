@@ -317,6 +317,9 @@ InitGame:
     lda #1
     sta Flag_PlayfieldReady
 
+    lda #0
+    sta TimeFrame
+
     ;lda #SPEED
     lda DropSpeeds+0
     sta DropSpeed
@@ -566,6 +569,23 @@ FrameGame:
 
     jsr UpdateBlock
     ;jsr WaitForNMI
+
+    ldx TimeFrame
+    inx
+    cpx #60
+    bne :+
+    inc CurrentScore+ScoreEntry::Time+0
+    ldx #0
+:
+    stx TimeFrame
+
+    ldx CurrentScore+ScoreEntry::Time+0
+    cpx #60
+    bne :+
+    inc CurrentScore+ScoreEntry::Time+1
+    ldx #0
+:
+    stx CurrentScore+ScoreEntry::Time+0
 
     jsr WaitForIRQ
     jmp FrameGame

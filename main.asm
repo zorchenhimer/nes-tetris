@@ -115,6 +115,7 @@ bcdOutput:  .res 8  ; ascii
 CurrentGameType: .res 1
 
 CurrentScore: .tag ScoreEntry
+TimeFrame: .res 1
 
 .segment "OAM"
 SpriteZero:  .res 4

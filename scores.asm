@@ -235,7 +235,6 @@ SaveTypeColumn:
     sta AddressPointer1+0
     lda #.hibyte(addr)
     sta AddressPointer1+1
-    ;jsr Save_ClearTable
     jsr Save_ResetTable
 .endmacro
 
@@ -396,7 +395,21 @@ InitScores:
     lda #0 ; Index of list
     sta Save_CurrentList
     jsr LoadScores
-    jsr DrawScores
+    lda PpuControl
+    ora #1
+    sta PpuControl
+
+    jsr DrawScores_VerticalCol1
+    jsr DrawScores_VerticalCol2
+
+    lda PpuControl
+    and #%1111_1000
+    ora #%0000_0001
+    sta $2000
+    sta PpuControl
+
+    jsr DrawScores_VerticalCol3
+
 
     lda #.lobyte(NMI_Scores)
     sta NmiHandler+0
@@ -896,147 +909,6 @@ DrawScores_VerticalCol3:
 :
     rts
 
-; Currently only draws ScreenA
-DrawScores:
-    lda #.hibyte(HS_TITLE_ADDR)
-    sta $2006
-    lda #.lobyte(HS_TITLE_ADDR)
-    sta $2006
-
-    ldx #0
-:   lda Title_Screen, x
-    sta $2007
-    inx
-    cpx #HS_TITLE_LEN
-    bne :-
-
-    lda #.lobyte(HS_NAME_START)
-    sta AddressPointer1+0
-    lda #.hibyte(HS_NAME_START)
-    sta AddressPointer1+1
-
-    lda #.lobyte(Scores_Screen)
-    sta AddressPointer2+0
-    lda #.hibyte(Scores_Screen)
-    sta AddressPointer2+1
-
-    lda #HS_SAVE_COUNT
-    sta TmpX
-
-@entry:
-    lda AddressPointer1+1
-    sta $2006
-    lda AddressPointer1+0
-    sta $2006
-
-    lda #':'
-    ldy #ScoreDisplay::Time+2
-    sta (AddressPointer2), y
-    ldy #ScoreDisplay::Time+5
-    sta (AddressPointer2), y
-
-    ldx #.sizeof(ScoreDisplay::Name)
-    ldy #ScoreDisplay::Name
-@name:
-    lda (AddressPointer2), y
-    sta $2007
-    iny
-    dex
-    bne @name
-
-    clc
-    lda AddressPointer1+0
-    adc #32
-    sta AddressPointer1+0
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
-
-    lda AddressPointer1+1
-    sta $2006
-    lda AddressPointer1+0
-    sta $2006
-
-    ldy #ScoreDisplay::Time
-    ldx #.sizeof(ScoreDisplay::Time)
-:
-    lda (AddressPointer2), y
-    sta $2007
-    iny
-    dex
-    bne :-
-
-    lda #' '
-    sta $2007
-
-    ldx #.sizeof(ScoreDisplay::Lines)
-    ldy #ScoreDisplay::Lines
-@zeroLines:
-    lda (AddressPointer2), y
-    cmp #$30
-    bne :+
-    iny
-    lda #' '
-    sta $2007
-    dex
-    cpx #1
-    bne @zeroLines
-:
-
-@valueLines:
-    lda (AddressPointer2), y
-    sta $2007
-    iny
-    dex
-    bne @valueLines
-
-    lda #' '
-    sta $2007
-
-    ldx #.sizeof(ScoreDisplay::Score)
-    ldy #ScoreDisplay::Score
-@zeroScore:
-    lda (AddressPointer2), y
-    cmp #$30
-    bne :+
-    iny
-    lda #' '
-    sta $2007
-    dex
-    cpx #1
-    bne @zeroScore
-:
-
-@valueScore:
-    lda (AddressPointer2), y
-    sta $2007
-    iny
-    dex
-    bne @valueScore
-
-    dec TmpX
-    beq @done
-
-    clc
-    lda AddressPointer1+0
-    adc #32
-    sta AddressPointer1+0
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
-
-    clc
-    lda AddressPointer2+0
-    adc #.sizeof(ScoreDisplay)
-    sta AddressPointer2+0
-    lda AddressPointer2+1
-    adc #0
-    sta AddressPointer2+1
-    jmp @entry
-
-@done:
-    rts
-
 ; A - source index
 ; AddressPointer2 - destination
 LoadScores:
@@ -1094,30 +966,48 @@ LoadScores:
 
     ;
     ; Time
-    ldx #0
-    ldy #ScoreEntry::Time
-@copyB:
+    ldy #ScoreEntry::Time+1 ; minutes
     lda (AddressPointer1), y
-    sta bcdInput, x
-    iny
-    inx
-    cpx #.sizeof(ScoreEntry::Time)
-    bne @copyB
+    jsr BinToDec_8bit
 
     ldy #ScoreDisplay::Time
-    ldx #0
+
+    lda #' '
+    sta (AddressPointer2), y
+    iny
+    sta (AddressPointer2), y
+    iny
+
+    lda bcdOutput+0
+    sta (AddressPointer2), y
+    iny
+    lda bcdOutput+1
+    sta (AddressPointer2), y
+    iny
+    lda bcdOutput+2
+    sta (AddressPointer2), y
+    iny
+
+    lda #':'
+    sta (AddressPointer2), y
+    iny
+    tya
+    pha
+
+    ldy #ScoreEntry::Time+0 ; seconds
+    lda (AddressPointer1), y
+    jsr BinToDec_8bit
+
+    pla
+    tay
+    lda bcdOutput+1
+    cmp #' '
+    bne :+
     lda #'0'
 :
     sta (AddressPointer2), y
     iny
-    inx
-    cpx #.sizeof(ScoreDisplay::Time)
-    bne :-
-
-    lda #':'
-    ldy #ScoreDisplay::Time+2
-    sta (AddressPointer2), y
-    ldy #ScoreDisplay::Time+5
+    lda bcdOutput+2
     sta (AddressPointer2), y
 
     ;
@@ -1299,6 +1189,44 @@ InitScores_EnterName:
         lda bcdOutput+i
         sta $2007
     .endrepeat
+
+    lda #.hibyte(EnTbl_AddrTime+32+1)
+    sta $2006
+    lda #.lobyte(EnTbl_AddrTime+32+1)
+    sta $2006
+
+    lda #' ' ; hour
+    sta $2007
+    sta $2007
+    ;lda #':'
+    ;sta $2007
+
+    ; minute
+    lda CurrentScore+ScoreEntry::Time+1
+    jsr BinToDec_8bit
+
+    lda bcdOutput+0
+    sta $2007
+    lda bcdOutput+1
+    sta $2007
+    lda bcdOutput+2
+    sta $2007
+
+    lda #':'
+    sta $2007
+
+    ; seconds
+    lda CurrentScore+ScoreEntry::Time+0
+    jsr BinToDec_8bit
+
+    lda bcdOutput+1
+    cmp #' '
+    bne :+
+    lda #'0'
+:
+    sta $2007
+    lda bcdOutput+2
+    sta $2007
 
     lda #.lobyte(nmiName)
     sta NmiHandler+0
