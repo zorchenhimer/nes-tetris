@@ -49,8 +49,6 @@ FieldGrid: .res 10*20
 HeldSwapped: .res 1
 
 Level: .res 2
-Score: .res 3
-Lines: .res 3
 Combo: .res 1
 UpdateCombo: .res 1
 
@@ -284,7 +282,14 @@ InitGame:
 :
     sta Level, x
     inx
-    cpx #.sizeof(Level) + .sizeof(Score) + .sizeof(Lines)
+    cpx #.sizeof(Level)
+    bne :-
+
+    ldx #ScoreEntry::Time
+:
+    sta CurrentScore, x
+    inx
+    cpx #.sizeof(CurrentScore)
     bne :-
 
     lda #'0'
@@ -552,7 +557,6 @@ FrameGame:
 @noDrop:
 
 @hardDropDone:
-    ; TODO: score stuff
     jsr CalcScore
 
     lda BlockX
@@ -622,16 +626,16 @@ ClearCountScores:
 CalcScore:
     clc
     lda DropScore
-    adc Score+0
-    sta Score+0
+    adc CurrentScore+ScoreEntry::Score+0
+    sta CurrentScore+ScoreEntry::Score+0
 
-    lda Score+1
+    lda CurrentScore+ScoreEntry::Score+1
     adc #0
-    sta Score+1
+    sta CurrentScore+ScoreEntry::Score+1
 
-    lda Score+2
+    lda CurrentScore+ScoreEntry::Score+2
     adc #0
-    sta Score+2
+    sta CurrentScore+ScoreEntry::Score+2
 
     lda #0
     sta TmpM+0
@@ -691,17 +695,17 @@ CalcScore:
     sta TmpM+2
 
     clc
-    lda Score+0
+    lda CurrentScore+ScoreEntry::Score+0
     adc TmpM+0
-    sta Score+0
+    sta CurrentScore+ScoreEntry::Score+0
 
-    lda Score+1
+    lda CurrentScore+ScoreEntry::Score+1
     adc TmpM+1
-    sta Score+1
+    sta CurrentScore+ScoreEntry::Score+1
 
-    lda Score+2
+    lda CurrentScore+ScoreEntry::Score+2
     adc TmpM+2
-    sta Score+2
+    sta CurrentScore+ScoreEntry::Score+2
 
 @done:
 
@@ -735,9 +739,9 @@ CalcScore:
 @levelMathDone:
 
     clc
-    lda Lines
+    lda CurrentScore+ScoreEntry::Lines
     adc ClearCount
-    sta Lines
+    sta CurrentScore+ScoreEntry::Lines
 
     lda UpdateCombo
     beq @noCombo
@@ -785,8 +789,8 @@ CalcScore:
 
 @comboDone:
 
-    .repeat .sizeof(Score), i
-    lda Score+i
+    .repeat .sizeof(ScoreEntry::Score), i
+    lda CurrentScore+ScoreEntry::Score+i
     ;sta TmpScore+i
     ;sta Bin_Input+i
     sta bcdInput+i
@@ -811,8 +815,8 @@ CalcScore:
     .endrepeat
 @scoreTiles_done:
 
-    .repeat .sizeof(Lines), i
-    lda Lines+i
+    .repeat .sizeof(ScoreEntry::Lines), i
+    lda CurrentScore+ScoreEntry::Lines+i
     ;sta Bin_Input+i
     sta bcdInput+i
     .endrepeat
@@ -937,16 +941,6 @@ DedTransition:
 
         lda #GAMEOVER_START_X+(i*8)
         sta GameOverOops+(i*4)+3
-    .endrepeat
-
-    .repeat .sizeof(Score), i
-    lda Score+i
-    sta CurrentScore+ScoreEntry::Score+i
-    .endrepeat
-
-    .repeat .sizeof(Lines), i
-    lda Lines+i
-    sta CurrentScore+ScoreEntry::Lines+i
     .endrepeat
 
     jsr CheckForNewHighScore

@@ -62,6 +62,13 @@ BUTTON_REPEAT = 3
     sta $5103
 .endmacro
 
+.struct ScoreEntry
+    Name  .byte 16
+    Time  .byte 2
+    Lines .byte 3
+    Score .byte 3 ; maybe something else?
+.endstruct
+
 .enum InitIndex
 Game
 Scores
@@ -107,6 +114,8 @@ bcdOutput:  .res 8  ; ascii
 ; Index into high scores tables
 CurrentGameType: .res 1
 
+CurrentScore: .tag ScoreEntry
+
 .segment "OAM"
 SpriteZero:  .res 4
 SpriteBlock: .res 4*4
@@ -126,8 +135,6 @@ Bin_Tiles: .res 6
 FrameCount: .res 1
 
     .include "scores.asm"
-
-CurrentScore: .tag ScoreEntry
 
     .include "utils.asm"
 

@@ -1,10 +1,3 @@
-.struct ScoreEntry
-    Name  .byte 16
-    Time  .byte 2
-    Lines .byte 3
-    Score .byte 3 ; maybe something else?
-.endstruct
-
 HS_SAVE_COUNT = 10
 HS_LIST_SIZE = .sizeof(ScoreEntry) * HS_SAVE_COUNT
 
