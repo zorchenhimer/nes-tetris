@@ -987,7 +987,27 @@ DedFrame:
     lda #InitIndex::Menu
     jmp GotoInit
 
+InitBag_OnlyT:
+    lda #7
+    sta BagLeft
+    lda #2
+    ldx #0
+:
+    sta BagA, x
+    sta BagB, x
+    inx
+    cpx #7
+    bne :-
+    rts
+
 InitBags:
+    ; TODO: use a lookup or something
+    lda CurrentGameType
+    cmp #GameType::OnlyT
+    bne :+
+    jmp InitBag_OnlyT
+:
+
     lda #7
     sta BagLeft
     lda #$FF
@@ -1410,6 +1430,14 @@ NextBlock_Swap:
     lda Speed_Drop
     sta DropSpeed
 
+    lda CurrentGameType
+    cmp #GameType::OnlyT
+    bne :+
+    lda #2
+    sta CurrentBlock
+    jmp @afterBag
+:
+
     dec BagLeft
     bne :+
     ; new bag
@@ -1427,6 +1455,7 @@ NextBlock_Swap:
     cpx #13
     bne :-
 
+@afterBag:
     .ifdef DEBUG_PIECE
     lda #DEBUG_PIECE
     sta CurrentBlock

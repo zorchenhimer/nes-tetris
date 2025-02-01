@@ -20,15 +20,6 @@ MenuSelectFn: .res 2
 
 .popseg
 
-MenuDestinations:
-    .word InitGame
-    .word InitScores
-    .word InitModes
-    .word InitVsMode
-    .word InitOptions
-
-MenuDestCount = (* - MenuDestinations) / 2
-
 .enum MenuSel
 Game
 Scores
@@ -41,7 +32,11 @@ Options
 ;    jmp InitScores
 
 InitModes:
-    jmp InitModes
+    lda #GameType::OnlyT
+    sta CurrentGameType
+    ;jmp InitModes
+    lda #0
+    jmp GotoInit
 
 InitVsMode:
     jmp InitVsMode
@@ -61,8 +56,6 @@ MenuMovement:
 
     .byte MenuSel::Game,   MenuSel::VsMode,  MenuSel::VsMode, MenuSel::Options
     .byte MenuSel::Modes,  MenuSel::Options, MenuSel::VsMode, MenuSel::Options
-
-Menu_ItemCount = (* - MenuDestinations) / 2
 
 ;NmiMenu:
 ;    rts

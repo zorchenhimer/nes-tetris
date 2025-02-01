@@ -79,6 +79,20 @@ NewScore
 Menu
 .endenum
 
+.enum GameType
+Standard
+OnlyZ
+OnlyS
+OnlyT
+OnlyL
+OnlyJ
+TimeLines
+TimeScore
+DirtyBoard
+NoHold
+Classic
+.endenum
+
 .segment "ZEROPAGE"
 Sleeping: .res 1
 SleepingIrq: .res 1
