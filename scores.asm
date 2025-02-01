@@ -148,9 +148,11 @@ Save_CheckVal_Check:
 
 Save_Palettes:
     .byte $0F, $20, $0F, $0F
-    .byte $0F, $21, $31, $0F
+    .byte $0F, $22, $32, $0F
     .byte $0F, $25, $35, $0F
     .byte $0F, $2B, $3B, $0F
+
+    ;.byte $0F, $21, $31, $0F
 
 Scores_Scroll_Increment = 25
 Scores_Scroll:
@@ -332,12 +334,21 @@ InitScores:
     ;
     ; Time colors
     ldx #0
-    lda #%0100_0000
+    lda #%0100_0001
 :
-    .repeat 11, i
-        sta MMC5_OFFSET+HS_NAME_START-32+(i*64), x
+    .repeat 10, i
+        sta MMC5_OFFSET+HS_NAME_START+32+(i*64), x
     .endrepeat
 
+    inx
+    cpx #8
+    bne :-
+
+    ; header
+    ldx #0
+    lda #%0100_0000
+:
+    sta MMC5_OFFSET+HS_NAME_START-32, x
     inx
     cpx #8
     bne :-
@@ -345,12 +356,21 @@ InitScores:
     ;
     ; Lines colors
     ldx #0
-    lda #%1000_0000
+    lda #%1000_0001
 :
-    .repeat 11, i
-        sta MMC5_OFFSET+HS_NAME_START-32+9+(i*64), x
+    .repeat 10, i
+        sta MMC5_OFFSET+HS_NAME_START+32+9+(i*64), x
     .endrepeat
 
+    inx
+    cpx #8
+    bne :-
+
+    ; header
+    ldx #0
+    lda #%1000_0000
+:
+    sta MMC5_OFFSET+HS_NAME_START-32+9, x
     inx
     cpx #8
     bne :-
@@ -358,12 +378,21 @@ InitScores:
     ;
     ; Scores colors
     ldx #0
-    lda #%1100_0000
+    lda #%1100_0001
 :
-    .repeat 11, i
-        sta MMC5_OFFSET+HS_NAME_START-32+18+(i*64), x
+    .repeat 10, i
+        sta MMC5_OFFSET+HS_NAME_START+32+18+(i*64), x
     .endrepeat
 
+    inx
+    cpx #8
+    bne :-
+
+    ; header
+    ldx #0
+    lda #%1100_0000
+:
+    sta MMC5_OFFSET+HS_NAME_START-32+18, x
     inx
     cpx #8
     bne :-
@@ -907,6 +936,12 @@ DrawScores:
     lda AddressPointer1+0
     sta $2006
 
+    lda #':'
+    ldy #ScoreDisplay::Time+2
+    sta (AddressPointer2), y
+    ldy #ScoreDisplay::Time+5
+    sta (AddressPointer2), y
+
     ldx #.sizeof(ScoreDisplay::Name)
     ldy #ScoreDisplay::Name
 @name:
@@ -1085,6 +1120,12 @@ LoadScores:
     inx
     cpx #.sizeof(ScoreDisplay::Time)
     bne :-
+
+    lda #':'
+    ldy #ScoreDisplay::Time+2
+    sta (AddressPointer2), y
+    ldy #ScoreDisplay::Time+5
+    sta (AddressPointer2), y
 
     ;
     ; Lines
