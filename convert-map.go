@@ -14,6 +14,7 @@ type options struct {
 	Input  string `arg:"positional,required"`
 	Output string `arg:"positional,required"`
 	RLE    bool   `arg:"--rle" help:"Use run length encoding"`
+	Layer  string `arg:"--layer" help"Convert this named layer"`
 }
 
 func main() {
@@ -33,14 +34,23 @@ func main() {
 	}
 	defer output.Close()
 
+	layerId := 0
+	if args.Layer != "" {
+		for i, l := range mapData.Layers {
+			if l.Name == args.Layer {
+				layerId = i
+			}
+		}
+	}
+
 	if args.RLE {
-		encode(mapData.Layers[0].Data, output)
+		encode(mapData.Layers[layerId].Data, output)
 		return
 	}
 
 	fmt.Fprint(output, ".byte ")
 	vals := []string{}
-	for _, d := range mapData.Layers[0].Data {
+	for _, d := range mapData.Layers[layerId].Data {
 		if d > 0 {
 			d -= 1
 		}
@@ -64,10 +74,18 @@ func encode(data []uint32, output io.Writer) {
 					i--
 					break
 				}
-				d = append(d, uint8(data[i]-1))
+				if val == 0 {
+					d = append(d, uint8(data[i]))
+				} else {
+					d = append(d, uint8(data[i]-1))
+				}
 			}
 			l := len(d)
-			fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, val-1)
+			if val == 0 {
+				fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, val)
+			} else {
+				fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, val-1)
+			}
 
 		// not repeat
 		} else {

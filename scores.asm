@@ -147,10 +147,10 @@ Save_CheckVal_Check:
     .byte "Zorch"
 
 Save_Palettes:
-    .byte $0F, $20, $00, $10
-    .byte $0F, $21, $00, $10
-    .byte $0F, $25, $00, $10
-    .byte $0F, $2B, $00, $10
+    .byte $0F, $20, $0F, $0F
+    .byte $0F, $21, $31, $0F
+    .byte $0F, $25, $35, $0F
+    .byte $0F, $2B, $3B, $0F
 
 Scores_Scroll_Increment = 25
 Scores_Scroll:
@@ -387,7 +387,7 @@ InitScores:
 
     jsr WaitForNMI
 
-    lda #%0001_1110
+    lda #%0000_1110
     sta $2001
     jsr WaitForNMI
 
@@ -1155,22 +1155,22 @@ LoadScores:
     jmp @entry
 :   rts
 
-Palette_EnterNameBg:
-    .byte $0F, $20, $0F, $0F
-
 Palette_EnterNameSp:
     .byte $0F, $13, $0F, $0F
+
+EnTbl_AddrScore = $2283
+EnTbl_AddrLines = $2293
+EnTbl_AddrTime  = $22EB
 
 InitScores_EnterName:
     lda #%1000_0000
     sta PpuControl
 
-    lda #.lobyte(Palette_EnterNameBg)
+    lda #.lobyte(Save_Palettes)
     sta AddressPointer1+0
-    lda #.hibyte(Palette_EnterNameBg)
+    lda #.hibyte(Save_Palettes)
     sta AddressPointer1+1
-    ldx #0
-    jsr LoadPalette
+    jsr LoadBgPalettes
 
     lda #.lobyte(Palette_EnterNameSp)
     sta AddressPointer1+0
@@ -1207,6 +1207,65 @@ InitScores_EnterName:
     lda #EnTbl::One
     sta EN_Selection
 
+    lda #%0000_0010
+    sta $5104
+
+    ldx #%1100_0000
+    ldy #%1100_0001
+    .repeat 9, i
+        stx EnTbl_AddrScore+i+MMC5_OFFSET
+        sty EnTbl_AddrScore+i+32+MMC5_OFFSET
+    .endrepeat
+
+    ldx #%1000_0000
+    ldy #%1000_0001
+    .repeat 9, i
+        stx EnTbl_AddrLines+i+MMC5_OFFSET
+        sty EnTbl_AddrLines+i+32+MMC5_OFFSET
+    .endrepeat
+
+    ldx #%0100_0000
+    ldy #%0100_0001
+    .repeat 9, i
+        stx EnTbl_AddrTime+i+MMC5_OFFSET
+        sty EnTbl_AddrTime+i+32+MMC5_OFFSET
+    .endrepeat
+
+    lda #%0000_0001
+    sta $5104
+
+    .repeat .sizeof(ScoreEntry::Score), i
+        lda CurrentScore+ScoreEntry::Score+i
+        sta bcdInput+i
+    .endrepeat
+    jsr BinToDec_Shift
+
+    lda #.hibyte(EnTbl_AddrScore+32)
+    sta $2006
+    lda #.lobyte(EnTbl_AddrScore+32)
+    sta $2006
+
+    .repeat 8, i
+        lda bcdOutput+i
+        sta $2007
+    .endrepeat
+
+    .repeat .sizeof(ScoreEntry::Lines), i
+        lda CurrentScore+ScoreEntry::Lines+i
+        sta bcdInput+i
+    .endrepeat
+    jsr BinToDec_Shift
+
+    lda #.hibyte(EnTbl_AddrLines+32)
+    sta $2006
+    lda #.lobyte(EnTbl_AddrLines+32)
+    sta $2006
+
+    .repeat 8, i
+        lda bcdOutput+i
+        sta $2007
+    .endrepeat
+
     lda #.lobyte(nmiName)
     sta NmiHandler+0
     lda #.hibyte(nmiName)
@@ -1217,7 +1276,7 @@ InitScores_EnterName:
     jsr WaitForNMI
 
 Frame_EnterName:
-    SetIRQ 57, irqNameTop
+    SetIRQ 48, irqNameTop
 
     jsr WaitForIRQ
 
@@ -1230,6 +1289,19 @@ Frame_EnterName:
     lda EN_Shifted
     and #$01
     sta EN_Shifted
+:
+
+    lda #BUTTON_START ; start
+    jsr ButtonPressed
+    beq :++
+    lda EN_Selection
+    cmp #EnTbl::End
+    beq :+
+    lda #EnTbl::End
+    sta EN_Selection
+    jmp :++
+:
+    jsr EN_DoSelect
 :
 
     lda #BUTTON_LEFT ; left
@@ -1260,10 +1332,16 @@ Frame_EnterName:
     jsr EN_UpdateSelection
 :
 
-    lda #BUTTON_A
+    lda #BUTTON_A ; a
     jsr ButtonPressed
     beq :+
     jsr EN_DoSelect
+:
+
+    lda #BUTTON_B ; b
+    jsr ButtonPressed
+    beq :+
+    jsr EN_Backspace
 :
 
     jsr EN_UpdateSprites
@@ -1438,17 +1516,7 @@ EnTbl_Sprites:
     ENSP 4, 11 ; .
     ENSP 4, 12 ; /
 
-EN_DoSelect:
-    lda EN_Selection
-    asl a
-    tax
-    lda EN_Shifted
-    beq :+
-    inx
-:
-    lda EnTbl_Values, x
-    cmp #$08 ; backspace
-    bne @noBS
+EN_Backspace:
     ldx EN_Cursor
     cpx #.sizeof(ScoreEntry::Name)-1
     bne :+
@@ -1466,7 +1534,17 @@ EN_DoSelect:
     sta CurrentScore+ScoreEntry::Name, x
     rts
 
-@noBS:
+EN_DoSelect:
+    lda EN_Selection
+    asl a
+    tax
+    lda EN_Shifted
+    beq :+
+    inx
+:
+    lda EnTbl_Values, x
+    cmp #$08 ; backspace
+    beq EN_Backspace
 
     cmp #$03 ; end
     bne :+
@@ -1550,40 +1628,30 @@ EN_UpdateSprites:
     clc
     adc #EN_CURSOR_HOME_X
     sta EN_CursorSprite+3
-
     rts
 
 irqNameTop:
-    ;SetIRQ 82, irqNameBottom
-    lda EN_Shifted
-    bne :+
-    SetIRQ 137, irqNameBottom
-    rts
-:
-    SetIRQ 82, irqNameBottom
-    lda #0
-    sta $2001
-
-    bit $2002
-    ;lda #0
-    ;sta $2005
-    ;;lda #136
-    ;lda #72
-    ;sta $2005
-    lda #$22
-    sta $2006
-    lda #$20
-    sta $2006
+    SetIRQ 123, irqNameBottom
 
     lda PpuControl
+    and #%1111_1100
+    ora EN_Shifted
+    sta PpuControl
     sta $2000
-    lda #%0001_1000
-    sta $2001
+
+    lda #0
+    sta $2005
+    sta $2005
     rts
 
 irqNameBottom:
-    lda #%0001_0000
-    sta $2001
+    lda PpuControl
+    and #%1111_1100
+    sta PpuControl
+    sta $2000
+    lda #0
+    sta $2005
+    sta $2005
     rts
 
 EN_CURSOR_PPU = $20A8

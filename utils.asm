@@ -611,7 +611,7 @@ Init_ScreensNT1:
     .word $0000 ; modes
     .word $0000 ; vs
     .word $0000 ; options
-    .word $0000 ; new score
+    .word Screen_NewHighScore_Shifted ; new score
     .word $0000 ; menu
 
 ; Destination index in A

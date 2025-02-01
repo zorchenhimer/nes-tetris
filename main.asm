@@ -396,4 +396,7 @@ Screen_Scores:
     .include "scores-screen.i"
 
 Screen_NewHighScore:
-    .include "new-high-score.i"
+    .include "new-high-score-a.i"
+
+Screen_NewHighScore_Shifted:
+    .include "new-high-score-b.i"
