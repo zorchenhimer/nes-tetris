@@ -140,7 +140,7 @@ Save_CheckVal_Check:
     .byte "Zorch"
 
 Save_Palettes:
-    .byte $0F, $20, $0F, $0F
+    .byte $0F, $20, $0F, $10
     .byte $0F, $22, $32, $0F
     .byte $0F, $25, $35, $0F
     .byte $0F, $2B, $3B, $0F

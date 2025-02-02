@@ -249,6 +249,90 @@ SpritePalettes:
 GameOverPalette:
     .byte $0F, $15, $27, $20
 
+StartGame:
+    lda ModeSelection
+    ;beq @std
+    cmp #MMSel::Marathon
+    beq @std
+
+    cmp #MMSel::Classic
+    beq @classic
+
+    cmp #MMSel::NoHold
+    beq @hold
+
+    cmp #MMSel::DirtyBoard
+    beq @dirty
+
+    cmp #MMSel::SingleBlock
+    beq @single
+
+    cmp #MMSel::TimeAttack
+    beq @time
+
+    ; default to standard
+@std:
+    lda #GameBaseType::Standard
+    sta CurrentGameMode+GameMode::BaseType
+    lda #GameStandardArgs::Standard
+    sta CurrentGameMode+GameMode::TypeArg
+    lda #0
+    sta CurrentGameMode+GameMode::HsIndex
+    jmp @done
+
+@classic:
+    lda #GameBaseType::Standard
+    sta CurrentGameMode+GameMode::BaseType
+    lda #GameStandardArgs::Classic
+    sta CurrentGameMode+GameMode::TypeArg
+    lda #11
+    sta CurrentGameMode+GameMode::HsIndex
+    jmp @done
+
+@hold:
+    lda #GameBaseType::Standard
+    sta CurrentGameMode+GameMode::BaseType
+    lda #GameStandardArgs::NoHold
+    sta CurrentGameMode+GameMode::TypeArg
+    lda #10
+    sta CurrentGameMode+GameMode::HsIndex
+    jmp @done
+
+@dirty:
+    lda #GameBaseType::Standard
+    sta CurrentGameMode+GameMode::BaseType
+    lda #GameStandardArgs::DirtyBoard
+    sta CurrentGameMode+GameMode::TypeArg
+    lda #9
+    sta CurrentGameMode+GameMode::HsIndex
+
+    ; TODO: this
+    ;jsr InitDirtyBoard
+    jmp @done
+
+@single:
+    lda #GameBaseType::SingleBlock
+    sta CurrentGameMode+GameMode::BaseType
+    lda SingleBlockId
+    sta CurrentGameMode+GameMode::TypeArg
+    clc
+    adc #1
+    sta CurrentGameMode+GameMode::HsIndex
+    jmp @done
+
+@time:
+    lda #GameBaseType::TimeAttack
+    sta CurrentGameMode+GameMode::BaseType
+    lda TimeModeType
+    sta CurrentGameMode+GameMode::TypeArg
+    clc
+    adc #6
+    sta CurrentGameMode+GameMode::HsIndex
+
+@done:
+    lda #InitIndex::Game
+    jmp GotoInit
+
 InitGame:
     lda #.lobyte(GamePalettes)
     sta AddressPointer1+0

@@ -107,6 +107,28 @@ LoadBgPalettes:
     bne :-
     rts
 
+; Palette data address in AddressPointer1
+; Loads up all four SP palettes.
+LoadSpPalettes:
+    ldy #0
+    ldx #4
+:
+    lda (AddressPointer1), y
+    sta Palettes+16, y
+    iny
+    lda (AddressPointer1), y
+    sta Palettes+16, y
+    iny
+    lda (AddressPointer1), y
+    sta Palettes+16, y
+    iny
+    lda (AddressPointer1), y
+    sta Palettes+16, y
+    iny
+    dex
+    bne :-
+    rts
+
 ; Binary value in A, decimal values
 ; output in BinOutput
 ; TODO: Split this in two?  one for six
@@ -588,9 +610,10 @@ MemCopyRev:
     rts
 
 Init_Routines:
-    .word InitGame
+    ;.word InitGame
+    .word StartGame
     .word InitScores
-    .word InitModes
+    .word InitModeMenu
     .word InitVsMode
     .word InitOptions
     .word InitScores_EnterName
@@ -599,7 +622,7 @@ Init_Routines:
 Init_ScreensNT0:
     .word Screen_Playfield
     .word Screen_Scores
-    .word $0000 ; modes
+    .word Screen_ModeMenu
     .word $0000 ; vs
     .word $0000 ; options
     .word Screen_NewHighScore
@@ -614,10 +637,20 @@ Init_ScreensNT1:
     .word Screen_NewHighScore_Shifted ; new score
     .word $0000 ; menu
 
+Init_BanksLower: ; lower 16k
+    .byte 0 ; game
+    .byte 1 ; Scores
+    .byte 1 ; ModeMenu
+    .byte 0 ; VsMode
+    .byte 0 ; options
+    .byte 1 ; Scores_EnterName
+    .byte 1 ; Main Menu
+
 ; Destination index in A
 GotoInit:
+    pha ; index
     asl a
-    pha
+    pha ; offset
 
     lda #0
     sta NmiHandler+0
@@ -645,6 +678,9 @@ GotoInit:
     ldx #0
     jsr FillAttributeTable
     jsr ClearExtAttr
+
+    lda #1 ; screen bank
+    jsr MMC5_SelectLowBank
 
     pla
     tax
@@ -686,6 +722,11 @@ GotoInit:
     sta AddressPointer1+0
     lda Init_Routines+1, x
     sta AddressPointer1+1
+
+    pla
+    tax
+    lda Init_BanksLower, x
+    jsr MMC5_SelectLowBank
 
     jmp (AddressPointer1)
     ;rts

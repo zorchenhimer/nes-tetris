@@ -79,6 +79,25 @@ NewScore
 Menu
 .endenum
 
+.enum GameBaseType
+Standard
+SingleBlock
+TimeAttack
+.endenum
+
+.enum GameStandardArgs
+Standard
+Classic
+NoHold
+DirtyBoard
+.endenum
+
+.struct GameMode
+BaseType .byte
+TypeArg  .byte
+HsIndex  .byte
+.endstruct
+
 .enum GameType
 Standard
 OnlyZ
@@ -92,6 +111,16 @@ DirtyBoard
 NoHold
 Classic
 .endenum
+
+.enum MMSel
+Marathon
+Classic
+SingleBlock
+TimeAttack
+NoHold
+DirtyBoard
+.endenum
+
 
 .segment "ZEROPAGE"
 Sleeping: .res 1
@@ -149,6 +178,8 @@ Bin_Tiles: .res 6
 
 FrameCount: .res 1
 
+CurrentGameMode: .tag GameMode
+
     .include "scores.asm"
 
     .include "utils.asm"
@@ -174,10 +205,6 @@ FrameCount: .res 1
     .include "game.asm"
     .include "options.asm"
 
-Screen_Playfield:
-    ;.include "playfield.i"
-    .include "playfield-rle.i"
-
 DebugField:
     .include "debug-field.i"
 
@@ -186,6 +213,26 @@ PieceRng:
 
 .segment "PAGE_GAME2"
 
+    .include "menu.asm"
+    .include "mode-menu.asm"
+
+Screen_Playfield:
+    .include "playfield-rle.i"
+
+Screen_Scores:
+    .include "scores-screen.i"
+
+Screen_NewHighScore:
+    .include "new-high-score-a.i"
+
+Screen_NewHighScore_Shifted:
+    .include "new-high-score-b.i"
+
+Screen_ModeMenu:
+    .include "mode-menu.i"
+
+Screen_Menu:
+    .include "menu-screen.i"
 
 .segment "PAGE_00"
 .segment "PAGE_01"
@@ -345,6 +392,10 @@ RESET:
     sta NewHsIndex
 
     lda #0
+    sta ModeSelection
+    sta SingleBlockId
+
+    lda #0
     sta CurrentGameType
     sta EN_Cursor
 
@@ -366,7 +417,7 @@ MMC5_Init:
     lda #%1000_0100 ; util
     sta $5116
 
-    lda #$07
+    lda #$07 ; init
     sta $5117
 
     ; CHR mode 1: 4k pages
@@ -383,6 +434,18 @@ MMC5_Init:
     sta $5104
     rts
 
+MMC5_SelectLowBank:
+    ; PRG mode 2
+    ; 8k  @ $6000-$7FFF
+    ; 16k @ $8000-$BFFF
+    ; 8k  @ $C000-$DFFF
+    ; 8k  @ $E000-$FFFF
+    ;lda #2
+    ;sta $5100
+    asl a
+    ora #$80
+    sta $5115
+    rts
 
 StartFrame:
 
@@ -411,14 +474,3 @@ Palette_Bg:
 
 Palette_Sp:
     .byte $0F, $27, $00, $10
-
-    .include "menu.asm"
-
-Screen_Scores:
-    .include "scores-screen.i"
-
-Screen_NewHighScore:
-    .include "new-high-score-a.i"
-
-Screen_NewHighScore_Shifted:
-    .include "new-high-score-b.i"

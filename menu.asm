@@ -31,13 +31,6 @@ Options
 ;InitScores:
 ;    jmp InitScores
 
-InitModes:
-    lda #GameType::OnlyT
-    sta CurrentGameType
-    ;jmp InitModes
-    lda #0
-    jmp GotoInit
-
 InitVsMode:
     jmp InitVsMode
 
@@ -315,7 +308,7 @@ InitMenu:
     sta PpuControl
 
     jsr WaitForNMI
-    lda #%0001_1110
+    lda #%0000_1110
     sta $2001
 
     SetIRQ 5, IrqMenu
@@ -416,6 +409,3 @@ FrameMenu:
 
     jsr WaitForIRQ
     jmp FrameMenu
-
-Screen_Menu:
-    .include "menu-screen.i"

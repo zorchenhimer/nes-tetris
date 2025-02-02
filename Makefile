@@ -11,6 +11,7 @@ LDFLAGS = -C $(NESCFG) --dbgfile bin/$(NAME).dbg -m bin/$(NAME).map
 SOURCES = \
 	main.asm \
 	menu.asm \
+	mode-menu.asm \
 	scores.asm \
 	game.asm \
 	utils.asm \
@@ -19,6 +20,7 @@ SOURCES = \
 	playfield.i \
 	playfield-rle.i \
 	menu-screen.i \
+	mode-menu.i \
 	scores-screen.i \
 	new-high-score-a.i \
 	new-high-score-b.i \
@@ -76,4 +78,7 @@ debug-field.i: screens/debug-field.tmx
 	go run convert-map.go $< $@
 
 menu-screen.i: screens/main-menu.tmx
+	go run convert-map.go $< $@ --rle
+
+mode-menu.i: screens/mode-menu.tmx
 	go run convert-map.go $< $@ --rle
