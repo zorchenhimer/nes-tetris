@@ -1,5 +1,5 @@
 .PHONY: all env clean chr
-.PRECIOUS: images/tiles2.bmp
+.PRECIOUS: images/tiles.bmp images/tiles2.bmp images/tiles3.bmp
 
 CHRUTIL = ../go-nes/bin/chrutil
 
