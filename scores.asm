@@ -392,7 +392,7 @@ InitScores:
     lda #%0000_0001
     sta $5104
 
-    lda #0 ; Index of list
+    lda CurrentGameMode+GameMode::HsIndex
     sta Save_CurrentList
     jsr LoadScores
     lda PpuControl
@@ -496,7 +496,7 @@ FrameScores:
 ;       index of the score if applicable, #$FF otherwise. Use
 ;       a second routine to update the table.
 CheckForNewHighScore:
-    lda CurrentGameType
+    lda CurrentGameMode+GameMode::HsIndex
     asl a
     tax
     lda SaveTypeList+0, x
@@ -550,7 +550,7 @@ CheckForNewHighScore:
 
 
 SetNewHighScore:
-    lda CurrentGameType
+    lda CurrentGameMode+GameMode::HsIndex
     asl a
     tax
     lda SaveTypeList+0, x

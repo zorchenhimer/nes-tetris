@@ -199,10 +199,22 @@ FrameModeMenu:
 
 @noSelection:
 
+    lda #BUTTON_A ; a
+    jsr ButtonPressed
+    bne @doStart
+
+    lda #BUTTON_START ; start
+    jsr ButtonPressed
+    bne @doStart
+
     jsr UpdateSingleBlock
 
     jsr WaitForNMI
     jmp FrameModeMenu
+
+@doStart:
+    lda #InitIndex::Game
+    jmp GotoInit
 
 UpdateSingleBlock:
     lda ModeSelection

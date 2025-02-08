@@ -251,7 +251,6 @@ GameOverPalette:
 
 StartGame:
     lda ModeSelection
-    ;beq @std
     cmp #MMSel::Marathon
     beq @std
 
@@ -278,7 +277,7 @@ StartGame:
     sta CurrentGameMode+GameMode::TypeArg
     lda #0
     sta CurrentGameMode+GameMode::HsIndex
-    jmp @done
+    jmp InitGame
 
 @classic:
     lda #GameBaseType::Standard
@@ -287,7 +286,7 @@ StartGame:
     sta CurrentGameMode+GameMode::TypeArg
     lda #11
     sta CurrentGameMode+GameMode::HsIndex
-    jmp @done
+    jmp InitGame
 
 @hold:
     lda #GameBaseType::Standard
@@ -296,7 +295,7 @@ StartGame:
     sta CurrentGameMode+GameMode::TypeArg
     lda #10
     sta CurrentGameMode+GameMode::HsIndex
-    jmp @done
+    jmp InitGame
 
 @dirty:
     lda #GameBaseType::Standard
@@ -308,7 +307,7 @@ StartGame:
 
     ; TODO: this
     ;jsr InitDirtyBoard
-    jmp @done
+    jmp InitGame
 
 @single:
     lda #GameBaseType::SingleBlock
@@ -318,7 +317,7 @@ StartGame:
     clc
     adc #1
     sta CurrentGameMode+GameMode::HsIndex
-    jmp @done
+    jmp InitGame
 
 @time:
     lda #GameBaseType::TimeAttack
@@ -328,10 +327,6 @@ StartGame:
     clc
     adc #6
     sta CurrentGameMode+GameMode::HsIndex
-
-@done:
-    lda #InitIndex::Game
-    jmp GotoInit
 
 InitGame:
     lda #.lobyte(GamePalettes)
@@ -1071,10 +1066,10 @@ DedFrame:
     lda #InitIndex::Menu
     jmp GotoInit
 
-InitBag_OnlyT:
+InitBag_SingleBlock:
     lda #7
     sta BagLeft
-    lda #2
+    lda CurrentGameMode+GameMode::TypeArg
     ldx #0
 :
     sta BagA, x
@@ -1086,10 +1081,10 @@ InitBag_OnlyT:
 
 InitBags:
     ; TODO: use a lookup or something
-    lda CurrentGameType
-    cmp #GameType::OnlyT
+    lda CurrentGameMode+GameMode::BaseType
+    cmp #GameBaseType::SingleBlock
     bne :+
-    jmp InitBag_OnlyT
+    jmp InitBag_SingleBlock
 :
 
     lda #7
@@ -1514,10 +1509,10 @@ NextBlock_Swap:
     lda Speed_Drop
     sta DropSpeed
 
-    lda CurrentGameType
-    cmp #GameType::OnlyT
+    lda CurrentGameMode+GameMode::BaseType
+    cmp #GameBaseType::SingleBlock
     bne :+
-    lda #2
+    lda CurrentGameMode+GameMode::TypeArg
     sta CurrentBlock
     jmp @afterBag
 :
