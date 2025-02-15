@@ -956,14 +956,49 @@ CalcScore:
     sta DropScore
     rts
 
+DedNmi:
+    jsr BareNmiHandler
+
+    ldx DropShake
+    bmi @noShake
+
+    stx MMC5_MultA
+    lda #3
+    sta MMC5_MultB
+    ldx MMC5_MultA
+
+    lda ShakeTable+0, x
+    sta ScrollX
+    lda ShakeTable+1, x
+    sta ScrollY
+    lda ShakeTable+2, x
+    ora #$80
+    sta PpuControl
+
+    dec DropShake
+    rts
+
+@noShake:
+    lda #0
+    sta ScrollX
+    sta ScrollY
+    lda #%1000_0000
+    sta PpuControl
+    rts
+
 DedTransition:
     jsr UpdateBlock
-    jsr WaitForNMI
+    jsr WaitForIRQ
     DisableIRQ
 
-    lda #.lobyte(BareNmiHandler)
+    lda #$FF
+    .repeat 4, i
+        sta GhostBlock+(i*4)
+    .endrepeat
+
+    lda #.lobyte(DedNmi)
     sta NmiHandler+0
-    lda #.hibyte(BareNmiHandler)
+    lda #.hibyte(DedNmi)
     sta NmiHandler+1
 
     ; game
