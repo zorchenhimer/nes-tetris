@@ -1085,13 +1085,21 @@ DedFrame:
     jsr ReadControllers
     lda #BUTTON_START
     jsr ButtonPressed
+    beq :+
+    jmp @yup
+
+:
+    lda #BUTTON_A
+    jsr ButtonPressed
     beq @nope
+@yup:
     jsr WaitForNMI
 
     lda NewHsIndex
     bmi @toMenu
     lda #InitIndex::NewScore
     jmp GotoInit
+
 @nope:
 
     jsr WaitForNMI
@@ -1126,8 +1134,8 @@ InitBags:
     sta BagLeft
     lda #$FF
     ldx #0
-:
-    sta BagA, x
+
+:   sta BagA, x
     sta BagB, x
     inx
     cpx #7
