@@ -28,12 +28,6 @@ VsMode
 Options
 .endenum
 
-;InitScores:
-;    jmp InitScores
-
-InitVsMode:
-    jmp InitVsMode
-
 .enum MenuDir
 Up
 Down

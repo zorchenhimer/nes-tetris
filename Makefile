@@ -14,6 +14,8 @@ SOURCES = \
 	mode-menu.asm \
 	scores.asm \
 	game.asm \
+	game.inc \
+	vsmode.asm \
 	utils.asm \
 	options.asm \
 	piece-rng.inc \
@@ -24,6 +26,7 @@ SOURCES = \
 	scores-screen.i \
 	new-high-score-a.i \
 	new-high-score-b.i \
+	playfield-vs.i \
 	debug-field.i
 
 CHR = tiles.chr tiles2.chr tiles3.chr
@@ -59,8 +62,11 @@ bin/main.o: $(SOURCES) $(CHR)
 images/%.bmp: images/%.aseprite
 	aseprite -b $< --save-as $@
 
-playfield.i: screens/playfield.tmx
-	go run convert-map.go $< $@
+#playfield.i: screens/playfield.tmx
+#	go run convert-map.go $< $@
+
+playfield-vs.i: screens/vs-playfield.tmx
+	go run convert-map.go $< $@ --rle
 
 playfield-rle.i: screens/playfield.tmx convert-map.go
 	go run convert-map.go $< $@ --rle

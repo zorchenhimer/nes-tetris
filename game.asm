@@ -1,110 +1,10 @@
-.pushseg
-.segment "ZEROPAGE"
-CurrentBlock: .res 1
-BlockRotation: .res 1
-DropSpeed: .res 1
-
-SoftDrop: .res 1
-HardDrop: .res 1
-
-Level_Tiles: .res 4
-Score_Tiles: .res 8
-Lines_Tiles: .res 6
-Combo_Tiles: .res 2
-
-TmpM: .res 3
-
-MathA: .res 3
-MathB: .res 2
-MathC: .res 2
-
-BottomVals: .res 4
-TopVals: .res 4
-LowestRows: .res 4
-
-TmpBlockOffset: .res 1
-
-.segment "BSS"
-BlockGrid: .res 4*4
-BlockX: .res 1
-BlockY: .res 1
-
-CurrentX: .res 1
-CurrentY: .res 1
-GhostY: .res 1
-
-MinX: .res 1
-MaxX: .res 1
-
-; Which rows need to be cleared
-ClearRows: .res 20
-
-BagLeft: .res 1
-BagA: .res 7 ; next pieces
-BagB: .res 7 ; next pieces
-HoldPiece: .res 1
-
-FieldGrid: .res 10*20
-
-HeldSwapped: .res 1
-
-Level: .res 2
-Combo: .res 1
-UpdateCombo: .res 1
-
-TmpScore: .res 3
-
-; Contains tile indicies
-HighScore: .res 6
-
-ClearCount: .res 1 ; rows cleared this frame
-DropScore: .res 1  ; soft and hard drop scores this frame
-
-LowestY:    .res 1
-GhostYBase: .res 1
-DropShake:  .res 1
-
-RepeatLeft: .res 1
-RepeatRight: .res 1
-
-LinesToNextLevel: .res 1
-NextDropSpeed:    .res 1
-
-Speed_Soft: .res 1
-Speed_Drop: .res 1
-
-Flag_PlayfieldReady: .res 1
-
-.popseg
-
-SPEED = 60
-SOFT_SPEED = 35
+.include "game.inc"
 
 BlockLocation_X = 88 - 8
 BlockLocation_Y = 40 - 1
-Block_TileId = $10
-
-BoardHeight = 20
-BoardWidth  = 10
-
-; These are CHR banks, not tiles
-TILE_X = $00
-TILE_1 = $01
-TILE_2 = $02
-
-PAL_A  = $00
-PAL_B  = $40
-PAL_C  = $80
-PAL_D  = $C0
-
-; Column offset for bounding box
-BLOCK_START_X = 5
 
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
-
-BlockGridOffset_X = -2
-BlockGridOffset_Y = -1
 
 SCORE_ADDR = $2202
 LINES_ADDR = $2262
@@ -233,18 +133,6 @@ NmiGame:
     lda #%1000_0000
     sta PpuControl
     rts
-
-GamePalettes:
-    .byte $0F, $00, $1A, $20
-    .byte $0F, $23, $21, $20
-    .byte $0F, $2C, $28, $20
-    .byte $0F, $15, $27, $20
-
-SpritePalettes:
-    .byte $0F, $00, $0A, $20
-    .byte $0F, $13, $11, $20
-    .byte $0F, $1C, $18, $20
-    .byte $0F, $05, $17, $20
 
 GameOverPalette:
     .byte $0F, $15, $27, $20
@@ -1123,7 +1011,6 @@ InitBag_SingleBlock:
     rts
 
 InitBags:
-    ; TODO: use a lookup or something
     lda CurrentGameMode+GameMode::BaseType
     cmp #GameBaseType::SingleBlock
     bne :+
@@ -1220,10 +1107,10 @@ ShuffleBag:
     cpx #6
     bne @loop
 
-
     rts
 
-; Doesn't do any rotational collision stuff, just block gravity.
+; Doesn't do any rotational collision stuff, just block
+; gravity.
 ; Handles placing a block on the playfield
 CheckFallCollision:
     ; Find lowest row
@@ -1245,7 +1132,9 @@ CheckFallCollision:
     jmp @CollideBottom
 :
 
-    jsr CheckCollide_WithGrid
+    ;jsr CheckCollide_WithGrid
+    ldy #0
+    jsr CheckCollide_Grid
     bne @CollideBottom
     rts
 
@@ -1385,6 +1274,9 @@ DoClearRow:
     rts
 
 CheckCollide_Rotate:
+    ldy #0
+    jmp CheckCollide_Walls
+
     ; TODO: Precalculate this shit.  Might want to precalc
     ;       the rotations.  Eg, layout in Tiled then calc
     ;       grids and all lookup tables with a util.
@@ -1601,7 +1493,9 @@ NextBlock_Swap:
 
 
     jsr LoadBlock
-    jsr CheckCollide_WithGrid
+    ;jsr CheckCollide_WithGrid
+    ldy #0
+    jsr CheckCollide_Grid
     beq :+
     jmp DedTransition
 :
@@ -2099,18 +1993,6 @@ IrqDrawBoard:
 
     rts
 
-GetBlockOffset:
-    sta MMC5_MultA
-    lda #10
-    sta MMC5_MultB
-
-    clc
-    lda MMC5_MultA
-    adc TmpX
-    sec
-    sbc #12
-    rts
-
 BlockSpriteLookupY:
     .byte 0,  0,  0,  0
     .byte 8,  8,  8,  8
@@ -2154,33 +2036,6 @@ PlayfieldPpuRows_Lo:
     .repeat BoardHeight, i
         .byte .lobyte(PlayfieldStartAddr+(i*32))
     .endrepeat
-
-BlockStart_Y:
-    .byte 1 ; Z
-    .byte 1 ; S
-    .byte 1 ; T
-    .byte 1 ; L
-    .byte 1 ; J
-    .byte 0 ; I
-    .byte 0 ; O
-
-BlockLeft:
-    .byte 0, 1, 0, 0 ; Z
-    .byte 0, 1, 0, 0 ; S
-    .byte 0, 1, 0, 0 ; T
-    .byte 0, 1, 0, 0 ; L
-    .byte 0, 1, 0, 0 ; J
-    .byte 0, 2, 0, 1 ; I
-    .byte 1, 1, 1, 1 ; O
-
-BlockRight:
-    .byte 1, 1, 1, 2 ; Z
-    .byte 1, 1, 1, 2 ; S
-    .byte 1, 1, 1, 2 ; T
-    .byte 1, 1, 1, 2 ; L
-    .byte 1, 1, 1, 2 ; J
-    .byte 0, 1, 0, 2 ; I
-    .byte 1, 1, 1, 1 ; O
 
 BlockTops:
     ; Z

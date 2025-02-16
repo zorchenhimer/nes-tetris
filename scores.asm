@@ -410,7 +410,6 @@ InitScores:
 
     jsr DrawScores_VerticalCol3
 
-
     lda #.lobyte(NMI_Scores)
     sta NmiHandler+0
     lda #.hibyte(NMI_Scores)

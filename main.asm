@@ -14,7 +14,7 @@ nes2end
 
 MMC5_OFFSET = $3C00 ; Offset from $2000
 
-;DEBUG_PIECE = 5
+;DEBUG_PIECE = 0
 ;DEBUG_FIELD = 1
 DEBUG_BLOCK = 1
 ;DEBUG_FLASH = 0
@@ -140,8 +140,8 @@ TmpZ: .res 1
 BinOutput: .res 4
 IsPaused: .res 1
 
-Controller: .res 1
-Controller_Old: .res 1
+Controller: .res 2
+Controller_Old: .res 2
 
 ptrIRQ: .res 2
 
@@ -170,7 +170,7 @@ GameOverOops: .res 8*4
 
 .segment "BSS"
 Palettes: .res 4*8
-BufferedBlock: .res 4*4
+;BufferedBlock: .res 4*4
 rng_index: .res 1
 
 Bin_Input: .res 3
@@ -203,6 +203,7 @@ CurrentGameMode: .tag GameMode
 .segment "PAGE_GAME"
 
     .include "game.asm"
+    .include "vsmode.asm"
     .include "options.asm"
 
 DebugField:
@@ -218,6 +219,9 @@ PieceRng:
 
 Screen_Playfield:
     .include "playfield-rle.i"
+
+Screen_PlayfieldVs:
+    .include "playfield-vs.i"
 
 Screen_Scores:
     .include "scores-screen.i"

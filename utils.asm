@@ -2,8 +2,11 @@
 .segment "PAGE_UTIL"
 
 ReadControllers:
-    lda Controller
-    sta Controller_Old
+    lda Controller+0
+    sta Controller_Old+0
+
+    lda Controller+1
+    sta Controller_Old+1
 
     ; Freeze input
     lda #1
@@ -15,50 +18,103 @@ ReadControllers:
 @player1:
     lda $4016
     lsr A           ; Bit0 -> Carry
-    rol Controller ; Bit0 <- Carry
+    rol Controller+0 ; Bit0 <- Carry
     and #$01
-    ora Controller
-    sta Controller
+    ora Controller+0
+    sta Controller+0
     dex
     bne @player1
+
+    ldx #1
+    ldy #8
+@player2:
+    lda $4017
+    lsr A              ; Bit0 -> Carry
+    rol Controller+1 ; Bit0 <- Carry
+    and #$01
+    ora Controller+1
+    sta Controller+1
+    dey
+    bne @player2
+
     rts
 
 ; Was a button pressed this frame?
 ButtonPressed:
     sta TmpX
-    and Controller
+    and Controller+0
     sta TmpY
 
-    lda Controller_Old
+    lda Controller_Old+0
     and TmpX
 
     cmp TmpY
-    bne btnPress_stb
+    bne @btnPress_stb
 
     ; no button change
     rts
 
-btnPress_stb:
+@btnPress_stb:
     ; button released
     lda TmpY
-    bne btnPress_stc
+    bne @btnPress_stc
     rts
 
-btnPress_stc:
+@btnPress_stc:
+    ; button pressed
+    lda #1
+    rts
+
+; Was a button pressed this frame?
+ButtonPressedP2:
+    sta TmpX
+    and Controller+1
+    sta TmpY
+
+    lda Controller_Old+1
+    and TmpX
+
+    cmp TmpY
+    bne @btnPress_stb
+
+    ; no button change
+    rts
+
+@btnPress_stb:
+    ; button released
+    lda TmpY
+    bne @btnPress_stc
+    rts
+
+@btnPress_stc:
     ; button pressed
     lda #1
     rts
 
 ButtonReleased:
     sta TmpY
-    and Controller_Old
+    and Controller_Old+0
     bne :+
     ; wasn't pressed last frame, can't be
     ; released this frame
     rts
 :
     sta TmpX
-    lda Controller
+    lda Controller+0
+    and TmpY
+    eor TmpX
+    rts
+
+ButtonReleasedP2:
+    sta TmpY
+    and Controller_Old+1
+    bne :+
+    ; wasn't pressed last frame, can't be
+    ; released this frame
+    rts
+:
+    sta TmpX
+    lda Controller+1
     and TmpY
     eor TmpX
     rts
@@ -623,7 +679,7 @@ Init_ScreensNT0:
     .word Screen_Playfield
     .word Screen_Scores
     .word Screen_ModeMenu
-    .word $0000 ; vs
+    .word Screen_PlayfieldVs ; vs
     .word $0000 ; options
     .word Screen_NewHighScore
     .word Screen_Menu
