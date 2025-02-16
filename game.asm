@@ -281,9 +281,6 @@ InitGame:
     lda #LEVEL_LENGTH-1
     sta LinesToNextLevel
 
-    lda #1
-    sta Flag_PlayfieldReady
-
     lda #0
     sta TimeFrame
 
@@ -389,6 +386,7 @@ FrameGame:
     lda #BUTTON_SELECT ; select
     jsr ButtonReleased
     beq :+
+    ldy #0
     jsr SwapHeldPiece
 :
 
@@ -592,6 +590,7 @@ DoHardDrop:
     sta BlockY
     sta CurrentY
 
+    ldy #0
     jsr PlaceBlock
     jsr CheckRowClear
 
@@ -1140,6 +1139,7 @@ CheckFallCollision:
 
 @CollideBottom:
     dec BlockY
+    ldy #0
     jsr PlaceBlock
 
     inc CurrentBlock
@@ -1282,162 +1282,41 @@ CheckCollide_Rotate:
     ldy #0
     jmp CheckCollide_Grid
 
-    ; TODO: Precalculate this shit.  Might want to precalc
-    ;       the rotations.  Eg, layout in Tiled then calc
-    ;       grids and all lookup tables with a util.
-    lda #BoardWidth+2 ; TODO: is this correct?
-    sta MaxX
-    lda #0 ; no block in col 1 or 2
-    sta MinX
-
-    ; Left - Col 1
-    .repeat 4, i
-        lda BlockGrid+(i*4)
-        bne @FailCol1
-    .endrepeat
-    jmp @checkCol2
-
-@FailCol1: ; block in col 1
-    lda #2
-    sta MinX
-    jmp @checkCol4
-
-@checkCol2:
-    ; Left - Col 1
-    .repeat 4, i
-        lda BlockGrid+(i*4)+1
-        bne @FailCol2
-    .endrepeat
-    jmp @checkCol4
-
-@FailCol2: ; block in col 2
-    lda #1
-    sta MinX
-
-@checkCol4:
-
-    ; Col 4
-    .repeat 4, i
-        lda BlockGrid+(i*4)+3
-        bne @FailCol4
-    .endrepeat
-    jmp @checkCol3
-
-@FailCol4:
-    lda #BoardWidth-1;-2 ; -3?
-    sta MaxX
-    jmp @checkLeft
-
-@checkCol3:
-    ; Col 3
-    .repeat 4, i
-        lda BlockGrid+(i*4)+2
-        bne @FailCol3
-    .endrepeat
-    jmp @checkLeft
-
-@FailCol3:
-    lda #BoardWidth;-1 ; -2?
-    sta MaxX
-
-@checkLeft:
-    lda BlockX
-    cmp MinX
-    bcs @checkRight
-    lda #1  ; can't rotate; on left edge
-    rts
-
-@checkRight:
-    lda BlockX
-    cmp MaxX
-    bcc :+
-    lda #1  ; can't rotate; on right edge
-    rts
-:
-
-CheckCollide_WithGrid:
-    ; Align grid on playfield
-    lda BlockX
-    sta TmpX
-    lda BlockY
-    jsr GetBlockOffset
-    tay
-    sta TmpY
-
-    ldx #0
-    lda #3
-    sta TmpX
-@blockLoop:
-    lda BlockGrid, x
-    beq @nextBlock
-    lda FieldGrid, y
-    beq @nextBlock
-    jmp @collide
-
-@nextBlock:
-    iny
-    dec TmpX
-    lda TmpX
-    bpl :+
-    lda #3
-    sta TmpX
-    clc
-    lda TmpY
-    adc #BoardWidth
-    sta TmpY
-    tay
-    cmp #.sizeof(FieldGrid)
-    bcs @done
-:
-
-    inx
-    cpx #16
-    beq @done
-    jmp @blockLoop
-
-@done:
-    lda #0
-    rts
-
-@collide:
-    lda #1
-    rts
-
 SwapHeldPiece:
-    lda HeldSwapped
+    lda HeldSwapped, y
     beq :+
     rts
 :
     lda #$FF
-    sta HeldSwapped
+    sta HeldSwapped, y
 
-    lda HoldPiece
+    lda HoldPiece, y
     bpl @swap
     ; nothing was held
-    lda CurrentBlock
-    sta HoldPiece
+    lda CurrentBlock, y
+    sta HoldPiece, y
     jmp NextBlock_Swap
 @swap:
 
-    lda HoldPiece
+    lda HoldPiece, y
     pha
-    lda CurrentBlock
-    sta HoldPiece
+    lda CurrentBlock, y
+    sta HoldPiece, y
     pla
-    sta CurrentBlock
+    sta CurrentBlock, y
 
     lda #BLOCK_START_X
-    sta BlockX
+    sta BlockX, y
 
-    ldy CurrentBlock
-    lda BlockStart_Y, y
-    sta BlockY
-
-    lda #0
-    sta BlockRotation
+    ldx CurrentBlock, y
+    lda BlockStart_Y, x
+    sta BlockY, y
 
     lda #0
-    sta SoftDrop
+    sta BlockRotation, y
+
+    lda #0
+    sta SoftDrop, y
 
     jmp LoadBlock
 
@@ -1504,50 +1383,6 @@ NextBlock_Swap:
     beq :+
     jmp DedTransition
 :
-    rts
-
-PlaceBlock:
-    lda CurrentX
-    sta TmpX
-    lda CurrentY
-    jsr GetBlockOffset
-    tay
-    sta TmpY
-
-    ldx #0
-    lda #3
-    sta TmpX
-@loop:
-    lda BlockGrid, x
-    beq :+
-    sta FieldGrid, y
-:
-    inx
-    iny
-    dec TmpX
-    lda TmpX
-    bpl @loop
-
-    lda #3
-    sta TmpX
-    cpx #16
-    beq @done
-
-    clc
-    lda TmpY
-    adc #BoardWidth
-    sta TmpY
-    cmp #.sizeof(FieldGrid)
-    bcs @done
-    tay
-    jmp @loop
-@done:
-
-    lda #0
-    sta HeldSwapped
-
-    lda #1
-    sta Flag_PlayfieldReady
     rts
 
 ; Reads CurrentBlock & CurrentRotation to find the
@@ -1897,17 +1732,6 @@ IrqDrawBoard:
     .endrepeat
 @noHold:
 
-    ;.ifdef DEBUG_BLOCK
-    lda Option_ShowCurrent
-    beq :+
-    .repeat 4, i
-        .repeat 4, j
-        lda BlockGrid+j+(i*4)
-        sta $2062+MMC5_OFFSET+j+(i*32)
-        .endrepeat
-    .endrepeat
-:
-
     ;
     ; Draw bag contents
     .repeat 4, j
@@ -1962,13 +1786,6 @@ IrqDrawBoard:
     .endrepeat
 
 @noBag:
-    lda Flag_PlayfieldReady
-    bne :+
-    rts
-:
-    lda #0
-    sta Flag_PlayfieldReady
-
     ;
     ; Draw playfield
     ldx #0
@@ -1993,9 +1810,6 @@ IrqDrawBoard:
     inx
     cpx #20
     bne @loopRow
-
-    ; TODO: IRQSleep, similar to the NMI sleep
-
     rts
 
 BlockSpriteLookupY:

@@ -81,8 +81,6 @@ NextDropSpeed:    .res 1
 Speed_Soft: .res 1
 Speed_Drop: .res 1
 
-Flag_PlayfieldReady: .res 1
-
 .popseg
 
 SOFT_SPEED = 35
@@ -127,8 +125,18 @@ BlockStart_Y:
     .byte 0 ; I
     .byte 0 ; O
 
+BlockBg_Tiles:
+    .byte TILE_Z
+    .byte TILE_S
+    .byte TILE_T
+    .byte TILE_L
+    .byte TILE_J
+    .byte TILE_I
+    .byte TILE_O
+
 SP_TILE_1 = $11
 SP_TILE_2 = $12
+
 
 BlockSprites_Tiles:
     .byte SP_TILE_1 ; Z
@@ -204,7 +212,7 @@ BlockOffsets_X:
     .byte 0, 0, 1, 1 ; S, rot 3
 
     .byte 1, 0, 1, 2 ; T, rot 0
-    .byte 1, 1, 2, 2 ; T, rot 1
+    .byte 1, 1, 2, 1 ; T, rot 1
     .byte 0, 1, 2, 1 ; T, rot 2
     .byte 1, 0, 1, 1 ; T, rot 3
 
@@ -329,6 +337,47 @@ GetBlockOffset:
     adc TmpX
     sec
     sbc #12 ; alignment correction
+    rts
+
+; Player ID in Y
+; AddressPointer1 points to the upper left corner
+; of the block grid in the field.
+AlignBlockWithField:
+    lda BlockX, y
+    sta TmpX
+    lda BlockY, y
+    jsr GetBlockOffset
+    sta TmpY
+
+    lda CurrentBlock, y
+    asl a
+    asl a
+    clc
+    adc BlockRotation, y
+    asl a
+    asl a
+    tax
+
+    cpy #0
+    bne :+
+
+    clc
+    lda #.lobyte(FieldGrid)
+    adc TmpY
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGrid)
+    adc #0
+    sta AddressPointer1+1
+    jmp :++
+:
+    clc
+    lda #.lobyte(FieldGridP2)
+    adc TmpY
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGridP2)
+    adc #0
+    sta AddressPointer1+1
+:
     rts
 
 .endif

@@ -59,8 +59,8 @@ InitVsMode:
 VsModeFrame:
     jsr ReadControllers
 
-    ;jsr ReadPlayer1
-    ;jsr ReadPlayer2
+    jsr DoPlayer1
+    jsr DoPlayer2
 
     jsr WaitForIRQ
     jmp VsModeFrame
@@ -137,7 +137,15 @@ IrqVsGame:
     bne @loopRowP2
     rts
 
-ReadPlayer1:
+DoPlayer1:
+    lda #BUTTON_SELECT ; select
+    jsr ButtonPressed
+    beq :+
+    jmp SwapHeldPiece
+:
+    rts
+
+DoPlayer2:
     rts
 
 ; BagA and BagB are for players 1 and 2 in this mode
@@ -383,41 +391,7 @@ CheckCollide_Walls:
 
 ; Player in Y
 CheckCollide_Grid:
-    lda BlockX, y
-    sta TmpX
-    lda BlockY, y
-    jsr GetBlockOffset
-    sta TmpY
-
-    lda CurrentBlock, y
-    asl a
-    asl a
-    clc
-    adc BlockRotation, y
-    asl a
-    asl a
-    tax
-
-    cpy #0
-    bne :+
-
-    clc
-    lda #.lobyte(FieldGrid)
-    adc TmpY
-    sta AddressPointer1+0
-    lda #.hibyte(FieldGrid)
-    adc #0
-    sta AddressPointer1+1
-    jmp :++
-:
-    clc
-    lda #.lobyte(FieldGridP2)
-    adc TmpY
-    sta AddressPointer1+0
-    lda #.hibyte(FieldGridP2)
-    adc #0
-    sta AddressPointer1+1
-:
+    jsr AlignBlockWithField
 
     lda #4
     sta TmpX
@@ -444,6 +418,39 @@ CheckCollide_Grid:
     bne @loop
 
     lda #0
+    rts
+
+PlaceBlock:
+    ldx CurrentBlock, y
+    lda BlockBg_Tiles, x
+    sta TmpA
+
+    jsr AlignBlockWithField
+
+    lda #4
+    sta TmpX
+    lda #10
+    sta MMC5_MultB
+
+@loop:
+    clc
+    lda BlockOffsets_Y, x
+    sta MMC5_MultA
+
+    lda MMC5_MultA
+    adc BlockOffsets_X, x
+    ; A contains offset of tile under inpsection
+
+    tay
+    lda TmpA
+    sta (AddressPointer1), y
+
+    inx
+    dec TmpX
+    bne @loop
+
+    lda #0
+    sta HeldSwapped
     rts
 
 VsModeGameOver:

@@ -34,7 +34,6 @@ OptItems_Names:
     .word :+++++++
     .word :++++++++
     .word :+++++++++
-    .word :++++++++++
     .word $0000
 
 :   .asciiz "Enable ghost flash"
@@ -42,7 +41,6 @@ OptItems_Names:
 :   .asciiz "Shift start delay"
 :   .asciiz "Shift repeat delay"
 :   .asciiz "Dbg show next"
-:   .asciiz "Dbg show current"
 :   .asciiz "Dbg show ghost"
 :   .asciiz "Dbg enable hold"
 :   .asciiz "Dbg enable hard drop"
@@ -58,7 +56,6 @@ OptItems_Types:
     .byte 0
     .byte 0
     .byte 0
-    .byte 0
 OptionItems_Len = (* - OptItems_Types)
 
 OptItems_Pointers:
@@ -67,7 +64,6 @@ OptItems_Pointers:
     .word Option_ShiftStart
     .word Option_ShiftRepeat
     .word Option_ShowNext
-    .word Option_ShowCurrent
     .word Option_ShowGhost
     .word Option_EnableHold
     .word Option_EnableHardDrop
