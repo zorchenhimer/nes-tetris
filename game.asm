@@ -1275,7 +1275,12 @@ DoClearRow:
 
 CheckCollide_Rotate:
     ldy #0
-    jmp CheckCollide_Walls
+    jsr CheckCollide_Walls
+    beq :+
+    rts
+:
+    ldy #0
+    jmp CheckCollide_Grid
 
     ; TODO: Precalculate this shit.  Might want to precalc
     ;       the rotations.  Eg, layout in Tiled then calc
