@@ -254,7 +254,7 @@ UpdateSingleBlock:
     asl a
     clc
     adc #160
-    sta SpriteBlock+3, y
+    sta SpriteP1+3, y
 
     lda SingleBlocks+0, x ; Y
     asl a
@@ -262,13 +262,13 @@ UpdateSingleBlock:
     asl a
     clc
     adc #79
-    sta SpriteBlock+0, y
+    sta SpriteP1+0, y
 
     lda #0
-    sta SpriteBlock+1, y
+    sta SpriteP1+1, y
 
     lda TmpY
-    sta SpriteBlock+2, y
+    sta SpriteP1+2, y
 
     iny
     iny

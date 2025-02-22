@@ -268,7 +268,7 @@ ClearSprites:
     ldx #0
     lda #$FF
 @loop:
-    sta SpriteZero, x
+    sta SpriteStart, x
     inx
     inx
     inx

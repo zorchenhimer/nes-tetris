@@ -14,9 +14,10 @@ nes2end
 
 MMC5_OFFSET = $3C00 ; Offset from $2000
 
-;DEBUG_PIECE = 0
+DEBUG_PIECE = 2
+DEBUG_ROTATION = 3
 DEBUG_FIELD = 1
-DEBUG_BLOCK = 1
+;DEBUG_BLOCK = 2
 ;DEBUG_FLASH = 0
 
 ;
@@ -134,8 +135,10 @@ TmpA: .res 1
 TmpB: .res 1
 TmpC: .res 1
 TmpX: .res 1
+TmpXX: .res 1
 TmpY: .res 1
 TmpZ: .res 1
+TmpZZ: .res 1
 
 BinOutput: .res 4
 IsPaused: .res 1
@@ -161,9 +164,13 @@ CurrentScore: .tag ScoreEntry
 TimeFrame: .res 1
 
 .segment "OAM"
-SpriteZero:  .res 4
-SpriteBlock: .res 4*4
-GhostBlock:  .res 4*4
+SpriteStart = *
+;SpriteBlock: .res 4*4
+;GhostBlock:  .res 4*4
+SpriteP1: .res 4*4
+SpriteP2: .res 4*4
+SpriteGhostP1: .res 4*4
+SpriteGhostP2: .res 4*4
 
 GameOverSprites: .res 8*4*4
 GameOverOops: .res 8*4

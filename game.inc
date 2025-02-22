@@ -81,6 +81,8 @@ NextDropSpeed:    .res 1
 Speed_Soft: .res 1
 Speed_Drop: .res 1
 
+Debug_Kick: .res 1
+
 .popseg
 
 SOFT_SPEED = 35
@@ -105,16 +107,16 @@ BlockGridOffset_X = 2
 ;BlockGridOffset_Y = 1
 
 GamePalettes:
-    .byte $0F, $00, $1A, $20
-    .byte $0F, $23, $21, $20
-    .byte $0F, $2C, $28, $20
-    .byte $0F, $15, $27, $20
+    .byte $20, $0F, $1A, $20
+    .byte $20, $23, $21, $20
+    .byte $20, $2C, $28, $20
+    .byte $20, $15, $27, $20
 
 SpritePalettes:
-    .byte $0F, $00, $0A, $20
-    .byte $0F, $13, $11, $20
-    .byte $0F, $1C, $18, $20
-    .byte $0F, $05, $17, $20
+    .byte $20, $0F, $0A, $20
+    .byte $20, $13, $11, $20
+    .byte $20, $1C, $18, $20
+    .byte $20, $05, $17, $20
 
 BlockStart_Y:
     .byte 1 ; Z
@@ -361,21 +363,15 @@ AlignBlockWithField:
     cpy #0
     bne :+
 
-    clc
     lda #.lobyte(FieldGrid)
-    adc TmpY
     sta AddressPointer1+0
     lda #.hibyte(FieldGrid)
-    adc #0
     sta AddressPointer1+1
     jmp :++
 :
-    clc
     lda #.lobyte(FieldGridP2)
-    adc TmpY
     sta AddressPointer1+0
     lda #.hibyte(FieldGridP2)
-    adc #0
     sta AddressPointer1+1
 :
     rts

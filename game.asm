@@ -875,7 +875,7 @@ DedTransition:
 
     lda #$FF
     .repeat 4, i
-        sta GhostBlock+(i*4)
+        sta SpriteGhostP1+(i*4)
     .endrepeat
 
     lda #.lobyte(DedNmi)
@@ -1565,7 +1565,7 @@ UpdateBlock:
     clc
     lda BlockSpriteLookupY, x
     adc TmpY
-    sta SpriteBlock, y
+    sta SpriteP1, y
 
     lda Option_GhostFlash
     beq @noFlash
@@ -1577,35 +1577,35 @@ UpdateBlock:
     adc TmpZ
     jmp :++
 :   lda #$FF
-:   sta GhostBlock, y
+:   sta SpriteGhostP1, y
     jmp @doneFlash
 
 @noFlash:
     clc
     lda BlockSpriteLookupY, x
     adc TmpZ
-    sta GhostBlock, y
+    sta SpriteGhostP1, y
 @doneFlash:
     iny
 
     lda TmpA
     and #$03
     ora #$10
-    sta SpriteBlock, y
-    sta GhostBlock, y
+    sta SpriteP1, y
+    sta SpriteGhostP1, y
     iny
 
     lda #0
-    sta SpriteBlock, y
+    sta SpriteP1, y
     lda #1
-    sta GhostBlock, y
+    sta SpriteGhostP1, y
     iny
 
     clc
     lda BlockSpriteLookupX, x
     adc TmpX
-    sta SpriteBlock, y
-    sta GhostBlock, y
+    sta SpriteP1, y
+    sta SpriteGhostP1, y
     iny
 
 @next:

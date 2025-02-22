@@ -3,6 +3,9 @@
 Player1 = 0
 Player2 = 1
 
+VsBlockLocation_X = 24 - (8*2)
+VsBlockLocation_Y = 55 - (8*1)
+
 InitVsMode:
     lda #.lobyte(GamePalettes)
     sta AddressPointer1+0
@@ -10,12 +13,17 @@ InitVsMode:
     sta AddressPointer1+1
     jsr LoadBgPalettes
 
-    lda #.lobyte(GameOverPalette)
+    lda #.lobyte(GamePalettes)
     sta AddressPointer1+0
-    lda #.hibyte(GameOverPalette)
+    lda #.hibyte(GamePalettes)
     sta AddressPointer1+1
-    ldx #7
-    jsr LoadPalette
+    jsr LoadSpPalettes
+    ;lda #.lobyte(GameOverPalette)
+    ;sta AddressPointer1+0
+    ;lda #.hibyte(GameOverPalette)
+    ;sta AddressPointer1+1
+    ;ldx #7
+    ;jsr LoadPalette
 
     lda #0
     ldy #0
@@ -33,9 +41,15 @@ InitVsMode:
     jsr NextBlockP1
     jsr NextBlockP2
 
-    lda #2
-    sta CurrentBlock+0
-    sta CurrentBlock+1
+    clc
+    lda BlockY+0
+    adc #2
+    sta BlockY+0
+
+    clc
+    lda BlockY+1
+    adc #2
+    sta BlockY+1
 
     lda #.lobyte(NmiVsGame)
     sta NmiHandler+0
@@ -62,18 +76,71 @@ InitVsMode:
     ;SetIRQ 2, IrqVsGame
 
 VsModeFrame:
-    ;jsr ReadControllers
+    jsr ReadControllers
 
-    ;ldy #Player1
-    ;jsr DoPlayer
-    ;ldy #Player2
-    ;jsr DoPlayer
+    ; DEBUG
+    lda Controller+0
+    sta Controller+1
+    lda Controller_Old+0
+    sta Controller_Old+1
+
+    ldy #Player1
+
+    lda #BUTTON_UP
+    jsr ButtonPressed
+    beq :+
+    dec BlockY+0
+    bpl :+
+    inc BlockY+0
+:
+
+    lda #BUTTON_DOWN
+    jsr ButtonPressed
+    beq :+
+    inc BlockY
+    cmp #19
+    bne :+
+    dec BlockY
+:
+
+    lda BlockY+0
+    sta BlockY+1
+
+    lda #%0101_1110
+    sta $2001
+    ldy #Player1
+    jsr DoPlayer
+    lda #%0011_1110
+    sta $2001
+    ldy #Player2
+    jsr DoPlayer
+
+    lda #%1001_1110
+    sta $2001
+    jsr UpdateActiveBlocks
+    lda #%0001_1110
+    sta $2001
 
     jsr WaitForIRQ
     jmp VsModeFrame
 
 
 NmiVsGame:
+    lda #$3F
+    sta $2006
+    lda #$00
+    sta $2006
+
+    .repeat 4*8, i
+        lda Palettes+i
+        sta $2007
+    .endrepeat
+
+    lda #$00
+    sta $2003
+    lda #$02
+    sta $4014
+
     rts
 
 IrqVsGame_Unrolled:
@@ -279,6 +346,10 @@ DoPlayer:
     beq @noA
     tya
     tax
+    lda BlockRotation, x
+    asl a
+    ora #1
+    sta TmpA
     inc BlockRotation, x
     lda #$03
     and BlockRotation, x
@@ -301,6 +372,9 @@ DoPlayer:
     beq @rotDone
     tya
     tax
+    lda BlockRotation, x
+    asl a
+    sta TmpA
     dec BlockRotation, x
     lda #$03
     and BlockRotation, x
@@ -397,7 +471,7 @@ NextBlockP1_Swap:
 :
 
     lda BagA+0
-    sta CurrentBlock
+    sta CurrentBlock+0
 
     ; bump a single bag
     ldx #0
@@ -410,7 +484,7 @@ NextBlockP1_Swap:
 
     .ifdef DEBUG_PIECE
     lda #DEBUG_PIECE
-    sta CurrentBlock
+    sta CurrentBlock+0
     .endif
 
     lda #BLOCK_START_X
@@ -424,6 +498,11 @@ NextBlockP1_Swap:
     lda #0
     sta BlockRotation+0
     sta SoftDrop+0
+
+    .ifdef DEBUG_ROTATION
+    lda #DEBUG_ROTATION
+    sta BlockRotation+0
+    .endif
 
     lda #$FF
     sta RepeatRight+0
@@ -449,7 +528,7 @@ NextBlockP2_Swap:
 :
 
     lda BagB+0
-    sta CurrentBlock
+    sta CurrentBlock+1
 
     ; bump a single bag
     ldx #0
@@ -462,7 +541,7 @@ NextBlockP2_Swap:
 
     .ifdef DEBUG_PIECE
     lda #DEBUG_PIECE
-    sta CurrentBlock
+    sta CurrentBlock+1
     .endif
 
     lda #BLOCK_START_X
@@ -476,6 +555,11 @@ NextBlockP2_Swap:
     lda #0
     sta BlockRotation+1
     sta SoftDrop+1
+
+    .ifdef DEBUG_ROTATION
+    lda #DEBUG_ROTATION
+    sta BlockRotation+1
+    .endif
 
     lda #$FF
     sta RepeatRight+1
@@ -542,16 +626,84 @@ LoadBlockP2:
     rts
 
 CheckCollide_Kicks:
-    tya ; save player ID
-    pha
+    ;tya ; save player ID
+    ;pha
 
-    ; TODO: kick table and repeated calls to the
-    ; other two collision routines
-    brk
+    ; TmpA has Kick enum value
+    lda TmpA
+    asl a
+    asl a
+    sta TmpA ; KickOffsets index
+    asl a
+    sta TmpZZ ; kickoffsets_wall index
 
-    pla
-    tay
-    lda #1
+    lda BlockX, y
+    sta TmpB
+
+    lda BlockY, y
+    sta TmpC
+
+    ; No kick
+    jsr CheckCollide_Walls
+    bne :+
+    jsr CheckCollide_Grid
+    bne :+
+    jmp @done
+:
+
+    jsr AlignBlockWithField
+    stx TmpXX
+
+    lda TmpY
+    sta TmpZ
+
+    lda #0
+    sta Debug_Kick
+
+    .repeat 4, i
+        lda TmpZ
+        ldx TmpA
+        clc
+        adc KickOffsets, x
+        sta TmpY
+
+        clc
+        ldx TmpZZ
+        lda KickOffsets_Wall+0, x
+        adc TmpB
+        sta BlockX, y
+
+        clc
+        lda KickOffsets_Wall+1, x
+        adc TmpC
+        sta BlockY, y
+
+        jsr CheckCollide_Walls
+        bne :+
+
+        ldx TmpXX
+        jsr CheckCollide_Grid_AfterAlign
+        bne :+
+        jmp @done
+:
+        .if i < 3
+            inc TmpA
+            inc TmpZZ
+            inc TmpZZ
+        .endif
+        inc Debug_Kick
+    .endrepeat
+
+;@fail:
+    lda TmpB
+    sta BlockX, y
+    lda TmpC
+    sta BlockY, y
+    lda #1 ; fail
+    rts
+
+@done:
+    lda #0
     rts
 
 ; Player in Y
@@ -563,14 +715,14 @@ CheckCollide_Walls:
     adc BlockRotation, y
     tax
 
-    lda BlockX
+    lda BlockX, y
     cmp BlockLeft, x
     bcs :+
     lda #1 ; collides with left edge
     rts
 :
 
-    lda BlockX
+    lda BlockX, y
     cmp BlockRight, x
     bcc :+
     lda #1
@@ -581,12 +733,14 @@ CheckCollide_Walls:
 
 ; Player in Y
 CheckCollide_Grid:
-    tya ; save player ID
-    pha
     jsr AlignBlockWithField
 
+CheckCollide_Grid_AfterAlign:
+    tya ; save player ID
+    pha
+
     lda #4
-    sta TmpX
+    sta TmpX ; cell/loop count
     lda #10
     sta MMC5_MultB
 
@@ -599,6 +753,7 @@ CheckCollide_Grid:
     adc BlockOffsets_X, x
     ; A contains offset of tile under inpsection
 
+    adc TmpY
     tay
     lda (AddressPointer1), y
     beq :+
@@ -651,11 +806,121 @@ PlaceBlock:
     sta HeldSwapped
     rts
 
-; PlayerID in Y
-UpdateActiveBlock:
+; Updates both players at once
+UpdateActiveBlocks:
     tya
     pha
 
+    ; P1 first
+    ldx CurrentBlock+0
+    lda BlockSprites_Palettes, x
+    sta TmpA
+
+    lda BlockSprites_Tiles, x
+    sta TmpB
+
+    lda CurrentBlock+0
+    asl a
+    asl a
+    clc
+    adc BlockRotation+0
+    asl a
+    asl a
+    tax
+
+    lda BlockX+0
+    asl a
+    asl a
+    asl a
+    sta TmpX
+
+    lda BlockY+0
+    asl a
+    asl a
+    asl a
+    sta TmpY
+
+    .repeat 4, i
+        lda BlockOffsets_Y, x
+        tay
+        lda VsBlockGridLocationY, y
+        clc
+        adc TmpY
+        sta SpriteP1+0+(i*4)
+
+        lda BlockOffsets_X, x
+        tay
+        lda VsBlockGridLocationX, y
+        clc
+        adc TmpX
+        sta SpriteP1+3+(i*4)
+
+        lda TmpA
+        sta SpriteP1+2+(i*4)
+
+        lda TmpB
+        sta SpriteP1+1+(i*4)
+
+        .if i < 3
+            inx
+        .endif
+    .endrepeat
+
+    ; P2 second
+    ldx CurrentBlock+1
+    lda BlockSprites_Palettes, x
+    sta TmpA
+
+    lda BlockSprites_Tiles, x
+    sta TmpB
+
+    lda CurrentBlock+1
+    asl a
+    asl a
+    clc
+    adc BlockRotation+1
+    asl a
+    asl a
+    tax
+
+    lda BlockX+1
+    asl a
+    asl a
+    asl a
+    ora #$80
+    sta TmpX
+
+    lda BlockY+1
+    asl a
+    asl a
+    asl a
+    sta TmpY
+
+    .repeat 4, i
+        lda BlockOffsets_Y, x
+        tay
+        lda VsBlockGridLocationY, y
+        clc
+        adc TmpY
+        sta SpriteP2+0+(i*4)
+
+        lda BlockOffsets_X, x
+        tay
+        lda VsBlockGridLocationX, y
+        clc
+        adc TmpX
+        sta SpriteP2+3+(i*4)
+
+        lda TmpA
+        sta SpriteP2+2+(i*4)
+
+        lda TmpB
+        sta SpriteP2+1+(i*4)
+
+        .if i < 3
+            inx
+        .endif
+    .endrepeat
 
     pla
     tay
@@ -666,6 +931,236 @@ VsModeGameOver:
 
 VsPlayfieldStartP1 = $20E3 + MMC5_OFFSET
 VsPlayfieldStartP2 = $20F3 + MMC5_OFFSET
+
+.macro KO col, row
+    .byte .lobyte($100+((row*-1)*10)+col)
+.endmacro
+
+.macro KO_WALL col, row
+    ;        X                  Y
+    .lobytes $100+col , $100+row*-1
+.endmacro
+
+.enum Kick
+; S = Spawn
+; D = 2x (double)
+SL ; 0 -> 3 CCW
+SR ; 0 -> 1 CW
+RS ; 1 -> 0 CCW
+RD ; 1 -> 2 CW
+DR ; 2 -> 1 CCW
+DL ; 2 -> 3 CW
+LD ; 3 -> 2 CCW
+LS ; 3 -> 0 CW
+.endenum
+
+KickOffsets_Wall:
+    ; Spawn -> Left (CCW)
+    KO_WALL  1,  0
+    KO_WALL  1,  1
+    KO_WALL  0, -2
+    KO_WALL  1, -2
+
+    ; Spawn -> Right (CW)
+    KO_WALL -1,  0
+    KO_WALL -1,  1
+    KO_WALL  0, -2
+    KO_WALL -1, -2
+
+    ; Right -> Spawn (CCW)
+    KO_WALL  1,  0
+    KO_WALL  1, -1
+    KO_WALL  0,  2
+    KO_WALL  1,  2
+
+    ; Right -> 2x (CW)
+    KO_WALL  1,  0
+    KO_WALL  1, -1
+    KO_WALL  0,  2
+    KO_WALL  1,  2
+
+    ; 2x -> Right (CCW)
+    KO_WALL -1,  0
+    KO_WALL -1,  1
+    KO_WALL  0, -2
+    KO_WALL -1, -2
+
+    ; 2x -> Left (CW)
+    KO_WALL  1,  0
+    KO_WALL  1,  1
+    KO_WALL  0, -2
+    KO_WALL  1, -2
+
+    ; Left -> 2x (CCW)
+    KO_WALL -1,  0
+    KO_WALL -1, -1
+    KO_WALL  0,  2
+    KO_WALL -1,  2
+
+    ; Left -> spawn (CW)
+    KO_WALL -1,  0
+    KO_WALL -1, -1
+    KO_WALL  0,  2
+    KO_WALL -1,  2
+
+KickOffsets:
+    ; Spawn -> Left (CCW)
+    KO  1,  0
+    KO  1,  1
+    KO  0, -2
+    KO  1, -2
+
+    ; Spawn -> Right (CW)
+    KO -1,  0
+    KO -1,  1
+    KO  0, -2
+    KO -1, -2
+
+    ; Right -> Spawn (CCW)
+    KO  1,  0
+    KO  1, -1
+    KO  0,  2
+    KO  1,  2
+
+    ; Right -> 2x (CW)
+    KO  1,  0
+    KO  1, -1
+    KO  0,  2
+    KO  1,  2
+
+    ; 2x -> Right (CCW)
+    KO -1,  0
+    KO -1,  1
+    KO  0, -2
+    KO -1, -2
+
+    ; 2x -> Left (CW)
+    KO  1,  0
+    KO  1,  1
+    KO  0, -2
+    KO  1, -2
+
+    ; Left -> 2x (CCW)
+    KO -1,  0
+    KO -1, -1
+    KO  0,  2
+    KO -1,  2
+
+    ; Left -> spawn (CW)
+    KO -1,  0
+    KO -1, -1
+    KO  0,  2
+    KO -1,  2
+
+.if * - KickOffsets <> 4*8
+    .error .sprintf("KickOffsets wrong size: %d", (* - KickOffsets))
+.else
+    .out .sprintf("KickOffsets size: %d", (* - KickOffsets))
+.endif
+
+KickOffsets_I_Wall:
+    ; Spawn -> Left (CCW)
+    KO_WALL -1,  0
+    KO_WALL  2,  0
+    KO_WALL -1,  2
+    KO_WALL  2, -1
+
+    ; Spawn -> Right (CW)
+    KO_WALL -2,  0
+    KO_WALL  1,  0
+    KO_WALL -2, -1
+    KO_WALL  1,  2
+
+    ; Right -> Spawn (CCW)
+    KO_WALL  2,  0
+    KO_WALL -1,  0
+    KO_WALL  2,  1
+    KO_WALL -1, -2
+
+    ; Right -> 2x (CW)
+    KO_WALL -1,  0
+    KO_WALL  2,  0
+    KO_WALL -1,  2
+    KO_WALL  2, -1
+
+    ; 2x -> Right (CCW)
+    KO_WALL  1,  0
+    KO_WALL -2,  0
+    KO_WALL  1, -2
+    KO_WALL -2,  1
+
+    ; 2x -> Left (CW)
+    KO_WALL  2,  0
+    KO_WALL -1,  0
+    KO_WALL  2,  1
+    KO_WALL -1, -2
+
+    ; Left -> 2x (CCW)
+    KO_WALL -2,  0
+    KO_WALL  1,  0
+    KO_WALL -2, -1
+    KO_WALL  1,  2
+
+    ; Left -> spawn (CW)
+    KO_WALL  1,  0
+    KO_WALL -2,  0
+    KO_WALL  1, -2
+    KO_WALL -2,  1
+
+KickOffsets_I:
+    ; Spawn -> Left (CCW)
+    KO -1,  0
+    KO  2,  0
+    KO -1,  2
+    KO  2, -1
+
+    ; Spawn -> Right (CW)
+    KO -2,  0
+    KO  1,  0
+    KO -2, -1
+    KO  1,  2
+
+    ; Right -> Spawn (CCW)
+    KO  2,  0
+    KO -1,  0
+    KO  2,  1
+    KO -1, -2
+
+    ; Right -> 2x (CW)
+    KO -1,  0
+    KO  2,  0
+    KO -1,  2
+    KO  2, -1
+
+    ; 2x -> Right (CCW)
+    KO  1,  0
+    KO -2,  0
+    KO  1, -2
+    KO -2,  1
+
+    ; 2x -> Left (CW)
+    KO  2,  0
+    KO -1,  0
+    KO  2,  1
+    KO -1, -2
+
+    ; Left -> 2x (CCW)
+    KO -2,  0
+    KO  1,  0
+    KO -2, -1
+    KO  1,  2
+
+    ; Left -> spawn (CW)
+    KO  1,  0
+    KO -2,  0
+    KO  1, -2
+    KO -2,  1
+
+.if * - KickOffsets_I <> 4*8
+    .error .sprintf("KickOffsets_I wrong size: %d", (* - KickOffsets_I))
+.else
+    .out .sprintf("KickOffsets_I size: %d", (* - KickOffsets_I))
+.endif
 
 PlayfieldPpuRows_VsP1_Hi:
     .repeat BoardHeight, i
@@ -686,3 +1181,14 @@ PlayfieldPpuRows_VsP2_Lo:
     .repeat BoardHeight, i
         .byte .lobyte(VsPlayfieldStartP2+(i*32))
     .endrepeat
+
+VsBlockGridLocationY:
+    .repeat 21, i
+        .byte VsBlockLocation_Y+(i*8)
+    .endrepeat
+
+VsBlockGridLocationX:
+    .repeat 11, i
+        .byte VsBlockLocation_X+(i*8)
+    .endrepeat
+
