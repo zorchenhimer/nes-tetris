@@ -33,6 +33,10 @@ InitVsMode:
     jsr NextBlockP1
     jsr NextBlockP2
 
+    lda #2
+    sta CurrentBlock+0
+    sta CurrentBlock+1
+
     lda #.lobyte(NmiVsGame)
     sta NmiHandler+0
     lda #.hibyte(NmiVsGame)
@@ -54,19 +58,34 @@ InitVsMode:
 
     jsr WaitForNMI
 
-    SetIRQ 2, IrqVsGame
+    SetIRQ 2, IrqVsGame_Unrolled
+    ;SetIRQ 2, IrqVsGame
 
 VsModeFrame:
-    jsr ReadControllers
+    ;jsr ReadControllers
 
-    jsr DoPlayer1
-    jsr DoPlayer2
+    ;ldy #Player1
+    ;jsr DoPlayer
+    ;ldy #Player2
+    ;jsr DoPlayer
 
     jsr WaitForIRQ
     jmp VsModeFrame
 
 
 NmiVsGame:
+    rts
+
+IrqVsGame_Unrolled:
+    .repeat 20, row
+        .repeat 10, cell
+            lda FieldGrid+cell+(row*10)
+            sta VsPlayfieldStartP1+cell+(row*32)
+
+            lda FieldGridP2+cell+(row*10)
+            sta VsPlayfieldStartP2+cell+(row*32)
+        .endrepeat
+    .endrepeat
     rts
 
 IrqVsGame:
@@ -137,15 +156,173 @@ IrqVsGame:
     bne @loopRowP2
     rts
 
-DoPlayer1:
+; PlayerID in Y
+DoPlayer:
     lda #BUTTON_SELECT ; select
     jsr ButtonPressed
     beq :+
+    ldy #Player1
     jmp SwapHeldPiece
 :
+
+    ; check for released first
+    lda #BUTTON_DOWN
+    jsr ButtonReleased
+    beq :+
+    lda #0
+    sta SoftDrop
+:
+
+    lda #BUTTON_DOWN ; down, pressed
+    jsr ButtonPressed
+    beq :+
+    lda #1
+    sta SoftDrop
+    jmp @btnVertDone
+
+:   lda #BUTTON_UP
+    jsr ButtonPressed
+    beq @btnVertDone
+    ;ldy #Player1
+    jmp VsHardDrop
+@btnVertDone:
+
+    ; TODO: verify this works properly
+    lda #BUTTON_RIGHT | BUTTON_LEFT
+    jsr ButtonReleased
+    beq :+
+    lda #$FF
+    sta RepeatRight, y
+    sta RepeatLeft, y
+:
+
+    lda RepeatLeft, y
+    bmi :+
+    tya
+    tax
+    dec RepeatLeft, x
+    bpl :+
+    lda Option_ShiftRepeat
+    sta RepeatLeft, y
+    jmp @btnLeft
+:
+
+    lda #BUTTON_LEFT
+    jsr ButtonPressed
+    beq @noLeft
+    lda Option_ShiftStart
+    sta RepeatLeft, y
+@btnLeft:
+    tya
+    tax
+    dec BlockX, x
+    bpl :+
+    lda #0
+    sta BlockX, x
+
+    ; No kicks in left/right stuff
+:   jsr CheckCollide_Walls
+    beq :+
+    tya
+    tax
+    inc BlockX, x
+    jmp @horizDone
+
+:   jsr CheckCollide_Grid
+    beq @horizDone
+    tya
+    tax
+    inc BlockX, x
+
+@noLeft:
+    lda RepeatRight, y
+    bmi :+
+    tya
+    tax
+    dec RepeatRight, x
+    bpl :+
+    lda Option_ShiftRepeat
+    sta RepeatRight, y
+    jmp @btnRight
+:
+
+    lda #BUTTON_RIGHT
+    jsr ButtonPressed
+    beq @horizDone
+    lda Option_ShiftStart
+    sta RepeatRight, y
+@btnRight:
+    tya
+    tax
+    inc BlockX, x
+    lda BlockX, x
+    cmp #BoardWidth+1
+    bcc :+
+    lda #BoardWidth
+    sta BlockX, x
+
+:   jsr CheckCollide_Walls
+    beq :+
+    tya
+    tax
+    dec BlockX, x
+
+:   jsr CheckCollide_Grid
+    beq @horizDone
+    tya
+    tax
+    dec BlockX, x
+@horizDone:
+
+    lda #BUTTON_A
+    jsr ButtonPressed
+    beq @noA
+    tya
+    tax
+    inc BlockRotation, x
+    lda #$03
+    and BlockRotation, x
+    sta BlockRotation, x
+
+    jsr CheckCollide_Kicks
+    beq @rotDone
+    ; Rotation collides; rotate back
+    tya
+    tax
+    dec BlockRotation, x
+    lda #$03
+    and BlockRotation, x
+    sta BlockRotation, x
+    jmp @rotDone
+
+@noA:
+    lda #BUTTON_B
+    jsr ButtonPressed
+    beq @rotDone
+    tya
+    tax
+    dec BlockRotation, x
+    lda #$03
+    and BlockRotation, x
+    sta BlockRotation, x
+
+    jsr CheckCollide_Kicks
+    beq @rotDone
+    ; Rotation collides; rotate back
+    tya
+    tax
+    inc BlockRotation, x
+    lda #$03
+    and BlockRotation, x
+    sta BlockRotation, x
+
+@rotDone:
     rts
 
-DoPlayer2:
+VsHardDrop:
+    lda #$FF
+    sta RepeatRight, y
+    sta RepeatLeft, y
     rts
 
 ; BagA and BagB are for players 1 and 2 in this mode
@@ -364,6 +541,19 @@ LoadBlockP2:
     bne @loop
     rts
 
+CheckCollide_Kicks:
+    tya ; save player ID
+    pha
+
+    ; TODO: kick table and repeated calls to the
+    ; other two collision routines
+    brk
+
+    pla
+    tay
+    lda #1
+    rts
+
 ; Player in Y
 CheckCollide_Walls:
     lda CurrentBlock, y
@@ -391,6 +581,8 @@ CheckCollide_Walls:
 
 ; Player in Y
 CheckCollide_Grid:
+    tya ; save player ID
+    pha
     jsr AlignBlockWithField
 
     lda #4
@@ -410,6 +602,9 @@ CheckCollide_Grid:
     tay
     lda (AddressPointer1), y
     beq :+
+    pla
+    tay
+    lda #1
     rts ; collision
 :
 
@@ -417,10 +612,13 @@ CheckCollide_Grid:
     dec TmpX
     bne @loop
 
+    pla
+    tay
     lda #0
     rts
 
 PlaceBlock:
+; FIXME: preserve Y
     ldx CurrentBlock, y
     lda BlockBg_Tiles, x
     sta TmpA
@@ -451,6 +649,16 @@ PlaceBlock:
 
     lda #0
     sta HeldSwapped
+    rts
+
+; PlayerID in Y
+UpdateActiveBlock:
+    tya
+    pha
+
+
+    pla
+    tay
     rts
 
 VsModeGameOver:

@@ -40,12 +40,13 @@ ReadControllers:
     rts
 
 ; Was a button pressed this frame?
+; PlayerID in Y
 ButtonPressed:
     sta TmpX
-    and Controller+0
+    and Controller, y
     sta TmpY
 
-    lda Controller_Old+0
+    lda Controller_Old, y
     and TmpX
 
     cmp TmpY
@@ -65,59 +66,60 @@ ButtonPressed:
     lda #1
     rts
 
-; Was a button pressed this frame?
-ButtonPressedP2:
-    sta TmpX
-    and Controller+1
-    sta TmpY
+;; Was a button pressed this frame?
+;ButtonPressedP2:
+;    sta TmpX
+;    and Controller+1
+;    sta TmpY
+;
+;    lda Controller_Old+1
+;    and TmpX
+;
+;    cmp TmpY
+;    bne @btnPress_stb
+;
+;    ; no button change
+;    rts
+;
+;@btnPress_stb:
+;    ; button released
+;    lda TmpY
+;    bne @btnPress_stc
+;    rts
+;
+;@btnPress_stc:
+;    ; button pressed
+;    lda #1
+;    rts
 
-    lda Controller_Old+1
-    and TmpX
-
-    cmp TmpY
-    bne @btnPress_stb
-
-    ; no button change
-    rts
-
-@btnPress_stb:
-    ; button released
-    lda TmpY
-    bne @btnPress_stc
-    rts
-
-@btnPress_stc:
-    ; button pressed
-    lda #1
-    rts
-
+; PlayerID in Y
 ButtonReleased:
     sta TmpY
-    and Controller_Old+0
+    and Controller_Old, y
     bne :+
     ; wasn't pressed last frame, can't be
     ; released this frame
     rts
 :
     sta TmpX
-    lda Controller+0
+    lda Controller, y
     and TmpY
     eor TmpX
     rts
 
-ButtonReleasedP2:
-    sta TmpY
-    and Controller_Old+1
-    bne :+
-    ; wasn't pressed last frame, can't be
-    ; released this frame
-    rts
-:
-    sta TmpX
-    lda Controller+1
-    and TmpY
-    eor TmpX
-    rts
+;ButtonReleasedP2:
+;    sta TmpY
+;    and Controller_Old+1
+;    bne :+
+;    ; wasn't pressed last frame, can't be
+;    ; released this frame
+;    rts
+;:
+;    sta TmpX
+;    lda Controller+1
+;    and TmpY
+;    eor TmpX
+;    rts
 
 ; Palette data address in AddressPointer1
 ; Palette index in X

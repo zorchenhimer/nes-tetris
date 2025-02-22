@@ -15,7 +15,7 @@ nes2end
 MMC5_OFFSET = $3C00 ; Offset from $2000
 
 ;DEBUG_PIECE = 0
-;DEBUG_FIELD = 1
+DEBUG_FIELD = 1
 DEBUG_BLOCK = 1
 ;DEBUG_FLASH = 0
 
@@ -206,8 +206,10 @@ CurrentGameMode: .tag GameMode
     .include "vsmode.asm"
     .include "options.asm"
 
+.ifdef DEBUG_FIELD
 DebugField:
     .include "debug-field.i"
+.endif
 
 PieceRng:
     .include "piece-rng.inc"

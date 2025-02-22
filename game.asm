@@ -386,7 +386,7 @@ FrameGame:
     lda #BUTTON_SELECT ; select
     jsr ButtonReleased
     beq :+
-    ldy #0
+    ldy #Player1
     jsr SwapHeldPiece
 :
 
@@ -492,11 +492,6 @@ FrameGame:
     jsr CheckCollide_Rotate
     beq :+
     dec BlockX
-:
-
-    lda #BUTTON_UP ; up
-    jsr ButtonPressed
-    beq :+
 :
 
     lda SoftDrop
@@ -1282,6 +1277,7 @@ CheckCollide_Rotate:
     ldy #0
     jmp CheckCollide_Grid
 
+; Player ID in Y
 SwapHeldPiece:
     lda HeldSwapped, y
     beq :+
@@ -1314,9 +1310,11 @@ SwapHeldPiece:
 
     lda #0
     sta BlockRotation, y
-
-    lda #0
     sta SoftDrop, y
+
+    lda #$FF
+    sta RepeatRight, y
+    sta RepeatLeft, y
 
     jmp LoadBlock
 
