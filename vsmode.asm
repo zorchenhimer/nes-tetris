@@ -773,12 +773,14 @@ CheckCollide_Grid_AfterAlign:
     rts
 
 PlaceBlock:
-; FIXME: preserve Y
+    tya
+    pha
     ldx CurrentBlock, y
     lda BlockBg_Tiles, x
     sta TmpA
 
     jsr AlignBlockWithField
+    ; X has offset into BlockOffsets tables
 
     lda #4
     sta TmpX
@@ -790,8 +792,10 @@ PlaceBlock:
     lda BlockOffsets_Y, x
     sta MMC5_MultA
 
+    clc
     lda MMC5_MultA
     adc BlockOffsets_X, x
+    adc TmpY
     ; A contains offset of tile under inpsection
 
     tay
@@ -804,6 +808,8 @@ PlaceBlock:
 
     lda #0
     sta HeldSwapped
+    pla
+    tay
     rts
 
 ; Updates both players at once

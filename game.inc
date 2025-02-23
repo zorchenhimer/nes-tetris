@@ -28,7 +28,7 @@ LowestRows: .res 4
 TmpBlockOffset: .res 1
 
 BlockGrid: .res 4*4
-BlockGridP2: .res 4*4
+;BlockGridP2: .res 4*4
 
 .segment "BSS"
 BlockX: .res 2
@@ -338,12 +338,14 @@ GetBlockOffset:
     lda MMC5_MultA
     adc TmpX
     sec
-    sbc #12 ; alignment correction
+    sbc #12 ; alignment correction (2 col, 1 row)
     rts
 
 ; Player ID in Y
-; AddressPointer1 points to the upper left corner
-; of the block grid in the field.
+; AddressPointer1 points to the start of a
+; FieldGrid (P1 or P2).
+; TmpY is the offset in the field grid that the
+; block offsets start.
 AlignBlockWithField:
     lda BlockX, y
     sta TmpX
