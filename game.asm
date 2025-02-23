@@ -1489,7 +1489,7 @@ UpdateBlock:
     asl a
     sta TmpY
 
-    lda GhostY
+    lda GhostY+0
     asl a
     asl a
     asl a

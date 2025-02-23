@@ -766,13 +766,24 @@ UpdateActiveBlocks_Vs:
     tya ; Preserve Y
     pha
 
+    lda #%0101_1110
+    sta $2001
+    ldy #Player1
+    jsr CalculateGhost
+
+    lda #%1001_1110
+    sta $2001
+    ldy #Player2
+    jsr CalculateGhost
+    lda #%0001_1110
+    sta $2001
+
     ; P1 first
     ldx CurrentBlock+0
-    lda BlockSprites_Palettes, x
-    sta TmpA
-
-    lda BlockSprites_Tiles, x
-    sta TmpB
+    lda BlockColors, x
+    sta Palettes+(0*4)+1+16
+    lda BlockColors_Ghost, x
+    sta Palettes+(0*4)+2+16
 
     lda CurrentBlock+0
     asl a
@@ -795,6 +806,12 @@ UpdateActiveBlocks_Vs:
     asl a
     sta TmpY
 
+    lda GhostY+0
+    asl a
+    asl a
+    asl a
+    sta TmpZ
+
     .repeat 4, i
         lda BlockOffsets_Y, x
         tay
@@ -803,18 +820,27 @@ UpdateActiveBlocks_Vs:
         adc TmpY
         sta SpriteP1+0+(i*4)
 
+        lda VsBlockGridLocationY, y
+        clc
+        adc TmpZ
+        sta SpriteGhostP1+0+(i*4)
+
         lda BlockOffsets_X, x
         tay
         lda VsBlockGridLocationX, y
         clc
         adc TmpX
         sta SpriteP1+3+(i*4)
+        sta SpriteGhostP1+3+(i*4)
 
-        lda TmpA
+        lda #0
         sta SpriteP1+2+(i*4)
+        sta SpriteGhostP1+2+(i*4)
 
-        lda TmpB
+        lda #$11
         sta SpriteP1+1+(i*4)
+        lda #$12
+        sta SpriteGhostP1+1+(i*4)
 
         .if i < 3
             inx
@@ -823,11 +849,10 @@ UpdateActiveBlocks_Vs:
 
     ; P2 second
     ldx CurrentBlock+1
-    lda BlockSprites_Palettes, x
-    sta TmpA
-
-    lda BlockSprites_Tiles, x
-    sta TmpB
+    lda BlockColors, x
+    sta Palettes+(1*4)+1+16
+    lda BlockColors_Ghost, x
+    sta Palettes+(1*4)+2+16
 
     lda CurrentBlock+1
     asl a
@@ -851,6 +876,12 @@ UpdateActiveBlocks_Vs:
     asl a
     sta TmpY
 
+    lda GhostY+1
+    asl a
+    asl a
+    asl a
+    sta TmpZ
+
     .repeat 4, i
         lda BlockOffsets_Y, x
         tay
@@ -859,18 +890,27 @@ UpdateActiveBlocks_Vs:
         adc TmpY
         sta SpriteP2+0+(i*4)
 
+        lda VsBlockGridLocationY, y
+        clc
+        adc TmpZ
+        sta SpriteGhostP2+0+(i*4)
+
         lda BlockOffsets_X, x
         tay
         lda VsBlockGridLocationX, y
         clc
         adc TmpX
         sta SpriteP2+3+(i*4)
+        sta SpriteGhostP2+3+(i*4)
 
-        lda TmpA
+        lda #1
         sta SpriteP2+2+(i*4)
+        sta SpriteGhostP2+2+(i*4)
 
-        lda TmpB
+        lda #$11
         sta SpriteP2+1+(i*4)
+        lda #$12
+        sta SpriteGhostP2+1+(i*4)
 
         .if i < 3
             inx
