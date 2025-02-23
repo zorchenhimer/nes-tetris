@@ -394,38 +394,45 @@ FrameGame:
     lda #BUTTON_A ; A
     jsr ButtonPressed
     beq :+
-    inc BlockRotation
+    lda BlockRotation+0
+    asl a
+    ora #1
+    sta TmpA ; used in CheckCollide_Kicks
+    inc BlockRotation+0
     lda #$03
     and BlockRotation
     sta BlockRotation
 
-    jsr LoadBlock
-    jsr CheckCollide_Rotate
+    ldy #Player1
+    jsr CheckCollide_Kicks
     beq :+
     ; Rotation collides; rotate back
-    dec BlockRotation
+    dec BlockRotation+0
     lda #$03
-    and BlockRotation
-    sta BlockRotation
+    and BlockRotation+0
+    sta BlockRotation+0
     jsr LoadBlock
 :
 
     lda #BUTTON_B ; B
     jsr ButtonPressed
     beq :+
-    dec BlockRotation
+    lda BlockRotation+0
+    asl a
+    sta TmpA ; used in CheckCollide_Kicks
+    dec BlockRotation+0
     lda #$03
-    and BlockRotation
-    sta BlockRotation
+    and BlockRotation+0
+    sta BlockRotation+0
 
-    jsr LoadBlock
-    jsr CheckCollide_Rotate
+    ldy #Player1
+    jsr CheckCollide_Kicks
     beq :+
     ; Rotation collides; rotate back
-    inc BlockRotation
+    inc BlockRotation+0
     lda #$03
-    and BlockRotation
-    sta BlockRotation
+    and BlockRotation+0
+    sta BlockRotation+0
     jsr LoadBlock
 :
 
@@ -456,7 +463,8 @@ FrameGame:
     lda #0
     sta BlockX
 :
-    jsr CheckCollide_Rotate
+    ldy #Player1
+    jsr CheckCollide_NoKick
     beq :+
     inc BlockX
 :
@@ -490,7 +498,8 @@ FrameGame:
     lda #BoardWidth
     sta BlockX
 :
-    jsr CheckCollide_Rotate
+    ldy #Player1
+    jsr CheckCollide_NoKick
     beq :+
     dec BlockX
 :
@@ -1107,27 +1116,7 @@ ShuffleBag:
 ; gravity.
 ; Handles placing a block on the playfield
 CheckFallCollision:
-    ; Find lowest row
-    ldx #15
-@bottomLoop:
-    lda BlockGrid, x
-    bne @found
-    dex
-    jmp @bottomLoop
-@found:
-    txa
-    lsr a
-    lsr a
-    clc
-    adc BlockY
-    sta TmpA
-    cmp #BoardHeight+1
-    bcc :+
-    jmp @CollideBottom
-:
-
-    ;jsr CheckCollide_WithGrid
-    ldy #0
+    ldy #Player1
     jsr CheckCollide_Grid
     bne @CollideBottom
     rts
@@ -1268,7 +1257,7 @@ DoClearRow:
     .endrepeat
     rts
 
-CheckCollide_Rotate:
+CheckCollide_NoKick:
     ldy #0
     jsr CheckCollide_Walls
     beq :+
