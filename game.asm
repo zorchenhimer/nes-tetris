@@ -345,8 +345,6 @@ InitGame:
 FrameGame:
     SetIRQ 2, IrqDrawBoard
 
-    jsr LoadBlock
-
     jsr ReadControllers
 
 ;    lda #BUTTON_START ; start
@@ -411,7 +409,6 @@ FrameGame:
     lda #$03
     and BlockRotation+0
     sta BlockRotation+0
-    jsr LoadBlock
 :
 
     lda #BUTTON_B ; B
@@ -433,7 +430,6 @@ FrameGame:
     lda #$03
     and BlockRotation+0
     sta BlockRotation+0
-    jsr LoadBlock
 :
 
     lda #BUTTON_LEFT
@@ -1280,7 +1276,14 @@ SwapHeldPiece:
     ; nothing was held
     lda CurrentBlock, y
     sta HoldPiece, y
-    jmp NextBlock_Swap
+    lda #.lobyte(NmiVsGame)
+    cmp NmiHandler+0
+    bne :+
+    lda #.hibyte(NmiVsGame)
+    cmp NmiHandler+1
+    bne :+
+    jmp NextBlock_Swap_Vs
+:   jmp NextBlock_Swap
 @swap:
 
     lda HoldPiece, y
@@ -1304,8 +1307,7 @@ SwapHeldPiece:
     lda #$FF
     sta RepeatRight, y
     sta RepeatLeft, y
-
-    jmp LoadBlock
+    rts
 
 NextBlock:
     lda #$00
@@ -1363,43 +1365,12 @@ NextBlock_Swap:
     sta RepeatLeft
 
 
-    jsr LoadBlock
     ;jsr CheckCollide_WithGrid
     ldy #0
     jsr CheckCollide_Grid
     beq :+
     jmp DedTransition
 :
-    rts
-
-; Reads CurrentBlock & CurrentRotation to find the
-; correct entry in BlockTiles and loads that data
-; into BlockGrid.
-LoadBlock:
-    lda CurrentBlock
-    asl a
-    tax
-
-    lda BlockTiles+0, x
-    sta AddressPointer1+0
-    lda BlockTiles+1, x
-    sta AddressPointer1+1
-
-    lda BlockRotation
-    asl a
-    asl a
-    asl a
-    asl a
-    tay
-
-    ldx #0
-@loop:
-    lda (AddressPointer1), y
-    sta BlockGrid, x
-    iny
-    inx
-    cpx #16
-    bne @loop
     rts
 
 ; PlayerID in Y

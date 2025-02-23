@@ -27,8 +27,7 @@ LowestRows: .res 4
 
 TmpBlockOffset: .res 1
 
-BlockGrid: .res 4*4
-;BlockGridP2: .res 4*4
+BagTmp: .res 7
 
 .segment "BSS"
 BlockX: .res 2
@@ -47,7 +46,7 @@ ClearRows: .res 20
 BagLeft: .res 2 ; 2p
 BagA: .res 7 ; next pieces
 BagB: .res 7 ; next pieces
-HoldPiece: .res 1
+HoldPiece: .res 2
 
 FieldGrid: .res 10*20
 FieldGridP2: .res 10*20

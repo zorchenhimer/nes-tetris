@@ -37,9 +37,18 @@ InitVsMode:
     cpy #200
     bne :-
 
-    jsr InitBagsVs
-    jsr NextBlockP1
-    jsr NextBlockP2
+    lda #$FF
+    sta HoldPiece+0
+    sta HoldPiece+1
+
+    lda #1 ; trigger shuffle on next call to NextBlock_Vs
+    sta BagLeft+0
+    sta BagLeft+1
+
+    ldy #Player1
+    jsr NextBlock_Vs
+    ldy #Player2
+    jsr NextBlock_Vs
 
     clc
     lda BlockY+0
@@ -73,7 +82,6 @@ InitVsMode:
     jsr WaitForNMI
 
     SetIRQ 2, IrqVsGame_Unrolled
-    ;SetIRQ 2, IrqVsGame
 
 VsModeFrame:
     jsr ReadControllers
@@ -143,6 +151,133 @@ NmiVsGame:
 
     rts
 
+ShuffleBag_Vs:
+
+    lda #7
+    sta BagLeft, y
+
+    tya
+    pha
+
+    cpy #0
+    bne @p2
+
+    lda #.lobyte(BagA)
+    sta AddressPointer1+0
+    lda #.hibyte(BagA)
+    sta AddressPointer1+1
+    jmp @clr
+
+@p2:
+    lda #.lobyte(BagB)
+    sta AddressPointer1+0
+    lda #.hibyte(BagB)
+    sta AddressPointer1+1
+
+@clr:
+    lda #$FF
+    ldx #0
+:
+    sta BagTmp, x
+    inx
+    cpx #7
+    bne :-
+
+    lda #0
+    sta TmpX
+
+@loop:
+    inc rng_index
+    ldx rng_index
+    lda PieceRng, x
+
+    ldy #0
+@check:
+    cmp BagTmp, y
+    beq @loop
+    iny
+    cpy #7
+    bne @check
+
+    ldx TmpX
+    sta BagTmp, x
+    inc TmpX
+    cpx #6
+    bne @loop
+
+    ldy #6
+@cpy:
+    lda BagTmp, y
+    sta (AddressPointer1), y
+    dey
+    bpl @cpy
+
+    pla
+    tay
+    rts
+
+NextBlock_Vs:
+    lda #$00
+    sta HeldSwapped, y
+
+NextBlock_Swap_Vs:
+    lda Speed_Drop
+    sta DropSpeed, y
+
+    tya
+    tax
+    dec BagLeft, x
+    bne :+
+    jsr ShuffleBag_Vs
+:
+
+    cpy #0
+    bne @p2
+    lda BagA+0
+    sta CurrentBlock, y
+
+    ldx #0
+:
+    lda BagA+1, x
+    sta BagA, x
+    inx
+    cpx #6
+    bne :-
+    jmp @shuffDone
+@p2:
+    lda BagB+0
+    sta CurrentBlock, y
+
+    ldx #0
+:
+    lda BagB+1, x
+    sta BagB, x
+    inx
+    cpx #6
+    bne :-
+
+@shuffDone:
+
+    lda #BLOCK_START_X
+    sta BlockX, y
+
+    sta BlockY, y
+    sta CurrentY, y
+
+    lda #0
+    sta BlockRotation, y
+    sta SoftDrop, y
+
+    lda #$FF
+    sta RepeatRight, y
+    sta RepeatLeft, y
+
+    jsr CheckCollide_Grid
+    beq :+
+    jmp VsModeGameOver
+:
+    rts
+
 VsHoldP1 = $2083+MMC5_OFFSET
 VsNextP1 = $2089+MMC5_OFFSET
 VsHoldP2 = $2093+MMC5_OFFSET
@@ -163,7 +298,8 @@ IrqVsGame_Unrolled:
 
 ;
 ; P1 Hold
-    ldx CurrentBlock+0
+    ldx HoldPiece+0
+    bmi @noP1Hold
     lda BlockBg_Tiles, x
     sta TmpA
     lda #32
@@ -191,6 +327,8 @@ IrqVsGame_Unrolled:
     inx
     dec TmpX
     bne :-
+
+@noP1Hold:
 ;
 ; P1 Next
     ldx BagA+0
@@ -224,7 +362,8 @@ IrqVsGame_Unrolled:
 
 ;
 ; P2 Hold
-    ldx CurrentBlock+1
+    ldx HoldPiece+1
+    bmi @noP2Hold
     lda BlockBg_Tiles, x
     sta TmpA
     lda #32
@@ -252,6 +391,8 @@ IrqVsGame_Unrolled:
     inx
     dec TmpX
     bne :-
+
+@noP2Hold:
 ;
 ; P2 Next
     ldx BagB+0
@@ -367,7 +508,6 @@ DoPlayer:
     lda #BUTTON_SELECT ; select
     jsr ButtonPressed
     beq :+
-    ldy #Player1
     jmp SwapHeldPiece
 :
 
@@ -389,7 +529,6 @@ DoPlayer:
 :   lda #BUTTON_UP
     jsr ButtonPressed
     beq @btnVertDone
-    ;ldy #Player1
     jmp VsHardDrop
 @btnVertDone:
 
@@ -594,122 +733,6 @@ InitBagsVs:
     inc TmpX
     cpx #6
     bne @loopB
-    rts
-
-NextBlockP1:
-    lda #0
-    sta HeldSwapped+0
-
-NextBlockP1_Swap:
-    lda Speed_Drop
-    sta DropSpeed+0
-
-    dec BagLeft+0
-    bne :+
-    ;jsr ShuffleBagP1
-:
-
-    lda BagA+0
-    sta CurrentBlock+0
-
-    ; bump a single bag
-    ldx #0
-:
-    lda BagA+1, x
-    sta BagA, x
-    inx
-    cpx #6
-    bne :-
-
-    .ifdef DEBUG_PIECE
-    lda #DEBUG_PIECE
-    sta CurrentBlock+0
-    .endif
-
-    lda #BLOCK_START_X
-    sta BlockX+0
-
-    ldy CurrentBlock+0
-    lda BlockStart_Y, y
-    sta BlockY+0
-    sta CurrentY+0
-
-    lda #0
-    sta BlockRotation+0
-    sta SoftDrop+0
-
-    .ifdef DEBUG_ROTATION
-    lda #DEBUG_ROTATION
-    sta BlockRotation+0
-    .endif
-
-    lda #$FF
-    sta RepeatRight+0
-    sta RepeatLeft+0
-
-    ;jsr LoadBlockP1
-    ;jsr CheckCollideP1
-    ;beq :+
-    ;jmp VsModeGameOver
-;:
-    rts
-
-NextBlockP2:
-    lda #0
-    sta HeldSwapped+1
-
-NextBlockP2_Swap:
-    lda Speed_Drop
-    sta DropSpeed+1
-
-    dec BagLeft+1
-    bne :+
-    ;jsr ShuffleBagP2
-:
-
-    lda BagB+0
-    sta CurrentBlock+1
-
-    ; bump a single bag
-    ldx #0
-:
-    lda BagB+1, x
-    sta BagB, x
-    inx
-    cpx #6
-    bne :-
-
-    .ifdef DEBUG_PIECE
-    lda #DEBUG_PIECE
-    sta CurrentBlock+1
-    .endif
-
-    lda #BLOCK_START_X
-    sta BlockX+1
-
-    ldy CurrentBlock+1
-    lda BlockStart_Y, y
-    sta BlockY+1
-    sta CurrentY+1
-
-    lda #0
-    sta BlockRotation+1
-    sta SoftDrop+1
-
-    .ifdef DEBUG_ROTATION
-    lda #DEBUG_ROTATION
-    sta BlockRotation+1
-    .endif
-
-    lda #$FF
-    sta RepeatRight+1
-    sta RepeatLeft+1
-
-;    ;jsr LoadBlockP2
-;    ;jsr CheckCollideP2
-;    beq :+
-;    jmp VsModeGameOver
-;:   rts
     rts
 
 CheckCollide_Kicks:
@@ -1059,6 +1082,7 @@ UpdateActiveBlocks_Vs:
     tay
     rts
 
+; Losing player in Y
 VsModeGameOver:
     jmp VsModeGameOver
 
