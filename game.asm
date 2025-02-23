@@ -1456,8 +1456,14 @@ UpdateBlock:
 ;
 ; Update both block and ghost sprites
     ldx CurrentBlock+0
-    lda BlockSprites_Palettes, x
-    sta TmpA
+    lda BlockColors, x
+    sta Palettes+(0*4)+1+16
+
+    lda BlockColors_Ghost, x
+    sta Palettes+(0*4)+2+16
+
+    lda #$20
+    sta Palettes+(0*4)+3
 
     lda BlockSprites_Tiles, x
     sta TmpB

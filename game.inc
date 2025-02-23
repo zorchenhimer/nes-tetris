@@ -107,16 +107,16 @@ BlockGridOffset_X = 2
 ;BlockGridOffset_Y = 1
 
 GamePalettes:
-    .byte $20, $0F, $1A, $20
-    .byte $20, $23, $21, $20
-    .byte $20, $2C, $28, $20
-    .byte $20, $15, $27, $20
+    .byte BG_COLOR, $0F, $1A, $20
+    .byte BG_COLOR, $23, $21, $20
+    .byte BG_COLOR, $2C, $28, $20
+    .byte BG_COLOR, $15, $27, $20
 
 SpritePalettes:
-    .byte $20, $0F, $0A, $20
-    .byte $20, $13, $11, $20
-    .byte $20, $1C, $18, $20
-    .byte $20, $05, $17, $20
+    .byte BG_COLOR, $0F, $0A, $20
+    .byte BG_COLOR, $13, $11, $20
+    .byte BG_COLOR, $1C, $18, $20
+    .byte BG_COLOR, $05, $17, $20
 
 BlockStart_Y:
     .byte 1 ; Z
@@ -139,6 +139,34 @@ BlockBg_Tiles:
 SP_TILE_1 = $11
 SP_TILE_2 = $12
 
+; Raw color values for each block
+BlockColors:
+    .byte $15 ; Z
+    .byte $1A ; S
+    .byte $23 ; T
+    .byte $27 ; L
+    .byte $21 ; J
+    .byte $2C ; I
+    .byte $28 ; O
+
+BlockColors_Ghost:
+.if BG_COLOR = $20
+    .byte $25 ; Z
+    .byte $2A ; S
+    .byte $33 ; T
+    .byte $37 ; L
+    .byte $31 ; J
+    .byte $3C ; I
+    .byte $38 ; O
+.else
+    .byte $05 ; Z
+    .byte $0A ; S
+    .byte $13 ; T
+    .byte $17 ; L
+    .byte $11 ; J
+    .byte $1C ; I
+    .byte $18 ; O
+.endif
 
 BlockSprites_Tiles:
     .byte SP_TILE_1 ; Z

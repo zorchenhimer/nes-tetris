@@ -24,6 +24,7 @@ MMC5_OFFSET = $3C00 ; Offset from $2000
 ; Defaults
 ;
 
+BG_COLOR = $0F
 GHOST_FLASH = 0
 SCREEN_SHAKE = 1
 
