@@ -135,7 +135,7 @@ NmiGame:
     rts
 
 GameOverPalette:
-    .byte $0F, $15, $27, $20
+    .byte $20, $15, $27, $20
 
 StartGame:
     lda ModeSelection
@@ -222,6 +222,7 @@ InitGame:
     lda #.hibyte(GamePalettes)
     sta AddressPointer1+1
     jsr LoadBgPalettes
+    jsr LoadSpPalettes
 
     lda #.lobyte(GameOverPalette)
     sta AddressPointer1+0
@@ -528,7 +529,6 @@ FrameGame:
     sta CurrentY
 
     jsr UpdateBlock
-    ;jsr WaitForNMI
 
     ldx TimeFrame
     inx
@@ -585,7 +585,7 @@ DoHardDrop:
     sta BlockY
     sta CurrentY
 
-    ldy #0
+    ldy #Player1
     jsr PlaceBlock
     jsr CheckRowClear
 
@@ -1134,7 +1134,7 @@ CheckFallCollision:
 
 @CollideBottom:
     dec BlockY
-    ldy #0
+    ldy #Player1
     jsr PlaceBlock
 
     inc CurrentBlock
@@ -1413,233 +1413,129 @@ LoadBlock:
     bne @loop
     rts
 
+; PlayerID in Y
 CalculateGhost:
-
-    ;
-    ; Copy top & bottom vals to zero page
-    lda CurrentBlock
-    asl a
-    asl a
-    asl a
-    asl a
-    sta TmpBlockOffset
-
-    lda BlockRotation
-    asl a
-    asl a
+    lda BlockY, y
+    pha
     clc
-    adc TmpBlockOffset
-    tay
+    adc #1
+    sta BlockY, y
 
-    ldx #0
+    jsr AlignBlockWithField
+    stx TmpXX
+
+    jsr CheckCollide_Grid_AfterAlign
+    beq :+
+    pla
+    sta BlockY, y
+    sta GhostY, y
+    rts
 :
-    lda BlockBottoms, y
-    sta BottomVals, x
 
-    lda BlockTops, y
-    sta TopVals, x
-
-    lda #21
-    sta LowestRows, x
-    inx
-    iny
-    cpx #4
-    bne :-
-
-    lda #$FF
-    sta LowestY
-
-    lda #0
-    sta TmpA ; Current column
-
-    ; Find the highest row in each column.
-    ; This is limited to the four columns that
-    ; the piece grid occupies.
-@fieldColTopLoop:
-    ldx TmpA
-    lda TopVals, x
-    cmp #4
-    beq @fieldNextColumn
+@loop:
+    lda BlockY, y
     clc
-    adc CurrentY
-    sta TmpB ; current row
-    dec TmpB
-
-    ; Align to playfield, but we want the offset
-    ; (y-1)*10+x-2 = y*10+x-2-10 = y*10+x-12
-    sta MMC5_MultA
-    lda #10
-    sta MMC5_MultB
-
-    clc
-    lda MMC5_MultA
-    adc CurrentX
-    adc TmpA
-    sec
-    sbc #12
-
-    ; Offset in the field for the first
-    ; column in the BlockGrid
-    sta TmpY
-
-    ldy TmpY
-@fieldColLoop:
-    lda FieldGrid, y
-    beq @nextFieldRow
-
-    lda TmpB
-    tay
-    iny
-    tya
-    ldy TmpA
-    sta LowestRows, y
-    jmp @fieldNextColumn
-
-@nextFieldRow:
-    inc TmpB
-    lda TmpB
-    cmp #21
-    beq @fieldNextColumn
-    tya
+    adc #1
+    sta BlockY, y
+    lda TmpY
     clc
     adc #10
-    tay
-    jmp @fieldColLoop
+    sta TmpY
 
-@fieldNextColumn:
-    inc TmpY ; offset
-    ldy TmpY
-    inc TmpA ; col
-    lda TmpA
-    cmp #4
-    bne @fieldColTopLoop
+    ldx TmpXX
+    jsr CheckCollide_Grid_AfterAlign
+    bne @collide
+    jmp @loop
 
-    ; Find the highest coordinate across
-    ; all four columns of the piece grid
-    ldx #0
-@bottomLoop:
-    lda BottomVals, x
-    beq @nextBottom
-
+@collide:
     sec
-    lda LowestRows, x
-    sbc BottomVals, x
-    cmp LowestY
-    bcs @nextBottom
-    sta LowestY
-    ;inc LowestY
-
-@nextBottom:
-    inx
-    cpx #4
-    bne @bottomLoop
-
-    lda LowestY
-    sta GhostY
+    lda BlockY, y
+    sbc #1
+    sta GhostY, y
+    pla
+    sta BlockY, y
     rts
 
 UpdateBlock:
+
+    lda #%0101_1110
+    sta $2001
     jsr CalculateGhost
+    lda #%0001_1110
+    sta $2001
 
 ;
 ; Update both block and ghost sprites
-    ldx CurrentX
-    lda BlockGridLocationX, x
+    ldx CurrentBlock+0
+    lda BlockSprites_Palettes, x
+    sta TmpA
+
+    lda BlockSprites_Tiles, x
+    sta TmpB
+
+    lda CurrentBlock+0
+    asl a
+    asl a
+    clc
+    adc BlockRotation+0
+    asl a
+    asl a
+    tax
+
+    lda BlockX+0
+    asl a
+    asl a
+    asl a
     sta TmpX
 
-    ldx CurrentY
-    lda BlockGridLocationY, x
+    lda BlockY+0
+    asl a
+    asl a
+    asl a
     sta TmpY
 
-    ldx GhostY
-    lda BlockGridLocationY, x
+    lda GhostY
+    asl a
+    asl a
+    asl a
     sta TmpZ
 
-    ldx #0
-    ldy #0
-@loop:
-    lda BlockGrid, x
-    sta TmpA
-    beq @next
-    sta TmpB
-    clc
-    lda BlockSpriteLookupY, x
-    adc TmpY
-    sta SpriteP1, y
+    .repeat 4, i
+        lda BlockOffsets_Y, x
+        tay
+        lda BlockGridLocationY, y
+        clc
+        adc TmpY
+        sta SpriteP1+0+(i*4)
 
-    lda Option_GhostFlash
-    beq @noFlash
-    lda FrameCount
-    and #$01
-    beq :+
-    clc
-    lda BlockSpriteLookupY, x
-    adc TmpZ
-    jmp :++
-:   lda #$FF
-:   sta SpriteGhostP1, y
-    jmp @doneFlash
+        lda BlockGridLocationY, y
+        clc
+        adc TmpZ
+        sta SpriteGhostP1+0+(i*4)
 
-@noFlash:
-    clc
-    lda BlockSpriteLookupY, x
-    adc TmpZ
-    sta SpriteGhostP1, y
-@doneFlash:
-    iny
+        lda BlockOffsets_X, x
+        tay
+        lda BlockGridLocationX, y
+        clc
+        adc TmpX
+        sta SpriteP1+3+(i*4)
+        sta SpriteGhostP1+3+(i*4)
 
-    lda TmpA
-    and #$03
-    ora #$10
-    sta SpriteP1, y
-    sta SpriteGhostP1, y
-    iny
+        ;lda TmpA
+        lda #0
+        sta SpriteP1+2+(i*4)
+        sta SpriteGhostP1+2+(i*4)
 
-    lda #0
-    sta SpriteP1, y
-    lda #1
-    sta SpriteGhostP1, y
-    iny
+        ;lda TmpB
+        lda #$11
+        sta SpriteP1+1+(i*4)
+        lda #$12
+        sta SpriteGhostP1+1+(i*4)
 
-    clc
-    lda BlockSpriteLookupX, x
-    adc TmpX
-    sta SpriteP1, y
-    sta SpriteGhostP1, y
-    iny
-
-@next:
-    inx
-    cpx #16
-    bne @loop
-
-    lda TmpB
-    lsr a
-    lsr a
-    lsr a
-    lsr a
-    tax
-    ldy #0
-:
-    ; Active block
-    lda GamePalettes, x
-    sta Palettes+16, y
-
-    ; Ghost block
-    lda SpritePalettes, x
-    sta Palettes+20, y
-    inx
-    iny
-    cpy #4
-    bne :-
-
-    lda Option_ShowGhost
-    bne :+
-    lda #$0F
-    sta Palettes+5+16
-    sta Palettes+6+16
-    sta Palettes+7+16
-:
+        .if i < 3
+            inx
+        .endif
+    .endrepeat
 
     rts
 

@@ -117,7 +117,7 @@ VsModeFrame:
 
     lda #%1001_1110
     sta $2001
-    jsr UpdateActiveBlocks
+    jsr UpdateActiveBlocks_Vs
     lda #%0001_1110
     sta $2001
 
@@ -508,11 +508,12 @@ NextBlockP1_Swap:
     sta RepeatRight+0
     sta RepeatLeft+0
 
-    jsr LoadBlockP1
+    ;jsr LoadBlockP1
     ;jsr CheckCollideP1
-    beq :+
-    jmp VsModeGameOver
-:   rts
+    ;beq :+
+    ;jmp VsModeGameOver
+;:
+    rts
 
 NextBlockP2:
     lda #0
@@ -565,64 +566,11 @@ NextBlockP2_Swap:
     sta RepeatRight+1
     sta RepeatLeft+1
 
-    jsr LoadBlockP2
-    ;jsr CheckCollideP2
-    beq :+
-    jmp VsModeGameOver
-:   rts
-
-LoadBlockP1:
-    lda CurrentBlock+0
-    asl a
-    tax
-
-    lda BlockTiles+0, x
-    sta AddressPointer1+0
-    lda BlockTiles+1, x
-    sta AddressPointer1+1
-
-    lda BlockRotation+0
-    asl a
-    asl a
-    asl a
-    asl a
-    tay
-
-    ldx #0
-@loop:
-    lda (AddressPointer1), y
-    sta BlockGrid, x
-    iny
-    inx
-    cpx #16
-    bne @loop
-    rts
-
-LoadBlockP2:
-    lda CurrentBlock+1
-    asl a
-    tax
-
-    lda BlockTiles+0, x
-    sta AddressPointer1+0
-    lda BlockTiles+1, x
-    sta AddressPointer1+1
-
-    lda BlockRotation+1
-    asl a
-    asl a
-    asl a
-    asl a
-    tay
-
-    ldx #0
-@loop:
-    lda (AddressPointer1), y
-    sta BlockGridP2, x
-    iny
-    inx
-    cpx #16
-    bne @loop
+;    ;jsr LoadBlockP2
+;    ;jsr CheckCollideP2
+;    beq :+
+;    jmp VsModeGameOver
+;:   rts
     rts
 
 CheckCollide_Kicks:
@@ -739,38 +687,40 @@ CheckCollide_Grid_AfterAlign:
     tya ; save player ID
     pha
 
-    lda #4
-    sta TmpX ; cell/loop count
     lda #10
     sta MMC5_MultB
 
-@loop:
+    .repeat 4, i
     clc
-    lda BlockOffsets_Y, x
+    lda BlockOffsets_Y+i, x
     sta MMC5_MultA
 
     lda MMC5_MultA
-    adc BlockOffsets_X, x
+    adc BlockOffsets_X+i, x
     ; A contains offset of tile under inpsection
 
     adc TmpY
+    cmp #(BoardWidth*BoardHeight)
+    bcc :+
+    jmp @collide
+:
     tay
     lda (AddressPointer1), y
     beq :+
-    pla
-    tay
-    lda #1
-    rts ; collision
+    jmp @collide
 :
-
-    inx
-    dec TmpX
-    bne @loop
+    .endrepeat
 
     pla
     tay
     lda #0
     rts
+
+@collide:
+    pla
+    tay
+    lda #1
+    rts ; collision
 
 PlaceBlock:
     tya
@@ -812,9 +762,8 @@ PlaceBlock:
     tay
     rts
 
-; Updates both players at once
-UpdateActiveBlocks:
-    tya
+UpdateActiveBlocks_Vs:
+    tya ; Preserve Y
     pha
 
     ; P1 first
