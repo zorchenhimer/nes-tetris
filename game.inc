@@ -125,7 +125,7 @@ BlockStart_Y:
     .byte 1 ; L
     .byte 1 ; J
     .byte 0 ; I
-    .byte 0 ; O
+    .byte 1 ; O
 
 BlockBg_Tiles:
     .byte TILE_Z
@@ -224,10 +224,14 @@ BlockOffsets_Y:
     .byte 2, 2, 2, 2 ; I, rot 2
     .byte 0, 1, 2, 3 ; I, rot 3
 
-    .byte 1, 1, 2, 2 ; O, rot 0
-    .byte 1, 1, 2, 2 ; O, rot 1
-    .byte 1, 1, 2, 2 ; O, rot 2
-    .byte 1, 1, 2, 2 ; O, rot 3
+    ;.byte 1, 1, 2, 2 ; O, rot 0
+    ;.byte 1, 1, 2, 2 ; O, rot 1
+    ;.byte 1, 1, 2, 2 ; O, rot 2
+    ;.byte 1, 1, 2, 2 ; O, rot 3
+    .byte 0, 0, 1, 1 ; O, rot 0
+    .byte 0, 0, 1, 1 ; O, rot 1
+    .byte 0, 0, 1, 1 ; O, rot 2
+    .byte 0, 0, 1, 1 ; O, rot 3
 
 ; Includes rotations
 BlockOffsets_X:

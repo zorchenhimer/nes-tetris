@@ -143,7 +143,146 @@ NmiVsGame:
 
     rts
 
+VsHoldP1 = $2083+MMC5_OFFSET
+VsNextP1 = $2089+MMC5_OFFSET
+VsHoldP2 = $2093+MMC5_OFFSET
+VsNextP2 = $2099+MMC5_OFFSET
+
 IrqVsGame_Unrolled:
+
+    ; clear all four spots
+    lda #0
+    .repeat 2, j
+        .repeat 4, i
+            sta VsHoldP1+i+(j*32)
+            sta VsNextP1+i+(j*32)
+            sta VsHoldP2+i+(j*32)
+            sta VsNextP2+i+(j*32)
+        .endrepeat
+    .endrepeat
+
+;
+; P1 Hold
+    ldx CurrentBlock+0
+    lda BlockBg_Tiles, x
+    sta TmpA
+    lda #32
+    sta MMC5_MultB
+
+    lda CurrentBlock+0
+    asl a
+    asl a
+    asl a
+    asl a
+    tax ; X has offset into BlockOffsets tables
+
+    lda #4
+    sta TmpX
+
+:
+    lda BlockOffsets_Y, x
+    sta MMC5_MultA
+    clc
+    lda MMC5_MultA
+    adc BlockOffsets_X, x
+    tay
+    lda TmpA
+    sta VsHoldP1, y
+    inx
+    dec TmpX
+    bne :-
+;
+; P1 Next
+    ldx BagA+0
+    lda BlockBg_Tiles, x
+    sta TmpA
+    lda #32
+    sta MMC5_MultB
+
+    lda BagA+0
+    asl a
+    asl a
+    asl a
+    asl a
+    tax ; X has offset into BlockOffsets tables
+
+    lda #4
+    sta TmpX
+
+:
+    lda BlockOffsets_Y, x
+    sta MMC5_MultA
+    clc
+    lda MMC5_MultA
+    adc BlockOffsets_X, x
+    tay
+    lda TmpA
+    sta VsNextP1, y
+    inx
+    dec TmpX
+    bne :-
+
+;
+; P2 Hold
+    ldx CurrentBlock+1
+    lda BlockBg_Tiles, x
+    sta TmpA
+    lda #32
+    sta MMC5_MultB
+
+    lda CurrentBlock+1
+    asl a
+    asl a
+    asl a
+    asl a
+    tax ; X has offset into BlockOffsets tables
+
+    lda #4
+    sta TmpX
+
+:
+    lda BlockOffsets_Y, x
+    sta MMC5_MultA
+    clc
+    lda MMC5_MultA
+    adc BlockOffsets_X, x
+    tay
+    lda TmpA
+    sta VsHoldP2, y
+    inx
+    dec TmpX
+    bne :-
+;
+; P2 Next
+    ldx BagB+0
+    lda BlockBg_Tiles, x
+    sta TmpA
+    lda #32
+    sta MMC5_MultB
+
+    lda BagB+0
+    asl a
+    asl a
+    asl a
+    asl a
+    tax ; X has offset into BlockOffsets tables
+
+    lda #4
+    sta TmpX
+
+:
+    lda BlockOffsets_Y, x
+    sta MMC5_MultA
+    clc
+    lda MMC5_MultA
+    adc BlockOffsets_X, x
+    tay
+    lda TmpA
+    sta VsNextP2, y
+    inx
+    dec TmpX
+    bne :-
+
     .repeat 20, row
         .repeat 10, cell
             lda FieldGrid+cell+(row*10)
@@ -738,7 +877,6 @@ PlaceBlock:
     sta MMC5_MultB
 
 @loop:
-    clc
     lda BlockOffsets_Y, x
     sta MMC5_MultA
 
