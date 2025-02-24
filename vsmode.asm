@@ -305,7 +305,7 @@ IrqVsGame_Unrolled:
     lda #32
     sta MMC5_MultB
 
-    lda CurrentBlock+0
+    lda HoldPiece+0
     asl a
     asl a
     asl a
@@ -369,7 +369,7 @@ IrqVsGame_Unrolled:
     lda #32
     sta MMC5_MultB
 
-    lda CurrentBlock+1
+    lda HoldPiece+1
     asl a
     asl a
     asl a
