@@ -37,6 +37,17 @@ InitVsMode:
     cpy #200
     bne :-
 
+    lda #GS::Fall
+    sta GameState+0
+    sta GameState+1
+
+    lda #0
+    sta GameStateArg+0
+    sta GameStateArg+1
+
+    lda DropSpeeds+0
+    sta Speed_Drop
+
     lda #$FF
     sta HoldPiece+0
     sta HoldPiece+1
@@ -92,28 +103,6 @@ VsModeFrame:
     lda Controller_Old+0
     sta Controller_Old+1
 
-    ldy #Player1
-
-    lda #BUTTON_UP
-    jsr ButtonPressed
-    beq :+
-    dec BlockY+0
-    bpl :+
-    inc BlockY+0
-:
-
-    lda #BUTTON_DOWN
-    jsr ButtonPressed
-    beq :+
-    inc BlockY
-    cmp #19
-    bne :+
-    dec BlockY
-:
-
-    lda BlockY+0
-    sta BlockY+1
-
     lda #%0101_1110
     sta $2001
     ldy #Player1
@@ -131,7 +120,6 @@ VsModeFrame:
 
     jsr WaitForIRQ
     jmp VsModeFrame
-
 
 NmiVsGame:
     lda #$3F
@@ -152,7 +140,6 @@ NmiVsGame:
     rts
 
 ShuffleBag_Vs:
-
     lda #7
     sta BagLeft, y
 
@@ -261,6 +248,8 @@ NextBlock_Swap_Vs:
     lda #BLOCK_START_X
     sta BlockX, y
 
+    ldx CurrentBlock, y
+    lda BlockStart_Y, x
     sta BlockY, y
     sta CurrentY, y
 
@@ -503,8 +492,66 @@ IrqVsGame:
     bne @loopRowP2
     rts
 
+VsGameStates:
+    .word State_Fall
+    .word State_Place
+    ;.word State_PlaceAnim
+    .word State_Clear
+    .word State_Garbage
+
 ; PlayerID in Y
 DoPlayer:
+    lda GameState, y
+    asl a
+    tax
+
+    lda VsGameStates+0, x
+    sta AddressPointer1+0
+    lda VsGameStates+1, x
+    sta AddressPointer1+1
+    jmp (AddressPointer1)
+
+; Add garbage to field
+State_Garbage:
+    rts
+
+; Clear rows.  should already know which to clear
+State_Clear:
+    rts
+
+; place a block, discover rows to clear
+State_Place:
+    ldx CurrentBlock, y
+    lda BlockColors_Place, x
+    cpy #0
+    bne @p2
+    sta Palettes+(4*4)+1
+    sta Palettes+(4*4)+2
+    sta Palettes+(4*4)+3
+    jmp :+
+@p2:
+    sta Palettes+(4*5)+1
+    sta Palettes+(4*5)+2
+    sta Palettes+(4*5)+3
+:
+
+    tya
+    tax
+    dec GameStateArg, x
+    bmi :+
+    rts
+:
+
+    ; TODO: discover cleared rows
+    jsr PlaceBlock
+    jsr NextBlock_Vs
+    lda #GS::Fall
+    sta GameState, y
+    lda #0
+    sta GameStateArg, y
+    rts
+
+State_Fall:
     lda #BUTTON_SELECT ; select
     jsr ButtonPressed
     beq :+
@@ -669,12 +716,51 @@ DoPlayer:
     sta BlockRotation, x
 
 @rotDone:
+
+    lda SoftDrop, y
+    beq @noSoft
+    sec
+    lda DropSpeed, y
+    sbc #SOFT_SPEED
+    sta DropSpeed, y
+    bpl @noDrop
+    jmp @doDrop
+
+@noSoft:
+
+    tya
+    tax
+    dec DropSpeed, x
+    bpl @noDrop
+@doDrop:
+    inc BlockY, x
+    lda Speed_Drop
+    sta DropSpeed, y
+    jsr CheckCollide_Grid
+    beq @noDrop
+    tya
+    tax
+    dec BlockY, x
+    lda #GS::Place
+    sta GameState, y
+    lda #GSArg::Place
+    sta GameStateArg, y
+
+@noDrop:
     rts
 
 VsHardDrop:
     lda #$FF
     sta RepeatRight, y
     sta RepeatLeft, y
+
+    lda GhostY, y
+    sta BlockY, y
+
+    lda #GS::Place
+    sta GameState, y
+    lda #GSArg::Place
+    sta GameStateArg, y
     rts
 
 ; BagA and BagB are for players 1 and 2 in this mode
@@ -941,10 +1027,14 @@ UpdateActiveBlocks_Vs:
 
     ; P1 first
     ldx CurrentBlock+0
+    lda GameState+0
+    cmp #GS::Fall
+    bne :+
     lda BlockColors, x
     sta Palettes+(0*4)+1+16
     lda BlockColors_Ghost, x
     sta Palettes+(0*4)+2+16
+:
 
     lda CurrentBlock+0
     asl a
@@ -1010,10 +1100,14 @@ UpdateActiveBlocks_Vs:
 
     ; P2 second
     ldx CurrentBlock+1
+    lda GameState+1
+    cmp #GS::Fall
+    bne :+
     lda BlockColors, x
     sta Palettes+(1*4)+1+16
     lda BlockColors_Ghost, x
     sta Palettes+(1*4)+2+16
+:
 
     lda CurrentBlock+1
     asl a
@@ -1084,7 +1178,13 @@ UpdateActiveBlocks_Vs:
 
 ; Losing player in Y
 VsModeGameOver:
-    jmp VsModeGameOver
+    lda #%0001_1110
+    sta $2001
+    jsr ClearSprites
+
+VsModeGameOver_Frame:
+    jsr WaitForIRQ
+    jmp VsModeGameOver_Frame
 
 VsPlayfieldStartP1 = $20E3 + MMC5_OFFSET
 VsPlayfieldStartP2 = $20F3 + MMC5_OFFSET

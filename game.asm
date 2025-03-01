@@ -20,13 +20,9 @@ LEVEL_LENGTH = 10
 ShakeTable:
     ; X, Y, Nametable
     .byte 1, 1, 0
-    ;.byte 1, 1, 0
     .byte 255, 1, 1
-    ;.byte 255, 1, 1
     .byte 1, 255, 0
-    ;.byte 1, 255, 0
     .byte 255, 255, 1
-    ;.byte 255, 255, 1
 
 ShakeTable_Length = (* - ShakeTable) / 3
 
@@ -289,8 +285,6 @@ InitGame:
     lda DropSpeeds+0
     sta DropSpeed
     sta Speed_Drop
-    lda #SOFT_SPEED
-    sta Speed_Soft
 
     lda #1
     sta Level
@@ -504,7 +498,7 @@ FrameGame:
     beq @noSoft
     sec
     lda DropSpeed
-    sbc Speed_Soft
+    sbc #SOFT_SPEED
     sta DropSpeed
     bpl @noDrop
     jmp @doDrop

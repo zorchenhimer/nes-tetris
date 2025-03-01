@@ -5,7 +5,7 @@ _GAME_RAM_ = 1
 .segment "ZEROPAGE"
 CurrentBlock: .res 2
 BlockRotation: .res 2
-DropSpeed: .res 1
+DropSpeed: .res 2
 
 SoftDrop: .res 2
 HardDrop: .res 2
@@ -28,6 +28,9 @@ LowestRows: .res 4
 TmpBlockOffset: .res 1
 
 BagTmp: .res 7
+
+GameState:    .res 2
+GameStateArg: .res 2
 
 .segment "BSS"
 BlockX: .res 2
@@ -105,6 +108,20 @@ PAL_D  = $C0
 BlockGridOffset_X = 2
 ;BlockGridOffset_Y = 1
 
+.enum GS ; Game states
+Fall
+Place
+Clear
+Garbage
+.endenum
+
+.enum GSArg
+Fall = 0
+Place = 5
+Clear = 10
+Garbage = 0
+.endenum
+
 GamePalettes:
     .byte BG_COLOR, $0F, $1A, $20
     .byte BG_COLOR, $23, $21, $20
@@ -147,6 +164,15 @@ BlockColors:
     .byte $21 ; J
     .byte $2C ; I
     .byte $28 ; O
+
+BlockColors_Place:
+    .byte $25 ; Z
+    .byte $2A ; S
+    .byte $33 ; T
+    .byte $37 ; L
+    .byte $31 ; J
+    .byte $3C ; I
+    .byte $38 ; O
 
 BlockColors_Ghost:
 .if BG_COLOR = $20
