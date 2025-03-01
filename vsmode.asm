@@ -1098,6 +1098,15 @@ UpdateActiveBlocks_Vs:
         .endif
     .endrepeat
 
+    lda BlockY+0
+    cmp GhostY+0
+    bne :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteGhostP1+(i*4)
+    .endrepeat
+:
+
     ; P2 second
     ldx CurrentBlock+1
     lda GameState+1
@@ -1171,6 +1180,15 @@ UpdateActiveBlocks_Vs:
             inx
         .endif
     .endrepeat
+
+    lda BlockY+1
+    cmp GhostY+1
+    bne :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteGhostP2+(i*4)
+    .endrepeat
+:
 
     pla
     tay
