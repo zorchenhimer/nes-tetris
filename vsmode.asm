@@ -513,10 +513,18 @@ DoPlayer:
 
 ; Add garbage to field
 State_Garbage:
+    lda #GS::Fall
+    sta GameState, y
+    lda #0
+    sta GameStateArg, y
     rts
 
 ; Clear rows.  should already know which to clear
 State_Clear:
+    lda #GS::Garbage
+    sta GameState, y
+    lda #0
+    sta GameStateArg, y
     rts
 
 ; place a block, discover rows to clear
@@ -542,13 +550,120 @@ State_Place:
     rts
 :
 
-    ; TODO: discover cleared rows
     jsr PlaceBlock
+
+    jsr VsCheckClearRows
+    beq :+
     jsr NextBlock_Vs
-    lda #GS::Fall
+    lda #GS::Clear
     sta GameState, y
     lda #0
     sta GameStateArg, y
+    rts
+
+:
+    jsr NextBlock_Vs
+    lda #GS::Garbage
+    sta GameState, y
+    lda #0
+    sta GameStateArg, y
+    rts
+
+VsCheckClearRows:
+    jsr AlignBlockWithField
+
+    lda #$FF
+    sta ClearRowIds+0
+    sta ClearRowIds+1
+    sta ClearRowIds+2
+    sta ClearRowIds+3
+
+    lda BlockY, y
+    sta TmpY
+    dec TmpY
+
+    tya
+    pha
+
+    ldy #0
+    lda BlockOffsets_Y+0, x
+    sta ClearRowIds, y
+    iny
+
+    lda BlockOffsets_Y+1, x
+    cmp ClearRowIds+0
+    beq :+
+    sta ClearRowIds, y
+    iny
+:
+
+    lda BlockOffsets_Y+2, x
+    cmp ClearRowIds+0
+    beq :+
+    cmp ClearRowIds+1
+    beq :+
+    sta ClearRowIds, y
+    iny
+:
+
+    lda BlockOffsets_Y+3, x
+    cmp ClearRowIds+0
+    beq :+
+    cmp ClearRowIds+1
+    beq :+
+    cmp ClearRowIds+2
+    beq :+
+    sta ClearRowIds, y
+:
+
+    lda #10
+    sta MMC5_MultB
+
+    ldx #0
+    stx TmpX ; count to clear
+    stx TmpZ
+@checkLoop:
+    lda ClearRowIds, x
+    bmi @next
+
+    clc
+    adc TmpY
+
+    sta MMC5_MultA
+    lda MMC5_MultA
+    tay
+    ldx #0
+@rowLoop:
+    lda (AddressPointer1), y
+    beq @nope
+    iny
+    inx
+    cpx #10
+    bne @rowLoop
+
+    inc TmpX
+    jmp @next
+
+@nope:
+    lda #$FF
+    ldx TmpZ
+    sta ClearRowIds, x
+
+@next:
+    inc TmpZ
+    ldx TmpZ
+    cpx #4
+    bne @checkLoop
+
+    pla
+    tay
+
+    lda TmpX
+    bne :+
+    lda #0
+    rts
+:
+    lda #1
     rts
 
 State_Fall:

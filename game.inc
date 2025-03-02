@@ -45,6 +45,7 @@ MaxX: .res 1
 
 ; Which rows need to be cleared
 ClearRows: .res 20
+ClearRowIds: .res 4 ; Row IDs that need to be cleared
 
 BagLeft: .res 2 ; 2p
 BagA: .res 7 ; next pieces
