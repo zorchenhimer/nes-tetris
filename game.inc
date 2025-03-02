@@ -384,30 +384,24 @@ BlockRight:
     .byte BoardWidth-BlockGridOffset_X+1+1
 
 
-; Align to playfield, but we want the offset
-; (y-1)*10+x-2 = y*10+x-2-10 = y*10+x-12
-GetBlockOffset:
-    sta MMC5_MultA
-    lda #10
-    sta MMC5_MultB
-
-    clc
-    lda MMC5_MultA
-    adc TmpX
-    sec
-    sbc #12 ; alignment correction (2 col, 1 row)
-    rts
-
 ; Player ID in Y
 ; AddressPointer1 points to the start of a
 ; FieldGrid (P1 or P2).
 ; TmpY is the offset in the field grid that the
 ; block offsets start.
 AlignBlockWithField:
-    lda BlockX, y
-    sta TmpX
+    ; Align to playfield, but we want the offset
+    ; (y-1)*10+x-2 = y*10+x-2-10 = y*10+x-12
     lda BlockY, y
-    jsr GetBlockOffset
+    sta MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+
+    clc
+    lda MMC5_MultA
+    adc BlockX, y
+    sec
+    sbc #12 ; alignment correction (2 col, 1 row)
     sta TmpY
 
     lda CurrentBlock, y
@@ -417,7 +411,7 @@ AlignBlockWithField:
     adc BlockRotation, y
     asl a
     asl a
-    tax
+    tax ; offset in BlockOffsets_X/Y
 
     cpy #0
     bne :+
