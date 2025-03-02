@@ -550,6 +550,16 @@ State_Place:
     rts
 :
 
+    ; Reset highlight color
+    lda GamePalettes+3
+    cpy #0
+    bne :+
+    sta Palettes+(4*4)+3
+    jmp :++
+:
+    sta Palettes+(4*5)+3
+:
+
     jsr PlaceBlock
 
     jsr VsCheckClearRows
