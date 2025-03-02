@@ -45,7 +45,8 @@ MaxX: .res 1
 
 ; Which rows need to be cleared
 ClearRows: .res 20
-ClearRowIds: .res 4 ; Row IDs that need to be cleared
+ClearRowIdsP1: .res 4 ; Row IDs that need to be cleared
+ClearRowIdsP2: .res 4
 
 BagLeft: .res 2 ; 2p
 BagA: .res 7 ; next pieces
@@ -124,7 +125,8 @@ Garbage = 0
 .endenum
 
 GamePalettes:
-    .byte BG_COLOR, $0F, $1A, $20
+    .byte BG_COLOR, $00, $1A, $20
+    ;.byte BG_COLOR, $0F, $1A, $20
     .byte BG_COLOR, $23, $21, $20
     .byte BG_COLOR, $2C, $28, $20
     .byte BG_COLOR, $15, $27, $20

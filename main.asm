@@ -19,11 +19,13 @@ MMC5_OFFSET = $3C00 ; Offset from $2000
 ;DEBUG_FIELD = 1
 ;DEBUG_BLOCK = 2
 ;DEBUG_FLASH = 0
+;DEBUG_COLORS = 1
 
 ;
 ; Defaults
 ;
 
+;BG_COLOR = $20
 BG_COLOR = $0F
 GHOST_FLASH = 0
 SCREEN_SHAKE = 1
@@ -130,6 +132,7 @@ SleepingIrq: .res 1
 AddressPointer1: .res 2
 AddressPointer2: .res 2
 AddressPointer3: .res 2
+AddressPointer4: .res 2
 NmiHandler: .res 2
 
 TmpA: .res 1
@@ -207,6 +210,7 @@ CurrentGameMode: .tag GameMode
     .incbin "tiles3.chr"
 
 .segment "CHR03"
+    .incbin "tiles4.chr"
 
 .segment "PAGE_GAME"
 

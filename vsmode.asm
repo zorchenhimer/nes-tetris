@@ -37,6 +37,57 @@ InitVsMode:
     cpy #200
     bne :-
 
+    lda #%0000_0010
+    sta $5104
+    lda #$02
+
+    .repeat 4, i
+        ; HOLD/NEXT headers
+        sta $2043+MMC5_OFFSET+i
+        sta $2049+MMC5_OFFSET+i
+
+        sta $2053+MMC5_OFFSET+i
+        sta $2059+MMC5_OFFSET+i
+
+        ; COMBO
+        sta $21CE+MMC5_OFFSET+i
+        sta $22AE+MMC5_OFFSET+i
+
+        ; LINE
+        sta $222E+MMC5_OFFSET+i
+        sta $230E+MMC5_OFFSET+i
+
+    .endrepeat
+
+    ; Borders
+    lda #$01
+    ; tops
+    .repeat 12, i
+        sta $20C2+MMC5_OFFSET+i
+        sta $20D2+MMC5_OFFSET+i
+        sta $2362+MMC5_OFFSET+i
+        sta $2372+MMC5_OFFSET+i
+    .endrepeat
+
+    ; sides
+    .repeat 20, i
+        sta $20E2+MMC5_OFFSET+(i*32)
+        sta $20ED+MMC5_OFFSET+(i*32)
+        sta $20F2+MMC5_OFFSET+(i*32)
+        sta $20FD+MMC5_OFFSET+(i*32)
+    .endrepeat
+
+    ; text boxes
+    .repeat 4, i
+        sta $21AE+MMC5_OFFSET+i
+        sta $226E+MMC5_OFFSET+i
+        sta $228E+MMC5_OFFSET+i
+        sta $234E+MMC5_OFFSET+i
+    .endrepeat
+
+    lda #%0000_0001
+    sta $5104
+
     lda #GS::Fall
     sta GameState+0
     sta GameState+1
@@ -103,20 +154,28 @@ VsModeFrame:
     lda Controller_Old+0
     sta Controller_Old+1
 
-    lda #%0101_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0101_1110
+        sta $2001
+    .endif
     ldy #Player1
     jsr DoPlayer
-    lda #%0011_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0011_1110
+        sta $2001
+    .endif
     ldy #Player2
     jsr DoPlayer
 
-    lda #%1001_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%1001_1110
+        sta $2001
+    .endif
     jsr UpdateActiveBlocks_Vs
-    lda #%0001_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0001_1110
+        sta $2001
+    .endif
 
     jsr WaitForIRQ
     jmp VsModeFrame
@@ -495,7 +554,6 @@ IrqVsGame:
 VsGameStates:
     .word State_Fall
     .word State_Place
-    ;.word State_PlaceAnim
     .word State_Clear
     .word State_Garbage
 
@@ -513,6 +571,7 @@ DoPlayer:
 
 ; Add garbage to field
 State_Garbage:
+    jsr NextBlock_Vs
     lda #GS::Fall
     sta GameState, y
     lda #0
@@ -521,10 +580,290 @@ State_Garbage:
 
 ; Clear rows.  should already know which to clear
 State_Clear:
+
+    lda GameStateArg, y
+    cmp #GSArg::Clear
+    bne :+
+    ; set rows to white
+    jsr VsSetClearRows
+:
+
+    tya
+    tax
+    dec GameStateArg, x
+    bmi :+
+    rts
+:
+
+    ; Clear the rows
+    cpy #0
+    bne :+
+    lda #.lobyte(ClearRowIdsP1)
+    sta AddressPointer2+0
+    lda #.hibyte(ClearRowIdsP1)
+    sta AddressPointer2+1
+
+    ; dest
+    lda #.lobyte(FieldGrid)
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGrid)
+    sta AddressPointer1+1
+
+    jmp :++
+:
+    lda #.lobyte(ClearRowIdsP2)
+    sta AddressPointer2+0
+    lda #.hibyte(ClearRowIdsP2)
+    sta AddressPointer2+1
+
+    ; dest
+    lda #.lobyte(FieldGridP2)
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGridP2)
+    sta AddressPointer1+1
+:
+
+    tya
+    pha
+
+    lda BlockY, y
+    sec
+    sbc #1
+    sta TmpA
+
+    lda #$00
+    ldx #.sizeof(ClearRows)-1
+:
+    sta ClearRows, x
+    dex
+    bpl :-
+
+    ldy #0
+@findRowsLoop:
+    lda (AddressPointer2), y
+    bmi :+
+    clc
+    adc TmpA
+    tax
+    lda #1
+    sta ClearRows, x
+:
+    iny
+    cpy #4
+    bne @findRowsLoop
+
+    ; find lowest row
+    ldx #.sizeof(ClearRows)-1
+:   lda ClearRows, x
+    bne :+
+    dex
+    bpl :-
+:
+    stx TmpA ; First row index to clear
+    stx TmpB ; Source row to copy from
+
+@top:
+    ; Destination
+    ldx TmpA
+    bmi @bottom
+    stx MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+
+    clc
+    lda MMC5_MultA
+    adc AddressPointer1+0
+    sta AddressPointer3+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer3+1
+
+:
+    dec TmpB
+    bpl :+
+    jmp @ClearWithEmpty
+:
+
+    ; multiple rows?
+    ldx TmpB
+    lda ClearRows, x
+    bne :--
+
+    ; Source
+    lda TmpB
+    sta MMC5_MultA
+
+    clc
+    lda MMC5_MultA
+    adc AddressPointer1+0
+    sta AddressPointer4+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer4+1
+
+    jsr VsDoClearRow
+
+@bottom:
+    dec TmpA
+    bpl @top
+
+    pla
+    tay
+
     lda #GS::Garbage
     sta GameState, y
     lda #0
     sta GameStateArg, y
+    rts
+
+; Clear the top row(s)
+@ClearWithEmpty:
+    ldy #0
+    lda #0
+:   sta (AddressPointer3), y
+    iny
+    cpy #10
+    bne :-
+    jmp @bottom
+
+VsDoClearRow:
+    ldy #0
+    .repeat 10, i
+        lda (AddressPointer4), y
+        sta (AddressPointer3), y
+        .if i < 9
+            iny
+        .endif
+    .endrepeat
+    rts
+
+; Source is #$00 instead of a row
+VsClearRow:
+    lda #10
+    sta MMC5_MultB
+
+    lda TmpA
+    sta MMC5_MultA
+    lda MMC5_MultA
+    clc
+    adc AddressPointer1+0
+    sta AddressPointer3+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer3+1 ; dest
+
+    lda #$00
+    ldy #0
+    .repeat 10, i
+        sta (AddressPointer3), y
+        .if i < 9
+            iny
+        .endif
+    .endrepeat
+    rts
+
+; Only be called if the source row
+; exists (eg, not clearing the topmost row)
+VsCopyRow:
+    lda #10
+    sta MMC5_MultB
+
+    lda TmpA
+    sta MMC5_MultA
+    lda MMC5_MultA
+    clc
+    adc AddressPointer1+0
+    sta AddressPointer3+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer3+1 ; dest
+
+    lda TmpB
+    sta MMC5_MultA
+    lda MMC5_MultA
+    clc
+    adc AddressPointer1+0
+    sta AddressPointer4+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer4+1 ; src
+
+    ldy #0
+    .repeat 10, i
+        lda (AddressPointer4), y
+        sta (AddressPointer3), y
+        .if i < 9
+            iny
+        .endif
+    .endrepeat
+    rts
+
+VsSetClearRows:
+    tya
+    pha
+
+    lda BlockY, y
+    sec
+    sbc #1
+    sta TmpA
+
+    cpy #0
+    bne :+
+    lda #.lobyte(ClearRowIdsP1)
+    sta AddressPointer2+0
+    lda #.hibyte(ClearRowIdsP1)
+    sta AddressPointer2+1
+    lda #.lobyte(FieldGrid)
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGrid)
+    sta AddressPointer1+1
+    jmp :++
+:
+    lda #.lobyte(ClearRowIdsP2)
+    sta AddressPointer2+0
+    lda #.hibyte(ClearRowIdsP2)
+    sta AddressPointer2+1
+    lda #.lobyte(FieldGridP2)
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGridP2)
+    sta AddressPointer1+1
+:
+
+    lda #10
+    sta MMC5_MultB
+
+    ldy #0
+    sty TmpY
+@loop:
+    ldy TmpY
+    lda (AddressPointer2), y
+    bmi @next
+
+    clc
+    adc TmpA
+    sta MMC5_MultA
+    lda MMC5_MultA
+    tay
+
+    ldx #10
+    lda #$03
+@setLoop:
+    sta (AddressPointer1), y
+    iny
+    dex
+    bne @setLoop
+
+@next:
+    inc TmpY
+    lda TmpY
+    cmp #4
+    bne @loop
+
+    pla
+    tay
     rts
 
 ; place a block, discover rows to clear
@@ -564,15 +903,13 @@ State_Place:
 
     jsr VsCheckClearRows
     beq :+
-    jsr NextBlock_Vs
     lda #GS::Clear
     sta GameState, y
-    lda #0
+    lda #GSArg::Clear
     sta GameStateArg, y
     rts
 
 :
-    jsr NextBlock_Vs
     lda #GS::Garbage
     sta GameState, y
     lda #0
@@ -582,11 +919,19 @@ State_Place:
 VsCheckClearRows:
     jsr AlignBlockWithField
 
-    lda #$FF
-    sta ClearRowIds+0
-    sta ClearRowIds+1
-    sta ClearRowIds+2
-    sta ClearRowIds+3
+    cpy #0
+    bne :+
+    lda #.lobyte(ClearRowIdsP1)
+    sta AddressPointer2+0
+    lda #.hibyte(ClearRowIdsP1)
+    sta AddressPointer2+1
+    jmp :++
+:
+    lda #.lobyte(ClearRowIdsP2)
+    sta AddressPointer2+0
+    lda #.hibyte(ClearRowIdsP2)
+    sta AddressPointer2+1
+:
 
     lda BlockY, y
     sta TmpY
@@ -595,45 +940,37 @@ VsCheckClearRows:
     tya
     pha
 
+    lda #$FF
+    ldy #0
+    .repeat 4, i
+        sta (AddressPointer2), y
+        .if i < 3
+            iny
+        .endif
+    .endrepeat
+
     ldy #0
     lda BlockOffsets_Y+0, x
-    sta ClearRowIds, y
-    iny
+    sta (AddressPointer2), y
 
-    lda BlockOffsets_Y+1, x
-    cmp ClearRowIds+0
+    .repeat 3, i
+    lda BlockOffsets_Y+1+i, x
+    cmp (AddressPointer2), y
     beq :+
-    sta ClearRowIds, y
     iny
+    sta (AddressPointer2), y
 :
-
-    lda BlockOffsets_Y+2, x
-    cmp ClearRowIds+0
-    beq :+
-    cmp ClearRowIds+1
-    beq :+
-    sta ClearRowIds, y
-    iny
-:
-
-    lda BlockOffsets_Y+3, x
-    cmp ClearRowIds+0
-    beq :+
-    cmp ClearRowIds+1
-    beq :+
-    cmp ClearRowIds+2
-    beq :+
-    sta ClearRowIds, y
-:
+    .endrepeat
 
     lda #10
     sta MMC5_MultB
 
-    ldx #0
-    stx TmpX ; count to clear
-    stx TmpZ
+    ldy #0
+    sty TmpX ; count to clear
+    sty TmpZ
 @checkLoop:
-    lda ClearRowIds, x
+    ;lda ClearRowIds, x
+    lda (AddressPointer2), y
     bmi @next
 
     clc
@@ -641,6 +978,7 @@ VsCheckClearRows:
 
     sta MMC5_MultA
     lda MMC5_MultA
+    sta TmpA
     tay
     ldx #0
 @rowLoop:
@@ -652,17 +990,26 @@ VsCheckClearRows:
     bne @rowLoop
 
     inc TmpX
+
+    ; Put the offset to the start of the field into
+    ; this array so we don't have to calculate it later
+    ; ...maybe
+    ;ldy TmpZ
+    ;lda TmpA
+    ;sta (AddressPointer2), y
+
     jmp @next
 
 @nope:
     lda #$FF
-    ldx TmpZ
-    sta ClearRowIds, x
+    ldy TmpZ
+    ;sta ClearRowIds, x
+    sta (AddressPointer2), y
 
 @next:
     inc TmpZ
-    ldx TmpZ
-    cpx #4
+    ldy TmpZ
+    cpy #4
     bne @checkLoop
 
     pla
@@ -676,6 +1023,7 @@ VsCheckClearRows:
     lda #1
     rts
 
+; Acts on player input, applies gravity
 State_Fall:
     lda #BUTTON_SELECT ; select
     jsr ButtonPressed
@@ -1138,17 +1486,23 @@ UpdateActiveBlocks_Vs:
     tya ; Preserve Y
     pha
 
-    lda #%0101_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0101_1110
+        sta $2001
+    .endif
     ldy #Player1
     jsr CalculateGhost
 
-    lda #%1001_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%1001_1110
+        sta $2001
+    .endif
     ldy #Player2
     jsr CalculateGhost
-    lda #%0001_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0001_1110
+        sta $2001
+    .endif
 
     ; P1 first
     ldx CurrentBlock+0
@@ -1232,6 +1586,15 @@ UpdateActiveBlocks_Vs:
     .endrepeat
 :
 
+    lda GameState+0
+    cmp #GS::Clear
+    bne :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteP1+(i*4)
+    .endrepeat
+:
+
     ; P2 second
     ldx CurrentBlock+1
     lda GameState+1
@@ -1312,6 +1675,15 @@ UpdateActiveBlocks_Vs:
     lda #$FF
     .repeat 4, i
         sta SpriteGhostP2+(i*4)
+    .endrepeat
+:
+
+    lda GameState+1
+    cmp #GS::Clear
+    bne :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteP2+(i*4)
     .endrepeat
 :
 

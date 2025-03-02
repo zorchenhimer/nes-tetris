@@ -1,5 +1,5 @@
 .PHONY: all env clean chr
-.PRECIOUS: images/tiles.bmp images/tiles2.bmp images/tiles3.bmp
+.PRECIOUS: images/tiles.bmp images/tiles2.bmp images/tiles3.bmp images/tiles4.bmp
 
 CHRUTIL = ../go-nes/bin/chrutil
 
@@ -29,7 +29,7 @@ SOURCES = \
 	playfield-vs.i \
 	debug-field.i
 
-CHR = tiles.chr tiles2.chr tiles3.chr
+CHR = tiles.chr tiles2.chr tiles3.chr tiles4.chr
 
 all: env chr bin/$(NAME).nes
 env: bin/
