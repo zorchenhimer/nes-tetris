@@ -149,10 +149,10 @@ VsModeFrame:
     jsr ReadControllers
 
     ; DEBUG
-    lda Controller+0
-    sta Controller+1
-    lda Controller_Old+0
-    sta Controller_Old+1
+    ;lda Controller+0
+    ;sta Controller+1
+    ;lda Controller_Old+0
+    ;sta Controller_Old+1
 
     .ifdef DEBUG_COLORS
         lda #%0101_1110
@@ -1053,28 +1053,27 @@ State_Fall:
 :
 
     ; check for released first
-    lda #BUTTON_DOWN
+    lda #BUTTON_DOWN ; down
     jsr ButtonReleased
     beq :+
     lda #0
-    sta SoftDrop
+    sta SoftDrop, y
 :
 
     lda #BUTTON_DOWN ; down, pressed
     jsr ButtonPressed
     beq :+
     lda #1
-    sta SoftDrop
+    sta SoftDrop, y
     jmp @btnVertDone
 
-:   lda #BUTTON_UP
+:   lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq @btnVertDone
     jmp VsHardDrop
 @btnVertDone:
 
-    ; TODO: verify this works properly
-    lda #BUTTON_RIGHT | BUTTON_LEFT
+    lda #BUTTON_RIGHT | BUTTON_LEFT ; left | right
     jsr ButtonReleased
     beq :+
     lda #$FF
@@ -1093,7 +1092,7 @@ State_Fall:
     jmp @btnLeft
 :
 
-    lda #BUTTON_LEFT
+    lda #BUTTON_LEFT ; left
     jsr ButtonPressed
     beq @noLeft
     lda Option_ShiftStart
@@ -1132,7 +1131,7 @@ State_Fall:
     jmp @btnRight
 :
 
-    lda #BUTTON_RIGHT
+    lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
     beq @horizDone
     lda Option_ShiftStart
@@ -1142,9 +1141,9 @@ State_Fall:
     tax
     inc BlockX, x
     lda BlockX, x
-    cmp #BoardWidth+1
+    cmp #BoardWidth+1 ; BoardWidth+1
     bcc :+
-    lda #BoardWidth
+    lda #BoardWidth ; BoardWidth
     sta BlockX, x
 
 :   jsr CheckCollide_Walls
@@ -1232,6 +1231,8 @@ State_Fall:
     lda #1
     sta DropScore ; for 1P mode.  ignored in 2P
 :
+    tya
+    tax
     inc BlockY, x
     lda Speed_Drop
     sta DropSpeed, y
