@@ -134,6 +134,9 @@ GameOverPalette:
     .byte $20, $15, $27, $20
 
 StartGame:
+    lda #$FF
+    sta CurrentBlock+1
+
     lda ModeSelection
     cmp #MMSel::Marathon
     beq @std
@@ -340,6 +343,35 @@ FrameGame:
     SetIRQ 2, IrqDrawBoard
 
     jsr ReadControllers
+
+    ldy #Player1
+    jsr DoPlayer
+
+    ldy #Player1
+    ;jsr CalculateGhost
+    jsr UpdateBlock
+
+    ldx TimeFrame
+    inx
+    cpx #60
+    bne :+
+    inc CurrentScore+ScoreEntry::Time+0
+    ldx #0
+:
+    stx TimeFrame
+
+    ldx CurrentScore+ScoreEntry::Time+0
+    cpx #60
+    bne :+
+    inc CurrentScore+ScoreEntry::Time+1
+    ldx #0
+:
+    stx CurrentScore+ScoreEntry::Time+0
+
+    jsr CalcScore
+
+    jsr WaitForIRQ
+    jmp FrameGame
 
 ;    lda #BUTTON_START ; start
 ;    jsr ButtonPressed
@@ -1116,13 +1148,6 @@ CheckFallCollision:
     ldy #Player1
     jsr PlaceBlock
 
-    inc CurrentBlock
-    lda CurrentBlock
-    cmp #7
-    bne :+
-    lda #0
-    sta CurrentBlock
-:
     jsr CheckRowClear
     ldx #.sizeof(ClearRows)-1
 :   lda ClearRows, x
@@ -1412,27 +1437,19 @@ CalculateGhost:
 
 UpdateBlock:
 
-    lda #%0101_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0101_1110
+        sta $2001
+    .endif
+    ldy #Player1
     jsr CalculateGhost
-    lda #%0001_1110
-    sta $2001
+    .ifdef DEBUG_COLORS
+        lda #%0001_1110
+        sta $2001
+    .endif
 
 ;
 ; Update both block and ghost sprites
-    ldx CurrentBlock+0
-    lda BlockColors, x
-    sta Palettes+(0*4)+1+16
-
-    lda BlockColors_Ghost, x
-    sta Palettes+(0*4)+2+16
-
-    lda #$20
-    sta Palettes+(0*4)+3
-
-    lda BlockSprites_Tiles, x
-    sta TmpB
-
     lda CurrentBlock+0
     asl a
     asl a
@@ -1481,12 +1498,10 @@ UpdateBlock:
         sta SpriteP1+3+(i*4)
         sta SpriteGhostP1+3+(i*4)
 
-        ;lda TmpA
         lda #0
         sta SpriteP1+2+(i*4)
         sta SpriteGhostP1+2+(i*4)
 
-        ;lda TmpB
         lda #$11
         sta SpriteP1+1+(i*4)
         lda #$12
@@ -1497,6 +1512,33 @@ UpdateBlock:
         .endif
     .endrepeat
 
+    ldx CurrentBlock+0
+    lda GameState+0
+    cmp #GS::Fall
+    bne :+
+    lda BlockColors, x
+    sta Palettes+(0*4)+1+16
+    lda BlockColors_Ghost, x
+    sta Palettes+(0*4)+2+16
+:
+
+    lda BlockY+0
+    cmp GhostY+0
+    bne :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteGhostP1+(i*4)
+    .endrepeat
+:
+
+    lda GameState+0
+    cmp #GS::Clear
+    bne :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteP1+(i*4)
+    .endrepeat
+:
     rts
 
 DrawFullBoard:

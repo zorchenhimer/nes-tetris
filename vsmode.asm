@@ -321,8 +321,12 @@ NextBlock_Swap_Vs:
     sta RepeatLeft, y
 
     jsr CheckCollide_Grid
-    beq :+
+    beq :++
+    bit CurrentBlock+1
+    bmi :+
     jmp VsModeGameOver
+:
+    jmp DedTransition
 :
     rts
 
@@ -571,7 +575,17 @@ DoPlayer:
 
 ; Add garbage to field
 State_Garbage:
+    bit CurrentBlock+1
+    bmi @Sp_Mode
     jsr NextBlock_Vs
+    lda #GS::Fall
+    sta GameState, y
+    lda #0
+    sta GameStateArg, y
+    rts
+
+@Sp_Mode:
+    jsr NextBlock
     lda #GS::Fall
     sta GameState, y
     lda #0
@@ -1016,6 +1030,7 @@ VsCheckClearRows:
     tay
 
     lda TmpX
+    sta ClearCount, y
     bne :+
     lda #0
     rts
@@ -1206,6 +1221,11 @@ State_Fall:
     dec DropSpeed, x
     bpl @noDrop
 @doDrop:
+    lda SoftDrop, y
+    beq :+
+    lda #1
+    sta DropScore ; for 1P mode.  ignored in 2P
+:
     inc BlockY, x
     lda Speed_Drop
     sta DropSpeed, y
@@ -1227,6 +1247,10 @@ VsHardDrop:
     sta RepeatRight, y
     sta RepeatLeft, y
 
+    bit CurrentBlock+1
+    bpl :+
+    jsr @Sp
+:
     lda GhostY, y
     sta BlockY, y
 
@@ -1234,6 +1258,21 @@ VsHardDrop:
     sta GameState, y
     lda #GSArg::Place
     sta GameStateArg, y
+    rts
+
+@Sp:
+    sec
+    lda GhostY
+    sbc CurrentY
+    asl a
+    clc
+    adc DropScore
+    sta DropScore
+    lda Option_ScreenShake
+    beq :+
+    lda #ShakeTable_Length-1
+    sta DropShake
+:
     rts
 
 ; BagA and BagB are for players 1 and 2 in this mode

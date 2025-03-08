@@ -69,7 +69,7 @@ TmpScore: .res 3
 ; Contains tile indicies
 HighScore: .res 6
 
-ClearCount: .res 1 ; rows cleared this frame
+ClearCount: .res 2 ; rows cleared this frame
 DropScore: .res 1  ; soft and hard drop scores this frame
 
 LowestY:    .res 1
