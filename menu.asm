@@ -156,8 +156,23 @@ menu_Scores:
     ; Score List
     .repeat 4, j
         .repeat 8, i
-            sta $214C+MMC5_OFFSET+i+(j*32)
+            sta $214D+MMC5_OFFSET+i+(j*32)
         .endrepeat
+    .endrepeat
+
+    ; The numbers are using standard ASCII, but it
+    ; needs to be from different banks to get the
+    ; colors correct (ie, different from the
+    ; selection title).
+    cmp #$40
+    bne @select
+    lda #%0100_0010
+    jmp :+
+@select:
+    lda #%0000_0010
+:
+    .repeat 4, j
+        sta $214C+MMC5_OFFSET+(j*32)
     .endrepeat
     rts
 
@@ -289,9 +304,12 @@ InitMenu:
 
     lda #.lobyte(menu_Game)
     sta MenuSelectFn+0
-    sta MenuClearFn+0
     lda #.hibyte(menu_Game)
     sta MenuSelectFn+1
+
+    lda #.lobyte(menu_Scores)
+    sta MenuClearFn+0
+    lda #.hibyte(menu_Scores)
     sta MenuClearFn+1
 
     ; Turn ExtAttr mode back on
