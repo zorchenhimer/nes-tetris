@@ -1032,9 +1032,15 @@ VsCheckClearRows:
     lda TmpX
     sta ClearCount, y
     bne :+
+    lda #$FF
+    sta Combo, y
     lda #0
     rts
 :
+    clc
+    tya
+    tax
+    inc Combo, x
     lda #1
     rts
 
