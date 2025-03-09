@@ -31,6 +31,7 @@ BagTmp: .res 7
 
 GameState:    .res 2
 GameStateArg: .res 2
+GameStateArgB: .res 2 ; used for clear animation
 
 .segment "BSS"
 BlockX: .res 2
@@ -119,10 +120,12 @@ Garbage
 
 .enum GSArg
 Fall = 0
-Place = 5
-Clear = 10
+Place = 3
+Clear = 5
 Garbage = 0
 .endenum
+
+CLEAR_FRAMES = 3
 
 GamePalettes:
     .byte BG_COLOR, $00, $1A, $20
@@ -386,6 +389,14 @@ BlockRight:
     .byte BoardWidth-BlockGridOffset_X+1+1
     .byte BoardWidth-BlockGridOffset_X+1+1
 
+; Columns to clear on each frame of the animation
+ClearRows_Frames:
+    ;.out "ClearRows_Frames"
+    .repeat 5, i
+        ;.byte 4-i, 5+i
+        .byte i, 9-i
+        ;.out .sprintf(".byte %d, %d", i, 9-i)
+    .endrepeat
 
 ; Player ID in Y
 ; AddressPointer1 points to the start of a

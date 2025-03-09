@@ -451,22 +451,82 @@ State_Garbage:
 
 ; Clear rows.  should already know which to clear
 State_Clear:
+    jsr @addrs
 
     lda GameStateArg, y
     cmp #GSArg::Clear
     bne :+
     ; set rows to white
-    jsr VsSetClearRows
+    tya
+    tax
+    dec GameStateArg, x
+    lda #CLEAR_FRAMES
+    sta GameStateArgB, x
+    jmp SetClearRows
+:
+
+    lda GameStateArg, y
+    bpl :+
+    jmp @moveDown
 :
 
     tya
     tax
-    dec GameStateArg, x
-    bmi :+
+    dec GameStateArgB, x
+    beq :+
     rts
 :
+    lda #CLEAR_FRAMES
+    sta GameStateArgB, x
 
-    ; Clear the rows
+    jsr ExpandClearRowIds
+
+    ; Clear the rows, two columns at a time
+    lda GameStateArg, y
+    asl a
+    tax
+    lda ClearRows_Frames, x
+    sta TmpA
+    lda ClearRows_Frames+1, x
+    sta TmpB
+
+    tya
+    pha
+
+    lda #10
+    sta MMC5_MultB
+
+    ldx #0
+@loop:
+    lda ClearRows, x
+    beq @next
+
+    stx MMC5_MultA
+    clc
+    lda MMC5_MultA
+    adc TmpA
+    tay
+    lda #0
+    sta (AddressPointer1), y
+    clc
+    lda MMC5_MultA
+    adc TmpB
+    tay
+    lda #0
+    sta (AddressPointer1), y
+
+@next:
+    inx
+    cpx #.sizeof(ClearRows)
+    bne @loop
+
+    pla
+    tay
+    tax
+    dec GameStateArg, x
+    rts
+
+@addrs:
     cpy #0
     bne :+
     lda #.lobyte(ClearRowIdsP1)
@@ -493,6 +553,15 @@ State_Clear:
     lda #.hibyte(FieldGridP2)
     sta AddressPointer1+1
 :
+    rts
+
+@moveDown:
+    tya
+    tax
+    dec GameStateArgB, x
+    beq :+
+    rts
+:
 
     tya
     pha
@@ -501,27 +570,7 @@ State_Clear:
     sec
     sbc #1
     sta TmpA
-
-    lda #$00
-    ldx #.sizeof(ClearRows)-1
-:
-    sta ClearRows, x
-    dex
-    bpl :-
-
-    ldy #0
-@findRowsLoop:
-    lda (AddressPointer2), y
-    bmi :+
-    clc
-    adc TmpA
-    tax
-    lda #1
-    sta ClearRows, x
-:
-    iny
-    cpy #4
-    bne @findRowsLoop
+    jsr ExpandClearRowIds
 
     ; find lowest row
     ldx #.sizeof(ClearRows)-1
@@ -672,7 +721,44 @@ VsCopyRow:
     .endrepeat
     rts
 
-VsSetClearRows:
+; Expands an array of four bytes to an array of 20
+; (eg, ClearRowIdsP1 -> ClearRows)
+ExpandClearRowIds:
+    tya
+    pha
+
+    lda BlockY, y
+    sta TmpY
+    dec TmpY
+
+    ldx #0
+    lda #0
+:
+    sta ClearRows, x
+    inx
+    cpx #.sizeof(ClearRows)
+    bne :-
+
+    ldy #0
+:
+    lda (AddressPointer2), y
+    bmi @next
+    clc
+    adc TmpY
+    tax
+    lda #1
+    sta ClearRows, x
+@next:
+    iny
+    cpy #4
+    bne :-
+
+    pla
+    tay
+    rts
+
+; Turn rows that are going to be cleared white
+SetClearRows:
     tya
     pha
 
@@ -680,28 +766,6 @@ VsSetClearRows:
     sec
     sbc #1
     sta TmpA
-
-    cpy #0
-    bne :+
-    lda #.lobyte(ClearRowIdsP1)
-    sta AddressPointer2+0
-    lda #.hibyte(ClearRowIdsP1)
-    sta AddressPointer2+1
-    lda #.lobyte(FieldGrid)
-    sta AddressPointer1+0
-    lda #.hibyte(FieldGrid)
-    sta AddressPointer1+1
-    jmp :++
-:
-    lda #.lobyte(ClearRowIdsP2)
-    sta AddressPointer2+0
-    lda #.hibyte(ClearRowIdsP2)
-    sta AddressPointer2+1
-    lda #.lobyte(FieldGridP2)
-    sta AddressPointer1+0
-    lda #.hibyte(FieldGridP2)
-    sta AddressPointer1+1
-:
 
     lda #10
     sta MMC5_MultB
