@@ -15,6 +15,12 @@ Score_Tiles: .res 8
 Lines_Tiles: .res 6
 Combo_Tiles: .res 2
 
+Combo_TilesP1: .res 3
+Combo_TilesP2: .res 3
+
+Line_TilesP1: .res 4
+Line_TilesP2: .res 4
+
 TmpM: .res 3
 
 MathA: .res 3
@@ -61,8 +67,8 @@ HeldSwapped: .res 2
 
 Level: .res 2
 
-; one player per byte
-Combo: .res 2
+Combo: .res 2 ; one byte per player
+Lines: .res 4 ; two bytes per player
 UpdateCombo: .res 2
 
 TmpScore: .res 3

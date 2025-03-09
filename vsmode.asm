@@ -102,6 +102,8 @@ InitVsMode:
     lda #$FF
     sta HoldPiece+0
     sta HoldPiece+1
+    sta Combo+0
+    sta Combo+1
 
     jsr ShuffleBag_Init
 
@@ -165,6 +167,82 @@ VsModeFrame:
         sta $2001
     .endif
 
+    lda Combo+0
+    cmp #255
+    beq :+
+    jsr BinToDec_8bit
+    .repeat 3, i
+        lda bcdOutput+i
+        sta Combo_TilesP1+i
+    .endrepeat
+    jmp :++
+:
+    lda #' '
+    sta Combo_TilesP1+0
+    sta Combo_TilesP1+1
+    lda #'0'
+    sta Combo_TilesP1+2
+:
+
+    lda Combo+1
+    cmp #255
+    beq :+
+    jsr BinToDec_8bit
+    .repeat 3, i
+        lda bcdOutput+i
+        sta Combo_TilesP2+i
+    .endrepeat
+    jmp :++
+:
+    lda #' '
+    sta Combo_TilesP2+0
+    sta Combo_TilesP2+1
+    lda #'0'
+    sta Combo_TilesP2+2
+:
+
+    lda Lines+0
+    sta bcdInput+0
+    lda Lines+1
+    sta bcdInput+1
+    jsr BinToDec_Shift
+
+    lda bcdOutput+3
+    cmp #' '
+    bne :+ ; max out at 9999
+    .repeat 4, i
+        lda bcdOutput+4+i
+        sta Line_TilesP1+i
+    .endrepeat
+    jmp :++
+:
+    lda #'9'
+    .repeat 4, i
+        sta Line_TilesP1+i
+    .endrepeat
+:
+
+    lda Lines+2
+    sta bcdInput+0
+    lda Lines+3
+    sta bcdInput+1
+    jsr BinToDec_Shift
+
+    lda bcdOutput+3
+    cmp #' '
+    bne :+ ; max out at 9999
+    .repeat 4, i
+        lda bcdOutput+4+i
+        sta Line_TilesP2+i
+    .endrepeat
+    jmp :++
+:
+    lda #'9'
+    .repeat 4, i
+        sta Line_TilesP2+i
+    .endrepeat
+:
+
     jsr WaitForIRQ
     jmp VsModeFrame
 
@@ -183,6 +261,42 @@ NmiVsGame:
     sta $2003
     lda #$02
     sta $4014
+
+    lda #$21
+    sta $2006
+    lda #$EF
+    sta $2006
+    .repeat 3, i
+        lda Combo_TilesP1+i
+        sta $2007
+    .endrepeat
+
+    lda #$22
+    sta $2006
+    lda #$CF
+    sta $2006
+    .repeat 3, i
+        lda Combo_TilesP2+i
+        sta $2007
+    .endrepeat
+
+    lda #$22
+    sta $2006
+    lda #$4E
+    sta $2006
+    .repeat 4, i
+        lda Line_TilesP1+i
+        sta $2007
+    .endrepeat
+
+    lda #$23
+    sta $2006
+    lda #$2E
+    sta $2006
+    .repeat 4, i
+        lda Line_TilesP2+i
+        sta $2007
+    .endrepeat
 
     rts
 
@@ -949,6 +1063,17 @@ VsCheckClearRows:
 
     pla
     tay
+
+    asl a
+    tax
+
+    lda TmpX
+    clc
+    adc Lines, x
+    sta Lines, x
+    lda Lines+1, x
+    adc #0
+    sta Lines+1, x
 
     lda TmpX
     sta ClearCount, y
