@@ -49,8 +49,8 @@ ClearRowIdsP1: .res 4 ; Row IDs that need to be cleared
 ClearRowIdsP2: .res 4
 
 BagLeft: .res 2 ; 2p
-BagA: .res 7 ; next pieces
-BagB: .res 7 ; next pieces
+BagP1: .res 14 ; next pieces
+BagP2: .res 14 ; next pieces
 HoldPiece: .res 2
 
 FieldGrid: .res 10*20

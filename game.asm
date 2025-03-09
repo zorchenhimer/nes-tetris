@@ -241,7 +241,16 @@ InitGame:
     cpy #200
     bne :-
 
-    jsr InitBags
+    lda CurrentGameMode+GameMode::BaseType
+    cmp #GameBaseType::SingleBlock
+    bne :+
+    jsr InitBag_SingleBlock
+    jmp :++
+:
+    ldy #Player1
+    jsr ShuffleBag_Init
+:
+    ldy #Player1
     jsr NextBlock
 
     lda #0
@@ -769,8 +778,8 @@ InitBag_SingleBlock:
     lda CurrentGameMode+GameMode::TypeArg
     ldx #0
 :
-    sta BagA, x
-    sta BagB, x
+    sta BagP1, x
+    sta BagP1+7, x
     inx
     cpx #7
     bne :-
@@ -783,13 +792,14 @@ InitBags:
     jmp InitBag_SingleBlock
 :
 
+_bagInit:
     lda #7
     sta BagLeft
     lda #$FF
     ldx #0
 
-:   sta BagA, x
-    sta BagB, x
+:   sta BagP1, x
+    sta BagP1+7, x
     inx
     cpx #7
     bne :-
@@ -804,14 +814,14 @@ InitBags:
 
     ldy #0
 @checkA:
-    cmp BagA, y
+    cmp BagP1, y
     beq @loopA
     iny
     cpy #7
     bne @checkA
 
     ldx TmpX
-    sta BagA, x
+    sta BagP1, x
     inc TmpX
     cpx #6
     bne @loopA
@@ -826,30 +836,85 @@ InitBags:
 
     ldy #0
 @checkB:
-    cmp BagB, y
+    cmp BagP1+7, y
     beq @loopB
     iny
     cpy #7
     bne @checkB
 
     ldx TmpX
-    sta BagB, x
+    sta BagP1+7, x
     inc TmpX
     cpx #6
     bne @loopB
 
     rts
 
+; Init's both player's bags
+ShuffleBag_Init:
+    ldy #Player1
+    lda #.lobyte(BagP1)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP1)
+    sta AddressPointer1+1
+    jsr _shuffle_clr
+
+    clc
+    lda AddressPointer1+0
+    adc #7
+    sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jsr _shuffle_clr
+
+    ldy #Player2
+    lda #.lobyte(BagP2)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP2)
+    sta AddressPointer1+1
+    jsr _shuffle_clr
+
+    clc
+    lda AddressPointer1+0
+    adc #7
+    sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jmp _shuffle_clr
+
 ShuffleBag:
-    lda #7
-    sta BagLeft
-    lda #$FF
-    ldx #0
+    cpy #0
+    bne @p2
+    lda #.lobyte(BagP1+7)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP1+7)
+    sta AddressPointer1+1
+    jmp :+
+@p2:
+    lda #.lobyte(BagP2+7)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP2+7)
+    sta AddressPointer1+1
 :
-    sta BagB, x
-    inx
-    cpx #7
-    bne :-
+
+_shuffle_clr:
+    lda #7
+    sta BagLeft, y
+
+    tya
+    pha
+
+    lda #$FF
+    ldy #0
+@clear:
+    sta (AddressPointer1), y
+    iny
+    cpy #7
+    bne @clear
 
     lda #0
     sta TmpX
@@ -861,18 +926,20 @@ ShuffleBag:
 
     ldy #0
 @check:
-    cmp BagB, y
+    cmp (AddressPointer1), y
     beq @loop
     iny
     cpy #7
     bne @check
 
-    ldx TmpX
-    sta BagB, x
+    ldy TmpX
+    sta (AddressPointer1), y
     inc TmpX
-    cpx #6
+    cpy #6
     bne @loop
 
+    pla
+    tay
     rts
 
 ; Player ID in Y
@@ -889,16 +956,9 @@ SwapHeldPiece:
     ; nothing was held
     lda CurrentBlock, y
     sta HoldPiece, y
-    lda #.lobyte(NmiVsGame)
-    cmp NmiHandler+0
-    bne :+
-    lda #.hibyte(NmiVsGame)
-    cmp NmiHandler+1
-    bne :+
-    jmp NextBlock_Swap_Vs
-:   jmp NextBlock_Swap
-@swap:
+    jmp NextBlock_Swap
 
+@swap:
     lda HoldPiece, y
     pha
     lda CurrentBlock, y
@@ -924,12 +984,14 @@ SwapHeldPiece:
 
 NextBlock:
     lda #$00
-    sta HeldSwapped
+    sta HeldSwapped, y
 
 NextBlock_Swap:
-    lda Speed_Drop
-    sta DropSpeed
+    lda Speed_Drop, y
+    sta DropSpeed, y
 
+    bit CurrentBlock+1
+    bpl :+ ; no single block for 2P mode
     lda CurrentGameMode+GameMode::BaseType
     cmp #GameBaseType::SingleBlock
     bne :+
@@ -938,53 +1000,77 @@ NextBlock_Swap:
     jmp @afterBag
 :
 
-    dec BagLeft
+    cpy #0
+    bne @p2
+    lda #.lobyte(BagP1)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP1)
+    sta AddressPointer1+1
+    jmp :+
+@p2:
+    lda #.lobyte(BagP2)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP2)
+    sta AddressPointer1+1
+:
+
+    tya
+    pha
+    tax
+    ldy #0
+    lda (AddressPointer1), y
+    sta CurrentBlock, x
+
+    ldy #1
+@bumpLoop:
+    lda (AddressPointer1), y
+    dey
+    sta (AddressPointer1), y
+    iny
+    iny
+    cpy #14
+    bne @bumpLoop
+    dey
+    lda #$FF
+    sta (AddressPointer1), y
+
+    pla
+    tay
+
+    tya
+    tax
+    dec BagLeft, x
     bne :+
-    ; new bag
     jsr ShuffleBag
 :
-    lda BagA+0
-    sta CurrentBlock
-
-    ; bump both bags
-    ldx #0
-:
-    lda BagA+1, x
-    sta BagA, x
-    inx
-    cpx #13
-    bne :-
 
 @afterBag:
-    .ifdef DEBUG_PIECE
-    lda #DEBUG_PIECE
-    sta CurrentBlock
-    .endif
-
     lda #BLOCK_START_X
-    sta BlockX
+    sta BlockX, y
 
-    ldy CurrentBlock
-    lda BlockStart_Y, y
-    sta BlockY
-    sta CurrentY
+    ldx CurrentBlock, y
+    lda BlockStart_Y, x
+    sta BlockY, y
+    sta CurrentY, y
 
     lda #0
-    sta BlockRotation
-    sta SoftDrop
+    sta BlockRotation, y
+    sta SoftDrop, y
 
     lda #$FF
-    sta RepeatRight
-    sta RepeatLeft
+    sta RepeatRight, y
+    sta RepeatLeft, y
 
-
-    ;jsr CheckCollide_WithGrid
-    ldy #0
     jsr CheckCollide_Grid
-    beq :+
-    jmp DedTransition
-:
+    bne :+
     rts
+:
+
+    bit CurrentBlock+1
+    bpl @2p
+    jmp DedTransition
+@2p:
+    jmp VsModeGameOver
 
 ; PlayerID in Y
 CalculateGhost:
@@ -1183,7 +1269,7 @@ IrqDrawBoard:
 :
     .endif
 
-        lda BagA+j
+        lda BagP1+j
         asl a
         tax
         lda BlockTiles+0, x
@@ -1191,7 +1277,7 @@ IrqDrawBoard:
         lda BlockTiles+1, x
         sta AddressPointer1+1
 
-        lda BagA+j
+        lda BagP1+j
         cmp #5
         bcc :+
         clc
