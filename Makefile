@@ -19,7 +19,6 @@ SOURCES = \
 	utils.asm \
 	options.asm \
 	piece-rng.inc \
-	playfield.i \
 	playfield-rle.i \
 	menu-screen.i \
 	mode-menu.i \
@@ -61,9 +60,6 @@ bin/main.o: $(SOURCES) $(CHR)
 
 images/%.bmp: images/%.aseprite
 	aseprite -b $< --save-as $@
-
-#playfield.i: screens/playfield.tmx
-#	go run convert-map.go $< $@
 
 playfield-vs.i: screens/vs-playfield.tmx
 	go run convert-map.go $< $@ --rle
