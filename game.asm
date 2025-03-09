@@ -253,6 +253,9 @@ InitGame:
     ldy #Player1
     jsr NextBlock
 
+    lda #$FF
+    sta CurrentBlock+1
+
     lda #0
     ldx #0
 :

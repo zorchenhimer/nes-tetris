@@ -1092,11 +1092,18 @@ VsCheckClearRows:
 
 ; Acts on player input, applies gravity
 State_Fall:
+    bit CurrentBlock+1
+    bpl :+
+    lda CurrentGameMode+GameMode::TypeArg
+    cmp #GameStandardArgs::NoHold
+    beq @noHold
+:
     lda #BUTTON_SELECT ; select
     jsr ButtonPressed
     beq :+
     jmp SwapHeldPiece
 :
+@noHold:
 
     ; check for released first
     lda #BUTTON_DOWN ; down
