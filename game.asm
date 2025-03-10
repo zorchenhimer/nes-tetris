@@ -382,6 +382,31 @@ FrameGame:
 
     jsr CalcScore
 
+    ldx DropShake
+    bmi @noShake
+
+    stx MMC5_MultA
+    lda #3
+    sta MMC5_MultB
+    ldx MMC5_MultA
+
+    ;sta ScrollX
+    ;sta ScrollY
+
+    .repeat 4, i
+        sec
+        lda SpriteP1+3+(i*4)
+        sbc ShakeTable+0, x
+        sta SpriteP1+3+(i*4)
+
+        sec
+        lda SpriteP1+0+(i*4)
+        sbc ShakeTable+1, x
+        sta SpriteP1+0+(i*4)
+    .endrepeat
+
+@noShake:
+
     jsr WaitForIRQ
     jmp FrameGame
 
