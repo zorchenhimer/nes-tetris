@@ -192,8 +192,6 @@ StartGame:
     lda #9
     sta CurrentGameMode+GameMode::HsIndex
 
-    ; TODO: this
-    ;jsr InitDirtyBoard
     jmp InitGame
 
 @single:
@@ -240,6 +238,15 @@ InitGame:
     iny
     cpy #200
     bne :-
+
+    lda CurrentGameMode+GameMode::BaseType
+    cmp #GameBaseType::Standard
+    bne :+
+    lda CurrentGameMode+GameMode::TypeArg
+    cmp #GameStandardArgs::DirtyBoard
+    bne :+
+    jsr InitDirtyBoard
+:
 
     lda CurrentGameMode+GameMode::BaseType
     cmp #GameBaseType::SingleBlock
@@ -409,6 +416,51 @@ FrameGame:
 
     jsr WaitForIRQ
     jmp FrameGame
+
+InitDirtyBoard:
+    ldy #10*10
+@loop:
+    inc rng_index
+    ldx rng_index
+    lda PieceRng, x
+    cmp #4
+    bcc :+
+    lda #3
+    sta FieldGrid, y
+:
+    iny
+    cpy #200
+    bne @loop
+
+    lda #10
+    sta MMC5_MultB
+    ldy #0
+    sty TmpY
+    sty DirtyLeft
+@count:
+    jsr @isRowClear
+    inc TmpY
+    lda TmpY
+    cmp #20
+    bne @count
+    rts
+
+@isRowClear:
+    ldx #10
+    lda TmpY
+    sta MMC5_MultA
+    ldy MMC5_MultA
+@ctop:
+    lda FieldGrid, y
+    beq @next
+    inc DirtyLeft
+    rts
+
+@next:
+    iny
+    dex
+    bpl @ctop
+    rts
 
 ClearCountScores:
     .byte 0, 1, 3, 5, 8

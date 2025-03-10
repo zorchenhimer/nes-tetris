@@ -141,6 +141,7 @@ TmpC: .res 1
 TmpX: .res 1
 TmpXX: .res 1
 TmpY: .res 1
+TmpYY: .res 1
 TmpZ: .res 1
 TmpZZ: .res 1
 
