@@ -8,17 +8,39 @@ import (
 	"strings"
 )
 
+type Bag struct {
+	items []byte
+}
+
+func NewBag(vals []byte) *Bag {
+	return &Bag{ items: vals }
+}
+
+func (b *Bag) Len() int {
+	return len(b.items)
+}
+
+func (b *Bag) Swap(i, j int) {
+	b.items[i], b.items[j] = b.items[j], b.items[i]
+}
+
+func (b *Bag) AddTo(list []byte) []byte {
+	return append(list, b.items...)
+}
+
 func main() {
 	table := []byte{}
-	for i := 0; i < 36; i++ {
-		table = append(table, []byte{0, 1, 2, 3, 4, 5, 6}...)
+	rng := rand.New(rand.NewSource(time.Now().Unix()))
+
+	for x := 0; x < 36; x++ {
+		b := NewBag([]byte{0, 1, 2, 3, 4, 5, 6})
+		rng.Shuffle(b.Len(), b.Swap)
+		table = b.AddTo(table)
 	}
 
-	table = append(table, []byte{2, 2, 5, 6}...)
-
-	rng := rand.New(rand.NewSource(time.Now().Unix()))
-	shuf := func(i, j int) { table[i], table[j] = table[j], table[i] }
-	rng.Shuffle(len(table), shuf)
+	bagtop := []byte{2, 2, 5, 6}
+	rng.Shuffle(len(bagtop), func(i, j int) { table[i], table[j] = table[j], table[i] })
+	table = append(table, bagtop...)
 
 	str := []string{}
 	for _, n := range table {
