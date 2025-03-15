@@ -1674,4 +1674,271 @@ PlaceBlock:
     tay
     rts
 
+; PlayerID in Y
+CalculateGhost:
+    lda BlockY, y
+    pha
+    clc
+    adc #1
+    sta BlockY, y
+
+    jsr AlignBlockWithField
+    stx TmpXX
+
+    jsr CheckCollide_Grid_AfterAlign
+    beq :+
+    pla
+    sta BlockY, y
+    sta GhostY, y
+    rts
+:
+
+@loop:
+    lda BlockY, y
+    clc
+    adc #1
+    sta BlockY, y
+    lda TmpY
+    clc
+    adc #10
+    sta TmpY
+
+    ldx TmpXX
+    jsr CheckCollide_Grid_AfterAlign
+    bne @collide
+    jmp @loop
+
+@collide:
+    sec
+    lda BlockY, y
+    sbc #1
+    sta GhostY, y
+    pla
+    sta BlockY, y
+    rts
+
+NextBlock:
+    lda #$00
+    sta HeldSwapped, y
+
+NextBlock_Swap:
+    lda Speed_Drop, y
+    sta DropSpeed, y
+
+    bit CurrentBlock+1
+    bpl :+ ; no single block for 2P mode
+    lda CurrentGameMode+GameMode::BaseType
+    cmp #GameBaseType::SingleBlock
+    bne :+
+    lda CurrentGameMode+GameMode::TypeArg
+    sta CurrentBlock
+    jmp @afterBag
+:
+
+    cpy #0
+    bne @p2
+    lda #.lobyte(BagP1)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP1)
+    sta AddressPointer1+1
+    jmp :+
+@p2:
+    lda #.lobyte(BagP2)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP2)
+    sta AddressPointer1+1
+:
+
+    tya
+    pha
+    tax
+    ldy #0
+    lda (AddressPointer1), y
+    sta CurrentBlock, x
+
+    ldy #1
+@bumpLoop:
+    lda (AddressPointer1), y
+    dey
+    sta (AddressPointer1), y
+    iny
+    iny
+    cpy #14
+    bne @bumpLoop
+    dey
+    lda #$FF
+    sta (AddressPointer1), y
+
+    pla
+    tay
+
+    tya
+    tax
+    dec BagLeft, x
+    bne :+
+    jsr ShuffleBag
+:
+
+@afterBag:
+    lda #BLOCK_START_X
+    sta BlockX, y
+
+    ldx CurrentBlock, y
+    lda BlockStart_Y, x
+    sta BlockY, y
+    sta CurrentY, y
+
+    lda #0
+    sta BlockRotation, y
+    sta SoftDrop, y
+
+    lda #$FF
+    sta RepeatRight, y
+    sta RepeatLeft, y
+
+    jsr CheckCollide_Grid
+    bne :+
+    rts
+:
+
+    bit CurrentBlock+1
+    bpl @2p
+    jmp DedTransition
+@2p:
+    jmp VsModeGameOver
+
+; Player ID in Y
+SwapHeldPiece:
+    lda HeldSwapped, y
+    beq :+
+    rts
+:
+    lda #$FF
+    sta HeldSwapped, y
+
+    lda HoldPiece, y
+    bpl @swap
+    ; nothing was held
+    lda CurrentBlock, y
+    sta HoldPiece, y
+    jmp NextBlock_Swap
+
+@swap:
+    lda HoldPiece, y
+    pha
+    lda CurrentBlock, y
+    sta HoldPiece, y
+    pla
+    sta CurrentBlock, y
+
+    lda #BLOCK_START_X
+    sta BlockX, y
+
+    ldx CurrentBlock, y
+    lda BlockStart_Y, x
+    sta BlockY, y
+
+    lda #0
+    sta BlockRotation, y
+    sta SoftDrop, y
+
+    lda #$FF
+    sta RepeatRight, y
+    sta RepeatLeft, y
+    rts
+
+; Init's both player's bags
+ShuffleBag_Init:
+    ldy #Player1
+    lda #.lobyte(BagP1)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP1)
+    sta AddressPointer1+1
+    jsr _shuffle_clr
+
+    clc
+    lda AddressPointer1+0
+    adc #7
+    sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jsr _shuffle_clr
+
+    ldy #Player2
+    lda #.lobyte(BagP2)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP2)
+    sta AddressPointer1+1
+    jsr _shuffle_clr
+
+    clc
+    lda AddressPointer1+0
+    adc #7
+    sta AddressPointer1+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+    jmp _shuffle_clr
+
+
+ShuffleBag:
+    cpy #0
+    bne @p2
+    lda #.lobyte(BagP1+7)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP1+7)
+    sta AddressPointer1+1
+    jmp :+
+@p2:
+    lda #.lobyte(BagP2+7)
+    sta AddressPointer1+0
+    lda #.hibyte(BagP2+7)
+    sta AddressPointer1+1
+:
+
+_shuffle_clr:
+    lda #7
+    sta BagLeft, y
+
+    tya
+    pha
+
+    lda #$FF
+    ldy #0
+@clear:
+    sta (AddressPointer1), y
+    iny
+    cpy #7
+    bne @clear
+
+    lda #0
+    sta TmpX
+
+@loop:
+    inc rng_index
+    ldx rng_index
+    lda PieceRng, x
+
+    ldy #0
+@check:
+    cmp (AddressPointer1), y
+    beq @loop
+    iny
+    cpy #7
+    bne @check
+
+    ldy TmpX
+    sta (AddressPointer1), y
+    inc TmpX
+    cpy #6
+    bne @loop
+
+    pla
+    tay
+    rts
+
+
 .endif

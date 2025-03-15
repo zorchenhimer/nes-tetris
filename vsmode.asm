@@ -138,12 +138,6 @@ InitVsMode:
 VsModeFrame:
     jsr ReadControllers
 
-    ; DEBUG
-    ;lda Controller+0
-    ;sta Controller+1
-    ;lda Controller_Old+0
-    ;sta Controller_Old+1
-
     .ifdef DEBUG_COLORS
         lda #%0101_1110
         sta $2001
@@ -523,64 +517,6 @@ IrqVsGame:
     inx
     cpx #20
     bne @loopRowP2
-    rts
-
-; FIXME: this is borked
-CountDirtyClear:
-    lda BlockY, y
-    sec
-    sbc #1
-    sta TmpA
-
-    tya
-    pha
-
-    lda #10
-    sta MMC5_MultB
-
-    ldy #0
-    sty TmpY
-@loop:
-    ldy TmpY
-    lda (AddressPointer2), y
-    bmi @next
-
-    clc
-    adc TmpA
-    sta MMC5_MultA
-    lda MMC5_MultA
-    tay
-    ldx #10
-    lda #0
-    sta TmpB
-@count:
-    lda (AddressPointer1), y
-    beq @nope
-    cmp #3
-    bne :+
-    lda #1
-    sta TmpB
-:
-    iny
-    dex
-    bne @count
-    jmp @next
-
-@nope:
-    sta TmpB
-
-@next:
-    lda TmpB
-    beq :+
-    dec DirtyLeft
-:
-    inc TmpY
-    lda TmpY
-    cmp #4
-    bne @loop
-
-    pla
-    tay
     rts
 
 UpdateActiveBlocks_Vs:
