@@ -81,6 +81,7 @@ VsMode
 Options
 NewScore
 Menu
+Debug
 .endenum
 
 .enum GameBaseType
@@ -173,8 +174,8 @@ SpriteStart = *
 ;SpriteBlock: .res 4*4
 ;GhostBlock:  .res 4*4
 SpriteP1: .res 4*4
-SpriteP2: .res 4*4
 SpriteGhostP1: .res 4*4
+SpriteP2: .res 4*4
 SpriteGhostP2: .res 4*4
 
 GameOverSprites: .res 8*4*4

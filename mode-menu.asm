@@ -213,6 +213,12 @@ FrameModeMenu:
     jmp FrameModeMenu
 
 @doStart:
+    lda ModeSelection
+    cmp #MMSel::Classic
+    bne :+
+    lda #InitIndex::Debug
+    jmp GotoInit
+:
     lda #InitIndex::Game
     jmp GotoInit
 

@@ -6,6 +6,8 @@ _GAME_RAM_ = 1
 CurrentBlock: .res 2
 BlockRotation: .res 2
 DropSpeed: .res 2
+DebugRotation: .res 1
+RotationDirection: .res 1
 
 SoftDrop: .res 2
 HardDrop: .res 2
@@ -39,6 +41,25 @@ GameState:    .res 2
 GameStateArg: .res 2
 GameStateArgB: .res 2 ; used for clear animation
 
+dbgActive_X: .res 1
+dbgActive_Y: .res 1
+dbgGhost_X: .res 1
+dbgGhost_Y: .res 1
+
+dbgOffsetActive: .res 1
+dbgOffsetGhost: .res 1
+
+dbgStep: .res 1 ; the lookup index for the kick table
+dbgEnum: .res 1
+
+dbgKickTable: .res 1
+dbgKickTable_Wall: .res 1
+
+dbgBlockX: .res 1
+dbgBlockY: .res 1
+dbgBlockOffset: .res 1
+dbgFieldOffset: .res 1
+
 .segment "BSS"
 BlockX: .res 2
 BlockY: .res 2
@@ -46,6 +67,7 @@ BlockY: .res 2
 CurrentX: .res 2
 CurrentY: .res 2
 GhostY: .res 2
+GhostX: .res 1 ; debug only
 
 MinX: .res 1
 MaxX: .res 1
@@ -416,13 +438,13 @@ ClearRows_Frames:
         ;.out .sprintf(".byte %d, %d", i, 9-i)
     .endrepeat
 
-.macro KO col, row
+.macro KO col, row ; value is offset into field
     .byte .lobyte($100+((row*-1)*10)+col)
 .endmacro
 
-.macro KO_WALL col, row
+.macro KO_WALL col, row ; values are col, row into offset
     ;        X                  Y
-    .lobytes $100+col , $100+row*-1
+    .lobytes $100+col , $100+(row*-1)
 .endmacro
 
 .enum Kick
@@ -438,220 +460,245 @@ LD ; 3 -> 2 CCW
 LS ; 3 -> 0 CW
 .endenum
 
-KickOffsets_Wall:
+KickOffsets_Wall_CCW:
     ; Spawn -> Left (CCW)
+    KO_WALL  0,  0
     KO_WALL  1,  0
     KO_WALL  1,  1
     KO_WALL  0, -2
     KO_WALL  1, -2
 
-    ; Spawn -> Right (CW)
-    KO_WALL -1,  0
-    KO_WALL -1,  1
-    KO_WALL  0, -2
-    KO_WALL -1, -2
-
     ; Right -> Spawn (CCW)
-    KO_WALL  1,  0
-    KO_WALL  1, -1
-    KO_WALL  0,  2
-    KO_WALL  1,  2
-
-    ; Right -> 2x (CW)
+    KO_WALL  0,  0
     KO_WALL  1,  0
     KO_WALL  1, -1
     KO_WALL  0,  2
     KO_WALL  1,  2
 
     ; 2x -> Right (CCW)
+    KO_WALL  0,  0
     KO_WALL -1,  0
     KO_WALL -1,  1
     KO_WALL  0, -2
     KO_WALL -1, -2
 
+    ; Left -> 2x (CCW)
+    KO_WALL  0,  0
+    KO_WALL -1,  0
+    KO_WALL -1, -1
+    KO_WALL  0,  2
+    KO_WALL -1,  2
+
+KickOffsets_Wall_CW:
+    ; Spawn -> Right (CW)
+    KO_WALL  0,  0
+    KO_WALL -1,  0
+    KO_WALL -1,  1
+    KO_WALL  0, -2
+    KO_WALL -1, -2
+
+    ; Right -> 2x (CW)
+    KO_WALL  0,  0
+    KO_WALL  1,  0
+    KO_WALL  1, -1
+    KO_WALL  0,  2
+    KO_WALL  1,  2
+
     ; 2x -> Left (CW)
+    KO_WALL  0,  0
     KO_WALL  1,  0
     KO_WALL  1,  1
     KO_WALL  0, -2
     KO_WALL  1, -2
 
-    ; Left -> 2x (CCW)
-    KO_WALL -1,  0
-    KO_WALL -1, -1
-    KO_WALL  0,  2
-    KO_WALL -1,  2
-
     ; Left -> spawn (CW)
+    KO_WALL  0,  0
     KO_WALL -1,  0
     KO_WALL -1, -1
     KO_WALL  0,  2
     KO_WALL -1,  2
 
-KickOffsets:
+KickOffsets_CCW:
     ; Spawn -> Left (CCW)
+    KO  0,  0
     KO  1,  0
     KO  1,  1
     KO  0, -2
     KO  1, -2
 
-    ; Spawn -> Right (CW)
-    KO -1,  0
-    KO -1,  1
-    KO  0, -2
-    KO -1, -2
-
     ; Right -> Spawn (CCW)
-    KO  1,  0
-    KO  1, -1
-    KO  0,  2
-    KO  1,  2
-
-    ; Right -> 2x (CW)
+    KO  0,  0
     KO  1,  0
     KO  1, -1
     KO  0,  2
     KO  1,  2
 
     ; 2x -> Right (CCW)
+    KO  0,  0
     KO -1,  0
     KO -1,  1
     KO  0, -2
     KO -1, -2
 
+    ; Left -> 2x (CCW)
+    KO  0,  0
+    KO -1,  0
+    KO -1, -1
+    KO  0,  2
+    KO -1,  2
+
+KickOffsets_CW:
+    ; Spawn -> Right (CW)
+    KO  0,  0
+    KO -1,  0
+    KO -1,  1
+    KO  0, -2
+    KO -1, -2
+
+    ; Right -> 2x (CW)
+    KO  0,  0
+    KO  1,  0
+    KO  1, -1
+    KO  0,  2
+    KO  1,  2
+
     ; 2x -> Left (CW)
+    KO  0,  0
     KO  1,  0
     KO  1,  1
     KO  0, -2
     KO  1, -2
 
-    ; Left -> 2x (CCW)
+    ; Left -> spawn (CW)
+    KO  0,  0
     KO -1,  0
     KO -1, -1
     KO  0,  2
     KO -1,  2
 
-    ; Left -> spawn (CW)
-    KO -1,  0
-    KO -1, -1
-    KO  0,  2
-    KO -1,  2
-
-.if * - KickOffsets <> 4*8
-    .error .sprintf("KickOffsets wrong size: %d", (* - KickOffsets))
-.else
-    .out .sprintf("KickOffsets size: %d", (* - KickOffsets))
-.endif
-
-KickOffsets_I_Wall:
+KickOffsets_I_Wall_CCW:
     ; Spawn -> Left (CCW)
+    KO_WALL  0,  0
     KO_WALL -1,  0
     KO_WALL  2,  0
     KO_WALL -1,  2
     KO_WALL  2, -1
 
-    ; Spawn -> Right (CW)
-    KO_WALL -2,  0
-    KO_WALL  1,  0
-    KO_WALL -2, -1
-    KO_WALL  1,  2
-
     ; Right -> Spawn (CCW)
+    KO_WALL  0,  0
     KO_WALL  2,  0
     KO_WALL -1,  0
     KO_WALL  2,  1
     KO_WALL -1, -2
 
+    ; 2x -> Right (CCW)
+    KO_WALL  0,  0
+    KO_WALL  1,  0
+    KO_WALL -2,  0
+    KO_WALL  1, -2
+    KO_WALL -2,  1
+
+    ; Left -> 2x (CCW)
+    KO_WALL  0,  0
+    KO_WALL -2,  0
+    KO_WALL  1,  0
+    KO_WALL -2, -1
+    KO_WALL  1,  2
+
+KickOffsets_I_Wall_CW:
+    ; Spawn -> Right (CW)
+    KO_WALL  0,  0
+    KO_WALL -2,  0
+    KO_WALL  1,  0
+    KO_WALL -2, -1
+    KO_WALL  1,  2
+
     ; Right -> 2x (CW)
+    KO_WALL  0,  0
     KO_WALL -1,  0
     KO_WALL  2,  0
     KO_WALL -1,  2
     KO_WALL  2, -1
 
-    ; 2x -> Right (CCW)
-    KO_WALL  1,  0
-    KO_WALL -2,  0
-    KO_WALL  1, -2
-    KO_WALL -2,  1
-
     ; 2x -> Left (CW)
+    KO_WALL  0,  0
     KO_WALL  2,  0
     KO_WALL -1,  0
     KO_WALL  2,  1
     KO_WALL -1, -2
 
-    ; Left -> 2x (CCW)
-    KO_WALL -2,  0
-    KO_WALL  1,  0
-    KO_WALL -2, -1
-    KO_WALL  1,  2
-
     ; Left -> spawn (CW)
+    KO_WALL  0,  0
     KO_WALL  1,  0
     KO_WALL -2,  0
     KO_WALL  1, -2
     KO_WALL -2,  1
 
-KickOffsets_I:
+KickOffsets_I_CCW:
     ; Spawn -> Left (CCW)
+    KO  0,  0
     KO -1,  0
     KO  2,  0
     KO -1,  2
     KO  2, -1
-
-    ; Spawn -> Right (CW)
-    KO -2,  0
-    KO  1,  0
-    KO -2, -1
-    KO  1,  2
 
     ; Right -> Spawn (CCW)
+    KO  0,  0
     KO  2,  0
     KO -1,  0
     KO  2,  1
     KO -1, -2
 
-    ; Right -> 2x (CW)
-    KO -1,  0
-    KO  2,  0
-    KO -1,  2
-    KO  2, -1
-
     ; 2x -> Right (CCW)
+    KO  0,  0
     KO  1,  0
     KO -2,  0
     KO  1, -2
     KO -2,  1
 
-    ; 2x -> Left (CW)
-    KO  2,  0
-    KO -1,  0
-    KO  2,  1
-    KO -1, -2
-
     ; Left -> 2x (CCW)
+    KO  0,  0
     KO -2,  0
     KO  1,  0
     KO -2, -1
     KO  1,  2
 
+KickOffsets_I_CW:
+    ; Spawn -> Right (CW)
+    KO  0,  0
+    KO -2,  0
+    KO  1,  0
+    KO -2, -1
+    KO  1,  2
+
+    ; Right -> 2x (CW)
+    KO  0,  0
+    KO -1,  0
+    KO  2,  0
+    KO -1,  2
+    KO  2, -1
+
+    ; 2x -> Left (CW)
+    KO  0,  0
+    KO  2,  0
+    KO -1,  0
+    KO  2,  1
+    KO -1, -2
+
     ; Left -> spawn (CW)
+    KO  0,  0
     KO  1,  0
     KO -2,  0
     KO  1, -2
     KO -2,  1
 
-.if * - KickOffsets_I <> 4*8
-    .error .sprintf("KickOffsets_I wrong size: %d", (* - KickOffsets_I))
-.else
-    .out .sprintf("KickOffsets_I size: %d", (* - KickOffsets_I))
-.endif
-
-
-; Player ID in Y
-; AddressPointer1 points to the start of a
-; FieldGrid (P1 or P2).
-; TmpY is the offset in the field grid that the
-; block offsets start.
+; Input:
+;   Player ID in Y
+; Output:
+;   AddressPointer1 points to the start of a
+;       FieldGrid (P1 or P2).
+;   TmpY is the offset in the field grid that the
+;       active block starts.
 AlignBlockWithField:
     ; Align to playfield, but we want the offset
     ; (y-1)*10+x-2 = y*10+x-2-10 = y*10+x-12
@@ -683,13 +730,12 @@ AlignBlockWithField:
     sta AddressPointer1+0
     lda #.hibyte(FieldGrid)
     sta AddressPointer1+1
-    jmp :++
-:
-    lda #.lobyte(FieldGridP2)
+    rts
+
+:   lda #.lobyte(FieldGridP2)
     sta AddressPointer1+0
     lda #.hibyte(FieldGridP2)
     sta AddressPointer1+1
-:
     rts
 
 VsGameStates:
@@ -1447,6 +1493,7 @@ DoHardDrop:
 :
     rts
 
+; FIXME: this is completely broken :C
 CheckCollide_Kicks:
     ;tya ; save player ID
     ;pha
@@ -1460,10 +1507,10 @@ CheckCollide_Kicks:
     sta TmpZZ ; kickoffsets_wall index
 
     lda BlockX, y
-    sta TmpB
+    sta TmpB ; BlockX
 
     lda BlockY, y
-    sta TmpC
+    sta TmpC ; BlockY
 
     ; No kick
     jsr CheckCollide_Walls
@@ -1509,32 +1556,34 @@ CheckCollide_Kicks:
     sta AddressPointer2+1
 :
 
-    sty TmpYY
+    sty TmpYY ; player ID
 
     .repeat 4, i
         lda TmpZ
-        ldx TmpA
+        ldy TmpA ; KickOffsets index
         clc
         ;adc KickOffsets, x
-        ldy #0
+        ;ldy #0
         adc (AddressPointer1), y
-        sta TmpY
+        sta TmpY ; used in collision check
 
         clc
-        ldx TmpZZ
+        ldy TmpZZ ; KickOffsets_wall index
         ;lda KickOffsets_Wall+0, x
-        ldy #0
+        ;ldy #0
         lda (AddressPointer2), y
-        adc TmpB
+        adc TmpB ; BlockX
         ldy TmpYY
         sta BlockX, y
 
         clc
         ;lda KickOffsets_Wall+1, x
-        ldy #1
+        ;ldy #1
+        ldy TmpZZ
+        iny
         lda (AddressPointer2), y
-        adc TmpC
-        ldy TmpYY
+        adc TmpC ; BlockY
+        ldy TmpYY ; player ID
         sta BlockY, y
 
         jsr CheckCollide_Walls
@@ -1603,6 +1652,8 @@ CheckCollide_Grid_AfterAlign:
     lda #10
     sta MMC5_MultB
 
+; check each block in the active piece for a coordinate
+; that's past the wall bounds.
     .repeat 4, i
     clc
     lda BlockOffsets_Y+i, x
@@ -1940,5 +1991,212 @@ _shuffle_clr:
     tay
     rts
 
+KickOffsets_Wall:
+    ; Spawn -> Left (CCW)
+    KO_WALL  1,  0
+    KO_WALL  1,  1
+    KO_WALL  0, -2
+    KO_WALL  1, -2
 
+    ; Spawn -> Right (CW)
+    KO_WALL -1,  0
+    KO_WALL -1,  1
+    KO_WALL  0, -2
+    KO_WALL -1, -2
+
+    ; Right -> Spawn (CCW)
+    KO_WALL  1,  0
+    KO_WALL  1, -1
+    KO_WALL  0,  2
+    KO_WALL  1,  2
+
+    ; Right -> 2x (CW)
+    KO_WALL  1,  0
+    KO_WALL  1, -1
+    KO_WALL  0,  2
+    KO_WALL  1,  2
+
+    ; 2x -> Right (CCW)
+    KO_WALL -1,  0
+    KO_WALL -1,  1
+    KO_WALL  0, -2
+    KO_WALL -1, -2
+
+    ; 2x -> Left (CW)
+    KO_WALL  1,  0
+    KO_WALL  1,  1
+    KO_WALL  0, -2
+    KO_WALL  1, -2
+
+    ; Left -> 2x (CCW)
+    KO_WALL -1,  0
+    KO_WALL -1, -1
+    KO_WALL  0,  2
+    KO_WALL -1,  2
+
+    ; Left -> spawn (CW)
+    KO_WALL -1,  0
+    KO_WALL -1, -1
+    KO_WALL  0,  2
+    KO_WALL -1,  2
+
+KickOffsets:
+    ; Spawn -> Left (CCW)
+    KO  1,  0
+    KO  1,  1
+    KO  0, -2
+    KO  1, -2
+
+    ; Spawn -> Right (CW)
+    KO -1,  0
+    KO -1,  1
+    KO  0, -2
+    KO -1, -2
+
+    ; Right -> Spawn (CCW)
+    KO  1,  0
+    KO  1, -1
+    KO  0,  2
+    KO  1,  2
+
+    ; Right -> 2x (CW)
+    KO  1,  0
+    KO  1, -1
+    KO  0,  2
+    KO  1,  2
+
+    ; 2x -> Right (CCW)
+    KO -1,  0
+    KO -1,  1
+    KO  0, -2
+    KO -1, -2
+
+    ; 2x -> Left (CW)
+    KO  1,  0
+    KO  1,  1
+    KO  0, -2
+    KO  1, -2
+
+    ; Left -> 2x (CCW)
+    KO -1,  0
+    KO -1, -1
+    KO  0,  2
+    KO -1,  2
+
+    ; Left -> spawn (CW)
+    KO -1,  0
+    KO -1, -1
+    KO  0,  2
+    KO -1,  2
+
+
+.if * - KickOffsets <> 4*8
+    .error .sprintf("KickOffsets wrong size: %d", (* - KickOffsets))
+.else
+    .out .sprintf("KickOffsets size: %d", (* - KickOffsets))
+.endif
+
+KickOffsets_I:
+    ; Spawn -> Left (CCW)
+    KO -1,  0
+    KO  2,  0
+    KO -1,  2
+    KO  2, -1
+
+    ; Spawn -> Right (CW)
+    KO -2,  0
+    KO  1,  0
+    KO -2, -1
+    KO  1,  2
+
+    ; Right -> Spawn (CCW)
+    KO  2,  0
+    KO -1,  0
+    KO  2,  1
+    KO -1, -2
+
+    ; Right -> 2x (CW)
+    KO -1,  0
+    KO  2,  0
+    KO -1,  2
+    KO  2, -1
+
+    ; 2x -> Right (CCW)
+    KO  1,  0
+    KO -2,  0
+    KO  1, -2
+    KO -2,  1
+
+    ; 2x -> Left (CW)
+    KO  2,  0
+    KO -1,  0
+    KO  2,  1
+    KO -1, -2
+
+    ; Left -> 2x (CCW)
+    KO -2,  0
+    KO  1,  0
+    KO -2, -1
+    KO  1,  2
+
+    ; Left -> spawn (CW)
+    KO  1,  0
+    KO -2,  0
+    KO  1, -2
+    KO -2,  1
+
+.if * - KickOffsets_I <> 4*8
+    .error .sprintf("KickOffsets_I wrong size: %d", (* - KickOffsets_I))
+.else
+    .out .sprintf("KickOffsets_I size: %d", (* - KickOffsets_I))
+.endif
+
+KickOffsets_I_Wall:
+    ; Spawn -> Left (CCW)
+    KO_WALL -1,  0
+    KO_WALL  2,  0
+    KO_WALL -1,  2
+    KO_WALL  2, -1
+
+    ; Spawn -> Right (CW)
+    KO_WALL -2,  0
+    KO_WALL  1,  0
+    KO_WALL -2, -1
+    KO_WALL  1,  2
+
+    ; Right -> Spawn (CCW)
+    KO_WALL  2,  0
+    KO_WALL -1,  0
+    KO_WALL  2,  1
+    KO_WALL -1, -2
+
+    ; Right -> 2x (CW)
+    KO_WALL -1,  0
+    KO_WALL  2,  0
+    KO_WALL -1,  2
+    KO_WALL  2, -1
+
+    ; 2x -> Right (CCW)
+    KO_WALL  1,  0
+    KO_WALL -2,  0
+    KO_WALL  1, -2
+    KO_WALL -2,  1
+
+    ; 2x -> Left (CW)
+    KO_WALL  2,  0
+    KO_WALL -1,  0
+    KO_WALL  2,  1
+    KO_WALL -1, -2
+
+    ; Left -> 2x (CCW)
+    KO_WALL -2,  0
+    KO_WALL  1,  0
+    KO_WALL -2, -1
+    KO_WALL  1,  2
+
+    ; Left -> spawn (CW)
+    KO_WALL  1,  0
+    KO_WALL -2,  0
+    KO_WALL  1, -2
+    KO_WALL -2,  1
 .endif

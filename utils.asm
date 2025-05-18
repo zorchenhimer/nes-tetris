@@ -636,6 +636,7 @@ Init_Routines:
     .word InitOptions
     .word InitScores_EnterName
     .word InitMenu
+    .word InitDebug
 
 Init_ScreensNT0:
     .word Screen_Playfield
@@ -645,6 +646,7 @@ Init_ScreensNT0:
     .word $0000 ; options
     .word Screen_NewHighScore
     .word Screen_Menu
+    .word Screen_Playfield
 
 Init_ScreensNT1:
     .word $0000 ; game
@@ -654,6 +656,7 @@ Init_ScreensNT1:
     .word $0000 ; options
     .word Screen_NewHighScore_Shifted ; new score
     .word $0000 ; menu
+    .word $0000 ; debug
 
 Init_BanksLower: ; lower 16k
     .byte 0 ; game
@@ -663,6 +666,7 @@ Init_BanksLower: ; lower 16k
     .byte 0 ; options
     .byte 1 ; Scores_EnterName
     .byte 1 ; Main Menu
+    .byte 0 ; Debug
 
 ; Destination index in A
 GotoInit:
