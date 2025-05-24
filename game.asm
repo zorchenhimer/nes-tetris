@@ -17,12 +17,6 @@ NEXT_ADDR_START = $21D9 + MMC5_OFFSET
 ; Lines per level
 LEVEL_LENGTH = 10
 
-.enum Rot
-None
-CW
-CCW
-.endenum
-
 ShakeTable:
     ; X, Y, Nametable
     .byte 1, 1, 0

@@ -7,7 +7,17 @@ CurrentBlock: .res 2
 BlockRotation: .res 2
 DropSpeed: .res 2
 DebugRotation: .res 1
-RotationDirection: .res 1
+RotationDirection: .res 2
+
+KickTable: .res 1
+KickTableWall: .res 1
+KickX: .res 2
+KickY: .res 2
+KickStep: .res 1
+KickFieldOffset: .res 1
+
+KickWallX:  .res 1
+KickAlignX: .res 1
 
 SoftDrop: .res 2
 HardDrop: .res 2
@@ -140,6 +150,12 @@ PAL_D  = $C0
 
 BlockGridOffset_X = 2
 ;BlockGridOffset_Y = 1
+
+.enum Rot
+None
+CW
+CCW
+.endenum
 
 .enum GS ; Game states
 Fall
@@ -1384,6 +1400,9 @@ State_Fall:
     and BlockRotation, x
     sta BlockRotation, x
 
+    lda #Rot::CW
+    sta RotationDirection, y
+
     jsr CheckCollide_Kicks
     beq @rotDone
     ; Rotation collides; rotate back
@@ -1408,6 +1427,9 @@ State_Fall:
     lda #$03
     and BlockRotation, x
     sta BlockRotation, x
+
+    lda #Rot::CCW
+    sta RotationDirection, y
 
     jsr CheckCollide_Kicks
     beq @rotDone
@@ -1493,126 +1515,185 @@ DoHardDrop:
 :
     rts
 
-; FIXME: this is completely broken :C
 CheckCollide_Kicks:
-    ;tya ; save player ID
-    ;pha
+    tya ; save player ID
+    pha
 
-    ; TmpA has Kick enum value
-    lda TmpA
-    asl a
-    asl a
-    sta TmpA ; KickOffsets index
-    asl a
-    sta TmpZZ ; kickoffsets_wall index
-
-    lda BlockX, y
-    sta TmpB ; BlockX
-
-    lda BlockY, y
-    sta TmpC ; BlockY
-
-    ; No kick
-    jsr CheckCollide_Walls
-    bne :+
-    jsr CheckCollide_Grid
-    bne :+
-    jmp @done
-:
-
-    jsr AlignBlockWithField
-    stx TmpXX
-
-    lda TmpY
-    sta TmpZ
-
-    lda #0
-    sta Debug_Kick
-
-@wtf:
-    ; the I block has different offsets
+    ldx RotationDirection, y
     lda CurrentBlock, y
     cmp #Block::I
+    bne @notI
+    ; I Block
+    cpx #Rot::CW ; Rot::CW
     bne :+
-    lda #.lobyte(KickOffsets_I)
-    sta AddressPointer1+0
-    lda #.hibyte(KickOffsets_I)
-    sta AddressPointer1+1
-
-    lda #.lobyte(KickOffsets_I_Wall)
+    ; KickOffsets_I_CW
+    lda #.lobyte(KickOffsets_I_CW)
     sta AddressPointer2+0
-    lda #.hibyte(KickOffsets_I_Wall)
+    lda #.hibyte(KickOffsets_I_CW)
     sta AddressPointer2+1
-    jmp :++
-:
-    lda #.lobyte(KickOffsets)
-    sta AddressPointer1+0
-    lda #.hibyte(KickOffsets)
-    sta AddressPointer1+1
 
-    lda #.lobyte(KickOffsets_Wall)
+    ; KickOffsets_I_Wall_CW
+    lda #.lobyte(KickOffsets_I_Wall_CW)
+    sta AddressPointer3+0
+    lda #.hibyte(KickOffsets_I_Wall_CW)
+    sta AddressPointer3+1
+
+    lda #255
+    sta TmpX
+    jmp @addrDone
+
+:   ; KickOffsets_I_CCW
+    lda #.lobyte(KickOffsets_I_CCW)
     sta AddressPointer2+0
-    lda #.hibyte(KickOffsets_Wall)
+    lda #.hibyte(KickOffsets_I_CCW)
     sta AddressPointer2+1
-:
 
-    sty TmpYY ; player ID
+    ; KickOffsets_I_Wall_CCW
+    lda #.lobyte(KickOffsets_I_Wall_CCW)
+    sta AddressPointer3+0
+    lda #.hibyte(KickOffsets_I_Wall_CCW)
+    sta AddressPointer3+1
 
-    .repeat 4, i
-        lda TmpZ
-        ldy TmpA ; KickOffsets index
-        clc
-        ;adc KickOffsets, x
-        ;ldy #0
-        adc (AddressPointer1), y
-        sta TmpY ; used in collision check
+    lda #1
+    sta TmpX
+    jmp @addrDone
 
-        clc
-        ldy TmpZZ ; KickOffsets_wall index
-        ;lda KickOffsets_Wall+0, x
-        ;ldy #0
-        lda (AddressPointer2), y
-        adc TmpB ; BlockX
-        ldy TmpYY
-        sta BlockX, y
+@notI:
+    cpx #Rot::CW ; Rot::CW
+    bne :+
+    ; KickOffsets_CW
+    lda #.lobyte(KickOffsets_CW)
+    sta AddressPointer2+0
+    lda #.hibyte(KickOffsets_CW)
+    sta AddressPointer2+1
 
-        clc
-        ;lda KickOffsets_Wall+1, x
-        ;ldy #1
-        ldy TmpZZ
-        iny
-        lda (AddressPointer2), y
-        adc TmpC ; BlockY
-        ldy TmpYY ; player ID
-        sta BlockY, y
+    ; KickOffsets_Wall_CW
+    lda #.lobyte(KickOffsets_Wall_CW)
+    sta AddressPointer3+0
+    lda #.hibyte(KickOffsets_Wall_CW)
+    sta AddressPointer3+1
 
-        jsr CheckCollide_Walls
-        bne :+
+    lda #255
+    sta TmpX
+    jmp @addrDone
 
-        ldx TmpXX
-        jsr CheckCollide_Grid_AfterAlign
-        bne :+
-        jmp @done
-:
-        .if i < 3
-            inc TmpA
-            inc TmpZZ
-            inc TmpZZ
-        .endif
-        inc Debug_Kick
-    .endrepeat
+:   ; KickOffsets_CCW
+    lda #.lobyte(KickOffsets_CCW)
+    sta AddressPointer2+0
+    lda #.hibyte(KickOffsets_CCW)
+    sta AddressPointer2+1
 
-    ldy TmpYY
+    ; KickOffsets_Wall_CCW
+    lda #.lobyte(KickOffsets_Wall_CCW)
+    sta AddressPointer3+0
+    lda #.hibyte(KickOffsets_Wall_CCW)
+    sta AddressPointer3+1
 
-;@fail:
-    lda TmpB
-    sta BlockX, y
-    lda TmpC
-    sta BlockY, y
-    lda #1 ; fail
+    lda #1
+    sta TmpX
+@addrDone:
+
+    ; Get offsets into both tables (non-wall and wall)
+    clc
+    lda BlockRotation, y
+    adc TmpX
+    and #$03
+    ;sta KickRotation
+
+    ;lda BlockRotation, y
+    sta MMC5_MultA
+
+    lda #5
+    sta MMC5_MultB
+
+    lda MMC5_MultA
+    sta KickTable      ; table is one byte entries
+    asl a
+    sta KickTableWall ; table is two byte entries
+
+    lda BlockX, y
+    sta KickX
+
+    lda BlockY, y
+    sta KickY
+
+    jsr AlignBlockWithField
+    stx KickAlignX
+    lda TmpY
+    sta KickFieldOffset
+
+    ; AddressPointer1 - FieldGrid
+    ; AddressPointer2 - KickOffsets
+    ; AddressPointer3 - KickOffsets_Wall
+
+    lda #0
+    sta KickStep
+
+    lda CurrentBlock, y
+    asl a
+    asl a
+    clc
+    adc BlockRotation, y
+    sta KickWallX
+    ;tax
+
+@kickLoop:
+    lda KickStep
+    asl a
+    clc
+    adc KickTableWall
+    tay
+
+    ldx KickWallX
+    clc
+    lda KickX+0
+    adc (AddressPointer3), y
+    cmp BlockLeft, x
+    bcc @next
+    cmp BlockRight, x
+    bcs @next
+
+    sta KickX+1 ; "good" X
+
+    iny
+    lda KickY+0
+    adc (AddressPointer3), y
+    sta KickY+1
+
+    lda KickStep
+    clc
+    adc KickTable
+    tay
+    clc
+    lda KickFieldOffset
+    adc (AddressPointer2), y
+    sta TmpY
+
+    ldx KickAlignX
+    jsr CheckCollide_Grid_AfterAlign
+    beq @pass
+
+@next:
+    inc KickStep
+    lda KickStep
+    cmp #5
+    bne @kickLoop
+
+@fail: ; fail
+    pla
+    tay
+    lda #1
     rts
 
-@done:
+@pass:
+    pla
+    tay
+
+    lda KickX+1
+    sta BlockX, y
+    lda KickY+1
+    sta BlockY, y
+
     lda #0
     rts
 
@@ -1805,6 +1886,9 @@ NextBlock_Swap:
     tax
     ldy #0
     lda (AddressPointer1), y
+    .ifdef DEBUG_PIECE
+    lda #DEBUG_PIECE
+    .endif
     sta CurrentBlock, x
 
     ldy #1
@@ -1990,213 +2074,4 @@ _shuffle_clr:
     pla
     tay
     rts
-
-KickOffsets_Wall:
-    ; Spawn -> Left (CCW)
-    KO_WALL  1,  0
-    KO_WALL  1,  1
-    KO_WALL  0, -2
-    KO_WALL  1, -2
-
-    ; Spawn -> Right (CW)
-    KO_WALL -1,  0
-    KO_WALL -1,  1
-    KO_WALL  0, -2
-    KO_WALL -1, -2
-
-    ; Right -> Spawn (CCW)
-    KO_WALL  1,  0
-    KO_WALL  1, -1
-    KO_WALL  0,  2
-    KO_WALL  1,  2
-
-    ; Right -> 2x (CW)
-    KO_WALL  1,  0
-    KO_WALL  1, -1
-    KO_WALL  0,  2
-    KO_WALL  1,  2
-
-    ; 2x -> Right (CCW)
-    KO_WALL -1,  0
-    KO_WALL -1,  1
-    KO_WALL  0, -2
-    KO_WALL -1, -2
-
-    ; 2x -> Left (CW)
-    KO_WALL  1,  0
-    KO_WALL  1,  1
-    KO_WALL  0, -2
-    KO_WALL  1, -2
-
-    ; Left -> 2x (CCW)
-    KO_WALL -1,  0
-    KO_WALL -1, -1
-    KO_WALL  0,  2
-    KO_WALL -1,  2
-
-    ; Left -> spawn (CW)
-    KO_WALL -1,  0
-    KO_WALL -1, -1
-    KO_WALL  0,  2
-    KO_WALL -1,  2
-
-KickOffsets:
-    ; Spawn -> Left (CCW)
-    KO  1,  0
-    KO  1,  1
-    KO  0, -2
-    KO  1, -2
-
-    ; Spawn -> Right (CW)
-    KO -1,  0
-    KO -1,  1
-    KO  0, -2
-    KO -1, -2
-
-    ; Right -> Spawn (CCW)
-    KO  1,  0
-    KO  1, -1
-    KO  0,  2
-    KO  1,  2
-
-    ; Right -> 2x (CW)
-    KO  1,  0
-    KO  1, -1
-    KO  0,  2
-    KO  1,  2
-
-    ; 2x -> Right (CCW)
-    KO -1,  0
-    KO -1,  1
-    KO  0, -2
-    KO -1, -2
-
-    ; 2x -> Left (CW)
-    KO  1,  0
-    KO  1,  1
-    KO  0, -2
-    KO  1, -2
-
-    ; Left -> 2x (CCW)
-    KO -1,  0
-    KO -1, -1
-    KO  0,  2
-    KO -1,  2
-
-    ; Left -> spawn (CW)
-    KO -1,  0
-    KO -1, -1
-    KO  0,  2
-    KO -1,  2
-
-
-.if * - KickOffsets <> 4*8
-    .error .sprintf("KickOffsets wrong size: %d", (* - KickOffsets))
-.else
-    .out .sprintf("KickOffsets size: %d", (* - KickOffsets))
-.endif
-
-KickOffsets_I:
-    ; Spawn -> Left (CCW)
-    KO -1,  0
-    KO  2,  0
-    KO -1,  2
-    KO  2, -1
-
-    ; Spawn -> Right (CW)
-    KO -2,  0
-    KO  1,  0
-    KO -2, -1
-    KO  1,  2
-
-    ; Right -> Spawn (CCW)
-    KO  2,  0
-    KO -1,  0
-    KO  2,  1
-    KO -1, -2
-
-    ; Right -> 2x (CW)
-    KO -1,  0
-    KO  2,  0
-    KO -1,  2
-    KO  2, -1
-
-    ; 2x -> Right (CCW)
-    KO  1,  0
-    KO -2,  0
-    KO  1, -2
-    KO -2,  1
-
-    ; 2x -> Left (CW)
-    KO  2,  0
-    KO -1,  0
-    KO  2,  1
-    KO -1, -2
-
-    ; Left -> 2x (CCW)
-    KO -2,  0
-    KO  1,  0
-    KO -2, -1
-    KO  1,  2
-
-    ; Left -> spawn (CW)
-    KO  1,  0
-    KO -2,  0
-    KO  1, -2
-    KO -2,  1
-
-.if * - KickOffsets_I <> 4*8
-    .error .sprintf("KickOffsets_I wrong size: %d", (* - KickOffsets_I))
-.else
-    .out .sprintf("KickOffsets_I size: %d", (* - KickOffsets_I))
-.endif
-
-KickOffsets_I_Wall:
-    ; Spawn -> Left (CCW)
-    KO_WALL -1,  0
-    KO_WALL  2,  0
-    KO_WALL -1,  2
-    KO_WALL  2, -1
-
-    ; Spawn -> Right (CW)
-    KO_WALL -2,  0
-    KO_WALL  1,  0
-    KO_WALL -2, -1
-    KO_WALL  1,  2
-
-    ; Right -> Spawn (CCW)
-    KO_WALL  2,  0
-    KO_WALL -1,  0
-    KO_WALL  2,  1
-    KO_WALL -1, -2
-
-    ; Right -> 2x (CW)
-    KO_WALL -1,  0
-    KO_WALL  2,  0
-    KO_WALL -1,  2
-    KO_WALL  2, -1
-
-    ; 2x -> Right (CCW)
-    KO_WALL  1,  0
-    KO_WALL -2,  0
-    KO_WALL  1, -2
-    KO_WALL -2,  1
-
-    ; 2x -> Left (CW)
-    KO_WALL  2,  0
-    KO_WALL -1,  0
-    KO_WALL  2,  1
-    KO_WALL -1, -2
-
-    ; Left -> 2x (CCW)
-    KO_WALL -2,  0
-    KO_WALL  1,  0
-    KO_WALL -2, -1
-    KO_WALL  1,  2
-
-    ; Left -> spawn (CW)
-    KO_WALL  1,  0
-    KO_WALL -2,  0
-    KO_WALL  1, -2
-    KO_WALL -2,  1
 .endif
