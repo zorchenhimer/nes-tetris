@@ -163,6 +163,7 @@ Fall
 Place
 Clear
 Garbage
+Paused
 .endenum
 
 .enum GSArg
@@ -775,6 +776,11 @@ VsGameStates:
 
 ; PlayerID in Y
 DoPlayer:
+    lda IsPaused
+    beq :+
+    rts
+:
+
     lda GameState, y
     asl a
     tax

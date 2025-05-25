@@ -6,6 +6,12 @@ Player2 = 1
 VsBlockLocation_X = 24 - (8*2)
 VsBlockLocation_Y = 55 - (8*1)
 
+.pushseg
+.segment "BSS"
+VsBtnStart: .res 2
+
+.popseg
+
 InitVsMode:
     lda #.lobyte(GamePalettes)
     sta AddressPointer1+0
@@ -144,12 +150,46 @@ VsModeFrame:
     .endif
     ldy #Player1
     jsr DoPlayer
+
+    lda #BUTTON_START
+    jsr ButtonPressed
+    sta VsBtnStart, y
+
+    lda #BUTTON_START
+    jsr ButtonReleased
+    beq :+
+    lda #0
+    sta VsBtnStart, y
+:
+
     .ifdef DEBUG_COLORS
         lda #%0011_1110
         sta $2001
     .endif
     ldy #Player2
     jsr DoPlayer
+
+    lda #BUTTON_START
+    jsr ButtonPressed
+    sta VsBtnStart, y
+
+    lda #BUTTON_START
+    jsr ButtonReleased
+    beq :+
+    lda #0
+    sta VsBtnStart, y
+:
+
+    lda VsBtnStart+0
+    and VsBtnStart+1
+    beq @noPause
+    lda #0
+    sta VsBtnStart+0
+    sta VsBtnStart+1
+    lda IsPaused
+    eor #1
+    sta IsPaused
+@noPause:
 
     .ifdef DEBUG_COLORS
         lda #%1001_1110
@@ -291,6 +331,16 @@ NmiVsGame:
         lda Line_TilesP2+i
         sta $2007
     .endrepeat
+
+    lda IsPaused
+    beq :+
+    lda #%0001_1111
+    sta $2001
+    jmp :++
+:
+    lda #%0001_1110
+    sta $2001
+:
 
     rts
 

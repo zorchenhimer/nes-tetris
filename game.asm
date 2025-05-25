@@ -103,6 +103,16 @@ NmiGame:
     sta $2007
     .endrepeat
 
+    lda IsPaused
+    beq :+
+    lda #%0001_1111
+    sta $2001
+    jmp :++
+:
+    lda #%0001_1110
+    sta $2001
+:
+
     ldx DropShake
     bmi @noShake
 
@@ -368,6 +378,14 @@ FrameGame:
 
     ldy #Player1
     jsr DoPlayer
+
+    lda #BUTTON_START
+    jsr ButtonPressed
+    beq :+
+    lda IsPaused
+    eor #1
+    sta IsPaused
+:
 
     ldy #Player1
     jsr UpdateBlock
