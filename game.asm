@@ -416,6 +416,28 @@ FrameGame:
 
 @noShake:
 
+    lda TSpin+0
+    and #$80
+    beq :+
+    lda #'R'
+    jmp :++
+:
+    lda #' '
+:   sta TSpinDebugSprite+1
+
+    lda TSpin+0
+    and #$7F
+    beq :+
+    lda #'T'
+    sta TSpinDebugSprite+1
+:
+    lda #40
+    sta TSpinDebugSprite+0
+    lda #24
+    sta TSpinDebugSprite+3
+    lda #0
+    sta TSpinDebugSprite+2
+
     jsr WaitForIRQ
     jmp FrameGame
 
@@ -468,6 +490,20 @@ ClearCountScores:
     .byte 0, 1, 3, 5, 8
 
 CalcScore:
+    lda GameState+0
+    cmp #GS::Garbage
+    bne :+
+    lda GameStateArg+0
+    bne :+
+    lda TSpin+0
+    and #$7F
+    beq :+
+    clc
+    lda #100
+    adc CurrentScore+ScoreEntry::Score+0
+    sta CurrentScore+ScoreEntry::Score+0
+:
+
     clc
     lda DropScore
     adc CurrentScore+ScoreEntry::Score+0
@@ -943,6 +979,8 @@ UpdateBlock:
         .endif
     .endrepeat
 
+@afterBlocks:
+
     ldx CurrentBlock+0
     lda GameState+0
     cmp #GS::Fall
@@ -972,6 +1010,7 @@ UpdateBlock:
     lda #$FF
     .repeat 4, i
         sta SpriteP1+(i*4)
+        sta SpriteGhostP1+(i*4)
     .endrepeat
 :
     rts

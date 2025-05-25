@@ -8,6 +8,9 @@ BlockRotation: .res 2
 DropSpeed: .res 2
 DebugRotation: .res 1
 RotationDirection: .res 2
+TSpin: .res 2
+BlockX: .res 2
+BlockY: .res 2
 
 KickTable: .res 1
 KickTableWall: .res 1
@@ -71,8 +74,6 @@ dbgBlockOffset: .res 1
 dbgFieldOffset: .res 1
 
 .segment "BSS"
-BlockX: .res 2
-BlockY: .res 2
 
 CurrentX: .res 2
 CurrentY: .res 2
@@ -319,6 +320,18 @@ BlockOffsets_Y:
     .byte 0, 0, 1, 1 ; O, rot 1
     .byte 0, 0, 1, 1 ; O, rot 2
     .byte 0, 0, 1, 1 ; O, rot 3
+
+TSpinOffsets_Y:
+    .byte   0,   0, 20, 20
+    .byte   0,   0, 20, 20
+    .byte $F6, $F6, 10, 10
+    .byte   0,   0, 20, 20
+
+TSpinOffsets_X:
+    .byte   0, 2,   0, 2
+    .byte $FF, 1, $FF, 1
+    .byte   0, 2,   0, 2
+    .byte   0, 2,   0, 2
 
 ; Includes rotations
 BlockOffsets_X:
@@ -774,6 +787,9 @@ DoPlayer:
 
 ; Add garbage to field
 State_Garbage:
+    lda #0
+    sta TSpin, y
+
     bit CurrentBlock+1
     bmi @2pMode
     ; TODO: check for garbage clear
@@ -791,6 +807,65 @@ State_Garbage:
     sta GameState, y
     lda #0
     sta GameStateArg, y
+    rts
+
+; Checks if current player is in a TSpin location
+; TODO: must only happen after a rotation and without
+;       gravity being applied
+CheckTSpin:
+    lda CurrentBlock, y
+    cmp #Block::T
+    beq :+
+    rts
+:
+
+    ; This bit should only be set if the player just
+    ; rotated the piece
+    lda TSpin, y
+    and #$80
+    bne :+
+    lda #0
+    sta TSpin, y
+    rts
+:
+
+    lda #0
+    sta TmpX ; occupied count
+
+    jsr AlignBlockWithField
+
+    tya
+    pha
+
+    ldx #0
+@loop:
+    clc
+    lda TmpY
+    adc TSpinOffsets_Y, x
+    clc
+    adc TSpinOffsets_X, x
+    tay
+    lda (AddressPointer1), y
+    beq @next
+    inc TmpX
+
+@next:
+    inx
+    cpx #4
+    bne @loop
+
+    pla
+    tay
+
+    lda #0
+    sta TSpin, y
+
+    lda TmpX
+    cmp #3
+    bcc :+
+    lda #1
+    sta TSpin, y
+:
     rts
 
 ; Clear rows.  should already know which to clear
@@ -1091,6 +1166,8 @@ SetClearRows:
 
 ; place a block, discover rows to clear
 State_Place:
+    jsr CheckTSpin
+
     ldx CurrentBlock, y
     lda BlockColors_Place, x
     cpy #0
@@ -1133,6 +1210,8 @@ State_Place:
     rts
 
 :
+    lda #0
+    sta TSpin, y
     lda #GS::Garbage
     sta GameState, y
     lda #0
@@ -1325,23 +1404,34 @@ State_Fall:
     lda Option_ShiftStart
     sta RepeatLeft, y
 @btnLeft:
+    lda TSpin, y
+    pha
+
+    lda #0
+    sta TSpin, y
+
     tya
     tax
     dec BlockX, x
-    bpl :+
-    lda #0
-    sta BlockX, x
 
     ; No kicks in left/right stuff
-:   jsr CheckCollide_Walls
-    beq :+
+    jsr CheckCollide_Walls
+    beq :+ ; no collide
+    ; collide
+    pla
+    sta TSpin, y
     tya
     tax
     inc BlockX, x
     jmp @horizDone
 
 :   jsr CheckCollide_Grid
-    beq @horizDone
+    bne :+
+    pla ; no Collide, discard TSpin value
+    jmp @horizDone
+:
+    pla
+    sta TSpin, y
     tya
     tax
     inc BlockX, x
@@ -1364,24 +1454,37 @@ State_Fall:
     lda Option_ShiftStart
     sta RepeatRight, y
 @btnRight:
+    lda TSpin, y
+    pha
+
+    lda #0
+    sta TSpin, y
+
     tya
     tax
     inc BlockX, x
-    lda BlockX, x
-    cmp #BoardWidth+1 ; BoardWidth+1
-    bcc :+
-    lda #BoardWidth ; BoardWidth
-    sta BlockX, x
 
-:   jsr CheckCollide_Walls
+    jsr CheckCollide_Walls
     beq :+
+    ; collide
+    pla
+    sta TSpin, y
+
     tya
     tax
     dec BlockX, x
+    jmp @horizDone
 
 :   jsr CheckCollide_Grid
-    beq @horizDone
-    tya
+    beq :+
+    pla
+    sta TSpin, y
+    jmp :++
+
+:   pla ; no collide, discard TSpin value
+    jmp @horizDone
+
+:   tya
     tax
     dec BlockX, x
 @horizDone:
@@ -1389,6 +1492,8 @@ State_Fall:
     lda #BUTTON_A
     jsr ButtonPressed
     beq @noA
+    lda #$80
+    sta TSpin, y
     tya
     tax
     lda BlockRotation, x
@@ -1418,6 +1523,8 @@ State_Fall:
     lda #BUTTON_B
     jsr ButtonPressed
     beq @rotDone
+    lda #$80
+    sta TSpin, y
     tya
     tax
     lda BlockRotation, x
@@ -1464,6 +1571,7 @@ State_Fall:
     lda #1
     sta DropScore ; for 1P mode.  ignored in 2P
 :
+
     tya
     tax
     inc BlockY, x
@@ -1489,8 +1597,21 @@ DoHardDrop:
 
     bit CurrentBlock+1
     bpl :+
-    jsr @Sp
+    jsr @singlePlayer
 :
+    sec
+    lda GhostY, y
+    sbc BlockY, y
+    beq :+
+    ; Hard Drops that drop any rows will clear TSpin
+    ; bonuses.
+    ; TSpins should not be cancled if the hard drop
+    ; just skips the lock-in (ie, hard drop with nowhere
+    ; to go).
+    lda #0
+    sta TSpin, y
+:
+
     lda GhostY, y
     sta BlockY, y
 
@@ -1500,7 +1621,7 @@ DoHardDrop:
     sta GameStateArg, y
     rts
 
-@Sp:
+@singlePlayer:
     sec
     lda GhostY
     sbc CurrentY

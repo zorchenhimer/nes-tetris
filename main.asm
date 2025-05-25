@@ -25,8 +25,12 @@ MMC5_OFFSET = $3C00 ; Offset from $2000
 ; Defaults
 ;
 
-;BG_COLOR = $20
+.ifdef DEBUG_COLORS
+BG_COLOR = $20
+.else
 BG_COLOR = $0F
+.endif
+
 GHOST_FLASH = 0
 SCREEN_SHAKE = 1
 
@@ -180,6 +184,7 @@ SpriteGhostP2: .res 4*4
 
 GameOverSprites: .res 8*4*4
 GameOverOops: .res 8*4
+TSpinDebugSprite: .res 4
 
 .segment "BSS"
 Palettes: .res 4*8
