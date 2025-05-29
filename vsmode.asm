@@ -47,48 +47,122 @@ InitVsMode:
     sta $5104
     lda #$02
 
-    .repeat 4, i
-        ; HOLD/NEXT headers
-        sta $2043+MMC5_OFFSET+i
-        sta $2049+MMC5_OFFSET+i
+    ldx #4-1
+:       ; HOLD/NEXT headers
+        sta $2043+MMC5_OFFSET, x
+        sta $2049+MMC5_OFFSET, x
 
-        sta $2053+MMC5_OFFSET+i
-        sta $2059+MMC5_OFFSET+i
+        sta $2053+MMC5_OFFSET, x
+        sta $2059+MMC5_OFFSET, x
 
         ; COMBO
-        sta $21CE+MMC5_OFFSET+i
-        sta $22AE+MMC5_OFFSET+i
+        sta $21CE+MMC5_OFFSET, x
+        sta $22AE+MMC5_OFFSET, x
 
         ; LINE
-        sta $222E+MMC5_OFFSET+i
-        sta $230E+MMC5_OFFSET+i
-
-    .endrepeat
+        sta $222E+MMC5_OFFSET, x
+        sta $230E+MMC5_OFFSET, x
+    dex
+    bpl :-
 
     ; Borders
-    lda #$01
+    lda #$02
     ; tops
-    .repeat 12, i
-        sta $20C2+MMC5_OFFSET+i
-        sta $20D2+MMC5_OFFSET+i
-        sta $2362+MMC5_OFFSET+i
-        sta $2372+MMC5_OFFSET+i
-    .endrepeat
+    ldx #12-1
+:       sta $20C2+MMC5_OFFSET, x
+        sta $20D2+MMC5_OFFSET, x
+        sta $2362+MMC5_OFFSET, x
+        sta $2372+MMC5_OFFSET, x
+    dex
+    bpl :-
 
     ; sides
-    .repeat 20, i
-        sta $20E2+MMC5_OFFSET+(i*32)
-        sta $20ED+MMC5_OFFSET+(i*32)
-        sta $20F2+MMC5_OFFSET+(i*32)
-        sta $20FD+MMC5_OFFSET+(i*32)
-    .endrepeat
+    lda #.lobyte($20E2+MMC5_OFFSET)
+    sta AddressPointer1+0
+    lda #.hibyte($20E2+MMC5_OFFSET)
+    sta AddressPointer1+1
+
+    lda #.lobyte($20ED+MMC5_OFFSET)
+    sta AddressPointer2+0
+    lda #.hibyte($20ED+MMC5_OFFSET)
+    sta AddressPointer2+1
+
+    lda #.lobyte($20F2+MMC5_OFFSET)
+    sta AddressPointer3+0
+    lda #.hibyte($20F2+MMC5_OFFSET)
+    sta AddressPointer3+1
+
+    lda #.lobyte($20FD+MMC5_OFFSET)
+    sta AddressPointer4+0
+    lda #.hibyte($20FD+MMC5_OFFSET)
+    sta AddressPointer4+1
+
+    ldy #0
+    ldx #20
+:       sta (AddressPointer1), y
+        sta (AddressPointer2), y
+        sta (AddressPointer3), y
+        sta (AddressPointer4), y
+        jsr @incAddrs
+        dex
+    bne :-
+
+    jmp @overAddrs
+
+@incAddrs:
+    clc
+    lda AddressPointer1+0
+    adc #32
+    sta AddressPointer1+0
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer1+1
+
+    clc
+    lda AddressPointer2+0
+    adc #32
+    sta AddressPointer2+0
+    lda AddressPointer2+1
+    adc #0
+    sta AddressPointer2+1
+
+    clc
+    lda AddressPointer3+0
+    adc #32
+    sta AddressPointer3+0
+    lda AddressPointer3+1
+    adc #0
+    sta AddressPointer3+1
+
+    clc
+    lda AddressPointer4+0
+    adc #32
+    sta AddressPointer4+0
+    lda AddressPointer4+1
+    adc #0
+    sta AddressPointer4+1
+    rts
+
+@overAddrs:
 
     ; text boxes
+    ldx #4-1
+:       sta $21AE+MMC5_OFFSET, x
+        sta $226E+MMC5_OFFSET, x
+        sta $228E+MMC5_OFFSET, x
+        sta $234E+MMC5_OFFSET, x
+    dex
+    bpl :-
+
+    ; Bottom attack
+    lda #$C2
+    .repeat 2, i
+        sta $2322+MMC5_OFFSET+(i*32)
+    .endrepeat
+
+    lda #$82
     .repeat 4, i
-        sta $21AE+MMC5_OFFSET+i
-        sta $226E+MMC5_OFFSET+i
-        sta $228E+MMC5_OFFSET+i
-        sta $234E+MMC5_OFFSET+i
+        sta $22FD+MMC5_OFFSET+(i*32)
     .endrepeat
 
     lda #%0000_0001
