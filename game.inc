@@ -80,6 +80,8 @@ CurrentY: .res 2
 GhostY: .res 2
 GhostX: .res 1 ; debug only
 
+PlaceWait: .res 2
+
 MinX: .res 1
 MaxX: .res 1
 
@@ -1515,7 +1517,7 @@ State_Fall:
     sta RotationDirection, y
 
     jsr CheckCollide_Kicks
-    beq @rotDone
+    beq @aOK
     ; Rotation collides; rotate back
     tya
     tax
@@ -1523,6 +1525,12 @@ State_Fall:
     lda #$03
     and BlockRotation, x
     sta BlockRotation, x
+    jmp @rotDone
+
+@aOK:
+    ; reset wait counter
+    lda #$80
+    sta PlaceWait, y
     jmp @rotDone
 
 @noA:
@@ -1545,7 +1553,7 @@ State_Fall:
     sta RotationDirection, y
 
     jsr CheckCollide_Kicks
-    beq @rotDone
+    beq @bOK
     ; Rotation collides; rotate back
     tya
     tax
@@ -1553,9 +1561,14 @@ State_Fall:
     lda #$03
     and BlockRotation, x
     sta BlockRotation, x
+    jmp @rotDone
+
+@bOK:
+    ; reset wait counter
+    lda #$80
+    sta PlaceWait, y
 
 @rotDone:
-
     lda SoftDrop, y
     beq @noSoft
     sec
@@ -1585,6 +1598,30 @@ State_Fall:
     sta DropSpeed, y
     jsr CheckCollide_Grid
     beq @noDrop
+
+    ; "hover" substate?  don't place block immediately
+    ; if high bit set, wait isn't active.
+    ; this is a disgusting hack.  do this
+    ; shit correctly, lmao
+    tya
+    tax
+    lda PlaceWait, y
+    bpl :+
+    dec BlockY, x
+    lda #1
+    sta PlaceWait, y
+    jmp @noDrop
+
+:   beq @place
+    dec BlockY, x
+    dec PlaceWait, x
+    bne @noDrop
+
+    inc BlockY, x
+    lda #$80
+    sta PlaceWait, x
+
+@place:
     tya
     tax
     dec BlockY, x
