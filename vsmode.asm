@@ -99,7 +99,8 @@ InitVsMode:
 
     ldy #0
     ldx #20
-:       sta (AddressPointer1), y
+:       lda #$02
+        sta (AddressPointer1), y
         sta (AddressPointer2), y
         sta (AddressPointer3), y
         sta (AddressPointer4), y
@@ -147,6 +148,7 @@ InitVsMode:
 
     ; text boxes
     ldx #4-1
+    lda #$02
 :       sta $21AE+MMC5_OFFSET, x
         sta $226E+MMC5_OFFSET, x
         sta $228E+MMC5_OFFSET, x
