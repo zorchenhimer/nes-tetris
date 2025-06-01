@@ -755,6 +755,7 @@ UpdateActiveBlocks_Vs:
     lda #$FF
     .repeat 4, i
         sta SpriteP1+(i*4)
+        sta SpriteGhostP1+(i*4)
     .endrepeat
 :
 
@@ -847,6 +848,7 @@ UpdateActiveBlocks_Vs:
     lda #$FF
     .repeat 4, i
         sta SpriteP2+(i*4)
+        sta SpriteGhostP2+(i*4)
     .endrepeat
 :
 
