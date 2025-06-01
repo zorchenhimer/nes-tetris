@@ -81,10 +81,10 @@ func encode(data []uint32, output io.Writer) {
 				}
 			}
 			l := len(d)
-			if val == 0 {
-				fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, val)
+			if val&255 == 0 {
+				fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, 0)
 			} else {
-				fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, val-1)
+				fmt.Fprintf(output, ".byte %2d | $80, $%02X\n", l, (val-1)&255)
 			}
 
 		// not repeat
@@ -102,7 +102,7 @@ func encode(data []uint32, output io.Writer) {
 
 			str := []string{}
 			for _, v := range d {
-				str = append(str, fmt.Sprintf("$%02X", v))
+				str = append(str, fmt.Sprintf("$%02X", v&255))
 			}
 			fmt.Fprintf(output, ".byte %2d | $00, %s\n", l, strings.Join(str, ", "))
 
