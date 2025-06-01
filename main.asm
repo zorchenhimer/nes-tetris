@@ -197,6 +197,8 @@ Bin_Tiles: .res 6
 FrameCount: .res 1
 
 CurrentGameMode: .tag GameMode
+LagNMI: .res 1
+LagIRQ: .res 1
 
     .include "scores.asm"
 
@@ -281,6 +283,11 @@ IrqCall:
     jmp (ptrIRQ)
 
 IRQ:
+    bit SleepingIrq
+    bpl :+
+    inc LagIRQ
+:
+
     pha
     txa
     pha
@@ -297,8 +304,14 @@ IRQ:
     lda AddressPointer2+1
     pha
 
+    lda TmpX
+    pha
+
     bit $5204
     jsr IrqCall
+
+    pla
+    sta TmpX
 
     pla
     sta AddressPointer2+1
@@ -338,6 +351,26 @@ BareNmiHandler:
     rts
 
 NMI:
+    bit Sleeping
+    bpl :+
+    inc LagNMI
+:
+
+    pha
+
+    txa
+    pha
+    tya
+    pha
+
+    lda AddressPointer1+0
+    pha
+    lda AddressPointer1+1
+    pha
+
+    lda TmpA
+    pha
+    lda TmpX
     pha
 
     jsr NmiTrampoline
@@ -355,6 +388,21 @@ NMI:
     sta Sleeping
 
     inc FrameCount
+
+    pla
+    sta TmpX
+    pla
+    sta TmpA
+
+    pla
+    sta AddressPointer1+1
+    pla
+    sta AddressPointer1+0
+
+    pla
+    tay
+    pla
+    tax
 
     pla
     rti
@@ -419,10 +467,10 @@ RESET:
     lda #0
     sta ModeSelection
     sta SingleBlockId
-
-    lda #0
     sta CurrentGameType
     sta EN_Cursor
+    sta LagNMI
+    sta LagIRQ
 
     lda #InitIndex::Menu
     jmp GotoInit
@@ -493,6 +541,119 @@ StartFrame:
     lda #%1000_0000
     sta $2000
 
+; Labels for all the clear types. Tiles and MMC5 metadata.
+; The idea is these will be written line-by line above
+; the playfield when clears happen.
+ClearNames:
+    ; Single
+    .byte 5  ; length
+    .word :+ ; data
+
+    ; Double
+    .byte 5
+    .word :++
+
+    ; Triple
+    .byte 6
+    .word :+++
+
+    ; Quad
+    .byte 9
+    .word :++++
+
+    ; Mini T-Spin
+    .byte 3
+    .word :+++++
+
+    ; T-Spin
+    .byte 5
+    .word :++++++
+
+    ; Back2Back
+    .byte 8
+    .word :+++++++
+
+    ; Perfect Clear
+    .byte 10
+    .word :++++++++
+
+    ; Single
+:   .repeat 5, i ; tiles
+        .byte $91+i
+    .endrepeat
+
+    .repeat 5 ; mmc5
+        .byte $62
+    .endrepeat
+
+    ; Double
+:   .repeat 5, i
+        .byte $A1+i
+    .endrepeat
+
+    .repeat 5
+        .byte $62
+    .endrepeat
+
+    ; Triple
+:   .repeat 6, i
+        .byte $B1+i
+    .endrepeat
+
+    .repeat 6
+        .byte $62
+    .endrepeat
+
+    ; Quad
+:   .repeat 9, i
+        .byte $C1+i
+    .endrepeat
+
+    .repeat 9
+        .byte $62
+    .endrepeat
+
+    ; Mini T-Spin (just "mini")
+:   .repeat 3, i
+        .byte $9D+i
+    .endrepeat
+
+    .repeat 3
+        .byte $62
+    .endrepeat
+
+    ; T-Spin
+:   .repeat 5, i
+        .byte $98+i
+    .endrepeat
+
+    .repeat 5
+        .byte $62
+    .endrepeat
+
+    ; Back2Back
+:   .repeat 8, i
+        .byte $A8 + i
+    .endrepeat
+
+    .repeat 4
+        .byte $62
+    .endrepeat
+    .repeat 4
+        .byte $82
+    .endrepeat
+
+    ; Perfect Clear
+:   .repeat 6, i
+        .byte $BA + i
+    .endrepeat
+    .repeat 4, i
+        .byte $CA + i
+    .endrepeat
+
+    .repeat 10
+        .byte $62
+    .endrepeat
 
 Palette_Bg:
     .byte $0F, $20, $00, $10

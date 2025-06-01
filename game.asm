@@ -1,5 +1,23 @@
 .include "game.inc"
 
+.pushseg
+.segment "BSS"
+
+SoloNotifTimer: .res 1
+SoloNotifClear: .res 1
+
+; Address (word)
+; Length (byte)
+; data (byte+)
+NotifBufferTiles: .res 40
+NotifBufferMMC5:  .res 40
+
+; Address (word)
+; Length (byte)
+NotifBufferClear: .res 20
+
+.popseg
+
 BlockLocation_X = 88 - 8
 BlockLocation_Y = 40 - 1
 
@@ -102,6 +120,59 @@ NmiGame:
     lda Level_Tiles+j
     sta $2007
     .endrepeat
+
+    lda SoloNotifClear
+    beq @noNotifClear
+
+    ldx #0
+@clearLoop:
+    lda NotifBufferClear+1, x
+    beq @noNotifClear
+    sta $2006
+    lda NotifBufferClear+0, x
+    sta $2006
+    inx
+    inx
+    lda NotifBufferClear, x
+    inx
+    tay
+    lda #' '
+:   sta $2007
+    dey
+    bne :-
+    jmp @clearLoop
+
+@noNotifClear:
+
+    lda #0
+    sta SoloNotifClear
+
+    ; Notif stiff
+    ldx #0
+@notifLoop:
+    lda NotifBufferTiles+1, x
+    beq @notifDone
+    sta $2006
+    lda NotifBufferTiles+0, x
+    sta $2006
+    inx
+    inx
+    lda NotifBufferTiles, x ; length
+    tay
+    inx
+@notifLine:
+    lda NotifBufferTiles, x
+    sta $2007
+    inx
+    dey
+    bne @notifLine
+    jmp @notifLoop
+
+@notifDone:
+
+    lda #$00
+    sta NotifBufferTiles+0
+    sta NotifBufferTiles+1
 
     lda IsPaused
     beq :+
@@ -389,6 +460,14 @@ FrameGame:
 
     ldy #Player1
     jsr UpdateBlock
+
+    lda LastClearCount+0
+    bpl :+
+    jsr QueueNotifsSolo
+    lda LastClearCount+0
+    and #$7F
+    sta LastClearCount+0
+:
 
     ldx TimeFrame
     inx
@@ -1034,6 +1113,50 @@ UpdateBlock:
     rts
 
 IrqDrawBoard:
+
+    lda NotifBufferMMC5+1
+    beq @noNotif
+    ; Notif stiff
+    ldx #0
+@notifLoop:
+    lda NotifBufferMMC5+1, x
+    beq @notifDone
+    sta AddressPointer1+1
+    lda NotifBufferMMC5+0, x
+    sta AddressPointer1+0
+    inx
+    inx
+    lda NotifBufferMMC5, x ; length
+    sta TmpX
+    inx
+    ldy #0
+@notifLine:
+    lda NotifBufferMMC5, x
+    sta (AddressPointer1), y
+    inx
+    iny
+    dec TmpX
+    bne @notifLine
+    jmp @notifLoop
+
+@notifDone:
+
+    lda #0
+    ldx #.sizeof(NotifBufferTiles)-1
+:   sta NotifBufferTiles, x
+    sta NotifBufferMMC5, x
+    dex
+    bpl :-
+
+@noNotif:
+
+    lda SoloNotifTimer
+    beq :+
+    dec SoloNotifTimer
+    bne :+
+    lda #1
+    sta SoloNotifClear
+:
 
     bit HoldPiece
     bpl :+
@@ -1780,6 +1903,192 @@ DebugKicks:
     sta GhostX+0
     lda dbgGhost_Y
     sta GhostY+0
+    rts
+
+TxtAddr_SoloPerfectClear = $236C
+TxtAddr_TopStart = $204C
+
+TopTextLines:
+    .repeat 3, i
+        .word TxtAddr_TopStart + (32*i)
+    .endrepeat
+
+TopTextLines_MMC5:
+    .repeat 3, i
+        .word TxtAddr_TopStart+MMC5_OFFSET + (32*i)
+    .endrepeat
+
+QueueSingleNotif:
+    sta MMC5_MultA
+    lda #3
+    sta MMC5_MultB
+    ldy MMC5_MultA
+
+    lda ClearNames, y
+    sta TmpX ; data length
+    sta NotifBufferTiles, x
+    ;sta NotifBufferClear, x
+    sta NotifBufferMMC5, x
+    inx
+
+    lda ClearNames+1, y
+    sta AddressPointer1+0
+    lda ClearNames+2, y
+    sta AddressPointer1+1
+
+    ldy #0
+    lda TmpX
+    sta (AddressPointer3), y
+    inc AddressPointer3+0
+    bne :+
+    inc AddressPointer3+1
+:
+
+    clc
+    lda AddressPointer1+0
+    adc TmpX
+    sta AddressPointer2+0
+
+    lda AddressPointer1+1
+    adc #0
+    sta AddressPointer2+1
+
+    ldy #0
+@loop:
+    lda (AddressPointer1), y
+    sta NotifBufferTiles, x
+    lda (AddressPointer2), y
+    sta NotifBufferMMC5, x
+    iny
+    inx
+    dec TmpX
+    bne @loop
+    rts
+
+SoloNotifNextLine:
+    lda TmpY
+    asl a
+    tay
+    inc TmpY
+
+    lda TopTextLines+0, y
+    sta NotifBufferTiles, x
+    ;sta NotifBufferClear, x
+    sta AddressPointer4+0
+
+    lda TopTextLines_MMC5+0, y
+    sta NotifBufferMMC5, x
+    inx
+
+    lda TopTextLines+1, y
+    sta NotifBufferTiles, x
+    ;sta NotifBufferClear, x
+    sta AddressPointer4+1
+
+    lda TopTextLines_MMC5+1, y
+    sta NotifBufferMMC5, x
+    inx
+
+    ldy #0
+    lda AddressPointer4+0
+    sta (AddressPointer3), y
+    iny
+    lda AddressPointer4+1
+    sta (AddressPointer3), y
+
+    clc
+    lda AddressPointer3+0
+    adc #2
+    sta AddressPointer3+0
+
+    lda AddressPointer3+1
+    adc #0
+    sta AddressPointer3+1
+
+    rts
+
+QueueNotifsSolo:
+    lda #.lobyte(NotifBufferClear)
+    sta AddressPointer3+0
+    lda #.hibyte(NotifBufferClear)
+    sta AddressPointer3+1
+
+    ldx #0
+    bit LastClearType+0
+    bpl @noPerfect
+    lda #.lobyte(TxtAddr_SoloPerfectClear)
+    sta NotifBufferTiles, x
+    ;sta NotifBufferClear, x
+    sta AddressPointer4+0
+    lda #.lobyte(TxtAddr_SoloPerfectClear+MMC5_OFFSET)
+    sta NotifBufferMMC5, x
+    inx
+    lda #.hibyte(TxtAddr_SoloPerfectClear)
+    sta NotifBufferTiles, x
+    ;sta NotifBufferClear, x
+    sta AddressPointer4+1
+    lda #.hibyte(TxtAddr_SoloPerfectClear+MMC5_OFFSET)
+    sta NotifBufferMMC5, x
+    inx
+
+    ldy #0
+    lda AddressPointer4+0
+    sta (AddressPointer3), y
+    iny
+    lda AddressPointer4+1
+    sta (AddressPointer3), y
+
+    clc
+    lda AddressPointer3+0
+    adc #2
+    sta AddressPointer3+0
+
+    lda AddressPointer3+1
+    adc #0
+    sta AddressPointer3+1
+
+    lda #ClearText::PerfectClear
+    jsr QueueSingleNotif
+
+@noPerfect:
+
+    lda #0
+    sta TmpY ; Current line
+
+    ; if tspin
+    ;   queue tspin text
+    ; queue lines cleared text
+
+    lda LastClearType+0
+    and #$3F
+    cmp #GarbageLines::TSpinSingle
+    bcc @notTSpin
+    ; TSpin
+
+    jsr SoloNotifNextLine
+
+    lda #ClearText::TSpin
+    jsr QueueSingleNotif
+
+    ; check for mini
+    lda LastClearType+0
+    and #$3F
+    cmp #GarbageLines::MiniTSpinSingle
+    bcc @notTSpin
+
+
+@notTSpin:
+    ; non-tspin
+    jsr SoloNotifNextLine
+
+    lda LastClearType+0
+    and #$3F
+    jsr QueueSingleNotif
+
+@checkB2B:
+
+    lda #60*2
+    sta SoloNotifTimer
     rts
 
 BlockSpriteLookupY:

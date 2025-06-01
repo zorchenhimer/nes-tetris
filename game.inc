@@ -105,6 +105,7 @@ Level: .res 2
 Combo: .res 2 ; one byte per player
 Lines: .res 4 ; two bytes per player
 UpdateCombo: .res 2
+Back2Back: .res 2
 
 TmpScore: .res 3
 
@@ -131,6 +132,12 @@ DirtyLeft: .res 1
 
 Debug_Kick: .res 1
 
+; Index into GarbagePerLine (GarbageLines enum)
+LastClearType: .res 2
+
+LastClearCount: .res 2
+
+
 .popseg
 
 SOFT_SPEED = 35
@@ -153,6 +160,22 @@ PAL_D  = $C0
 
 BlockGridOffset_X = 2
 ;BlockGridOffset_Y = 1
+
+.enum GarbageLines
+Single
+Double
+Triple
+Tetris
+
+TSpinSingle
+TSpinDouble
+TSpinTriple
+
+MiniTSpinSingle
+MiniTSpinDouble
+
+;PerfectClear
+.endenum
 
 .enum Rot
 None
@@ -800,7 +823,6 @@ State_Garbage:
 
     bit CurrentBlock+1
     bmi @2pMode
-    ; TODO: check for garbage clear
     jsr NextBlock
     lda #GS::Fall
     sta GameState, y
@@ -818,8 +840,6 @@ State_Garbage:
     rts
 
 ; Checks if current player is in a TSpin location
-; TODO: must only happen after a rotation and without
-;       gravity being applied
 CheckTSpin:
     lda CurrentBlock, y
     cmp #Block::T
@@ -876,31 +896,122 @@ CheckTSpin:
 :
     rts
 
+; TmpA has rows cleared
+; Return in A: 0 for false, 1 for true
+CheckPerfectClear:
+    sec
+    lda #20-1
+    sbc TmpA
+    sta MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+
+    tya
+    pha
+
+    ldy MMC5_MultA
+    ldx #10
+@search:
+    lda (AddressPointer1), y
+    bne @nope
+    iny
+    dex
+    bne @search
+    pla
+    tay
+    lda #1
+    rts
+
+@nope:
+    pla
+    tay
+    lda #0
+    rts
+
 ; Clear rows.  should already know which to clear
 State_Clear:
     jsr @addrs
     jsr ExpandClearRowIds
 
+    lda TmpA
+    sta LastClearCount, y
+
     lda GameStateArg, y
     cmp #GSArg::Clear
-    bne :+
+    bne @notFirst
+    ; first frame of clear
+
+    lda TSpin, y
+    and #$7F
+    bne @tspin
+    lda TmpA
+    ;lda GarbagePerLine, x
+    sta LastClearType, y
+    jmp :+
+
+@tspin:
+    lda TmpA
+    clc
+    adc #GarbageLines::TSpinSingle
+    ;tax
+    ;lda GarbagePerLine, x
+    sta LastClearType, y
+
+:
+
+    lda LastClearType, y
+    cmp #GarbageLines::Tetris
+    bcc @noB2B
+
+    ldx Back2Back, y
+    inx
+    cpx #1
+    bcc :+
+    ldx #1
+:   txa
+    sta Back2Back, y
+    jmp :+
+
+@noB2B:
+    lda #$FF
+    sta Back2Back, x
+:
+
+    jsr CheckPerfectClear
+    beq :+
+
+    lda LastClearType, y
+    ora #$80
+    sta LastClearType, y
+
+:
+
+    tya
+    tax
+    dec LastClearType, x
+
     ; set rows to white
     tya
     tax
     dec GameStateArg, x
     lda #CLEAR_FRAMES
     sta GameStateArgB, x
-    jmp SetClearRows
-:
 
-    lda GameStateArg, y
+    lda LastClearCount, y
+    ora #$80
+    sta LastClearCount, y
+
+    jmp SetClearRows
+
+@notFirst:
+    lda GameStateArg, y ; state of clear
     bpl :+
     jmp @moveDown
 :
 
     tya
     tax
-    dec GameStateArgB, x
+    dec GameStateArgB, x ; countdown for next animation
     beq :+
     rts
 :
@@ -1083,10 +1194,14 @@ VsDoClearRow:
     rts
 
 ; Expands an array of four bytes to an array of 20
-; (eg, ClearRowIdsP1 -> ClearRows)
+; (eg, ClearRowIdsP1 (AddressPointer2) -> ClearRows)
+; TmpA contains number of rows
 ExpandClearRowIds:
     tya
     pha
+
+    lda #0
+    sta TmpA
 
     lda BlockY, y
     sta TmpY
@@ -1109,6 +1224,7 @@ ExpandClearRowIds:
     tax
     lda #1
     sta ClearRows, x
+    inc TmpA
 @next:
     iny
     cpy #4
@@ -2238,4 +2354,54 @@ _shuffle_clr:
     pla
     tay
     rts
+
+GarbagePerLine:
+    .byte 0 ; single
+    .byte 1 ; double
+    .byte 2 ; triple
+    .byte 4 ; tetris / quad
+
+    .byte 2 ; T-Spin Single
+    .byte 4 ; T-Spin Double
+    .byte 6 ; T-Spin Triple
+
+    .byte 0 ; mini T-Spin single
+    .byte 1 ; mini T-Spin double
+
+    .byte 10 ; Perfect Clear. good luck, lmao
+
+GarbagePerCombo:
+    .byte 0 ; 0 combo
+
+    ; 1, 2
+    .byte 1
+    .byte 1
+
+    ; 3, 4
+    .byte 2
+    .byte 2
+
+    ; 5, 6
+    .byte 3
+    .byte 3
+
+    ; 7, 8, 9
+    .byte 4
+    .byte 4
+    .byte 4
+
+    ; 10+
+    .byte 5
+
+.enum ClearText
+Single
+Double
+Triple
+Quadruple
+
+MiniTSpin
+TSpin
+Back2Back
+PerfectClear
+.endenum
 .endif
