@@ -723,27 +723,23 @@ CalcScore:
     lda UpdateCombo
     beq @noCombo
 
-    ; TODO: add combo to score
+    lda #50
+    sta MMC5_MultA
+    lda Combo+0
+    sta MMC5_MultB
 
-    ;lda #50
-    ;sta MMC5_MultA
-    ;lda Combo+0
-    ;sta MMC5_MultB
+    clc
+    lda MMC5_MultA
+    adc CurrentScore+ScoreEntry::Score+0
+    sta CurrentScore+ScoreEntry::Score+0
 
-    ;lda MMC5_MultA
-    ;sta MathA+0
+    lda MMC5_MultB
+    adc CurrentScore+ScoreEntry::Score+1
+    sta CurrentScore+ScoreEntry::Score+1
 
-    ;lda #50
-    ;sta MMC5_MultA
-    ;lda Combo+1
-    ;sta MMC5_MultB
-
-    ;lda MMC5_MultA
-    ;sta MathA+1
-
-    ;lda MathA+0
-    ;sta MMC5_MultA
-    ;lda 
+    lda CurrentScore+ScoreEntry::Score+2
+    adc #0
+    sta CurrentScore+ScoreEntry::Score+2
 
 @noCombo:
 
