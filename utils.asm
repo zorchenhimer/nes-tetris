@@ -637,6 +637,7 @@ Init_Routines:
     .word InitScores_EnterName
     .word InitMenu
     .word InitDebug
+    .word InitPracticeMenu
 
 Init_ScreensNT0:
     .word Screen_Playfield
@@ -647,6 +648,7 @@ Init_ScreensNT0:
     .word Screen_NewHighScore
     .word Screen_Menu
     .word Screen_Playfield
+    .word $0000 ; practice menu
 
 Init_ScreensNT1:
     .word $0000 ; game
@@ -657,6 +659,7 @@ Init_ScreensNT1:
     .word Screen_NewHighScore_Shifted ; new score
     .word $0000 ; menu
     .word $0000 ; debug
+    .word $0000 ; practice menu
 
 Init_BanksLower: ; lower 16k
     .byte 0 ; game
@@ -667,6 +670,7 @@ Init_BanksLower: ; lower 16k
     .byte 1 ; Scores_EnterName
     .byte 1 ; Main Menu
     .byte 0 ; Debug
+    .byte 0 ; practice menu
 
 ; Destination index in A
 GotoInit:
@@ -749,6 +753,9 @@ GotoInit:
     tax
     lda Init_BanksLower, x
     jsr MMC5_SelectLowBank
+
+    ldx #$FF
+    txs
 
     jmp (AddressPointer1)
     ;rts

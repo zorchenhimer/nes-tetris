@@ -35,9 +35,9 @@ ModeSpritePalettes_Bright:
 
 ModeMenuMovement:
     ;     Up                  Down                   Left                Right
-    .byte MMSel::Marathon,    MMSel::SingleBlock, MMSel::Marathon,    MMSel::Classic     ; Marathon
-    .byte MMSel::Classic,     MMSel::SingleBlock, MMSel::Marathon,    MMSel::Classic     ; Classic
-    .byte MMSel::Marathon,    MMSel::TimeAttack,  MMSel::SingleBlock, MMSel::SingleBlock ; Single Block
+    .byte MMSel::Practice,    MMSel::SingleBlock, MMSel::Practice,    MMSel::Classic     ; Practice
+    .byte MMSel::Classic,     MMSel::SingleBlock, MMSel::Practice,    MMSel::Classic     ; Classic
+    .byte MMSel::Practice,    MMSel::TimeAttack,  MMSel::SingleBlock, MMSel::SingleBlock ; Single Block
     .byte MMSel::SingleBlock, MMSel::NoHold,      MMSel::TimeAttack,  MMSel::TimeAttack  ; Time Attack
     .byte MMSel::TimeAttack,  MMSel::NoHold,      MMSel::NoHold,      MMSel::DirtyBoard  ; No Hold
     .byte MMSel::TimeAttack,  MMSel::DirtyBoard,  MMSel::NoHold,      MMSel::DirtyBoard  ; Dirty Board
@@ -57,10 +57,10 @@ InitModeMenu:
     sta AddressPointer1+1
     jsr LoadSpPalettes
 
-    ;lda #.lobyte(mm_Marathon)
+    ;lda #.lobyte(mm_Practice)
     ;sta MenuSelectFn+0
     ;sta MenuClearFn+0
-    ;lda #.hibyte(mm_Marathon)
+    ;lda #.hibyte(mm_Practice)
     ;sta MenuSelectFn+1
     ;sta MenuClearFn+1
 
@@ -218,8 +218,13 @@ FrameModeMenu:
     bne :+
     lda #InitIndex::Debug
     jmp GotoInit
-:
-    lda #InitIndex::Game
+
+:   cmp #MMSel::Practice
+    bne :+
+    lda #InitIndex::PracticeMenu
+    jmp GotoInit
+
+:   lda #InitIndex::Game
     jmp GotoInit
 
 UpdateSingleBlock:
@@ -359,14 +364,14 @@ IrqModeMenu:
     jmp (MenuSelectFn)
 
 ModeMenuIrqFunctions:
-    .word mm_Marathon
+    .word mm_Practice
     .word mm_Classic
     .word mm_SingleBlock
     .word mm_TimeAttack
     .word mm_NoHold
     .word mm_DirtyBoard
 
-mm_Marathon:
+mm_Practice:
     .repeat 12, i
         stx $2064+MMC5_OFFSET+i
         stx $20E4+MMC5_OFFSET+i

@@ -12,6 +12,7 @@ SOURCES = \
 	main.asm \
 	menu.asm \
 	mode-menu.asm \
+	menu-practice.asm \
 	scores.asm \
 	game.asm \
 	game.inc \
@@ -26,7 +27,9 @@ SOURCES = \
 	new-high-score-a.i \
 	new-high-score-b.i \
 	playfield-vs.i \
-	debug-field.i
+	practice-boards.i \
+	debug-field.i \
+	basic-menu.asm
 
 CHR = tiles.chr tiles2.chr tiles3.chr tiles4.chr
 
@@ -61,7 +64,7 @@ bin/main.o: $(SOURCES) $(CHR)
 images/%.bmp: images/%.aseprite
 	aseprite -b $< --save-as $@
 
-playfield-vs.i: screens/vs-playfield.tmx
+playfield-vs.i: screens/vs-playfield.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
 playfield-rle.i: screens/playfield.tmx convert-map.go
@@ -84,3 +87,6 @@ menu-screen.i: screens/main-menu.tmx
 
 mode-menu.i: screens/mode-menu.tmx
 	go run convert-map.go $< $@ --rle
+
+practice-boards.i: screens/practice-boards.tmx practice-boards.go
+	go run practice-boards.go $< $@

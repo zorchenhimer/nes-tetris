@@ -39,6 +39,9 @@ BUTTON_REPEAT_START = 15
 ; Held wait time in frames between repeated input
 BUTTON_REPEAT = 3
 
+TRUE = 1
+FALSE = 0
+
 .macro SetIRQ Line, Addr
     lda #Line
     sta $5203
@@ -86,6 +89,7 @@ Options
 NewScore
 Menu
 Debug
+PracticeMenu
 .endenum
 
 .enum GameBaseType
@@ -122,12 +126,13 @@ Classic
 .endenum
 
 .enum MMSel
-Marathon
+Practice
 Classic
 SingleBlock
 TimeAttack
 NoHold
 DirtyBoard
+Marathon
 .endenum
 
 
@@ -225,7 +230,9 @@ LagIRQ: .res 1
 
     .include "game.asm"
     .include "vsmode.asm"
+    .include "basic-menu.asm"
     .include "options.asm"
+    .include "menu-practice.asm"
 
 .ifdef DEBUG_FIELD
 DebugField:
