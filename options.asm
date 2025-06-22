@@ -3,11 +3,6 @@
 
 .segment "BSS"
 
-Opt_Selection:     .res 1
-Opt_PrevSelection: .res 1
-
-Opt_NmiUpdate_Addr: .res 2
-Opt_NmiUpdate_Data: .res 3
 .popseg
 
 OptTitle_ADDR = $206A
@@ -80,17 +75,20 @@ OptionMenuData:
 :   .asciiz "Dbg show ghost"
 :   .asciiz "Dbg enable hold"
 :   .asciiz "Dbg enable hard drop"
-:   .asciiz "Dbg clear save"
+:   .asciiz "Clear Save Data"
 
 
 Options_PrevMenu:
+    DisableIRQ
     DisableRam
     lda #InitIndex::Menu
     jmp GotoInit
 
 Options_ClearSave:
-    brk ; TODO
-    rts
+    DisableIRQ
+    DisableRam
+    lda #InitIndex::ConfirmClear
+    jmp GotoInit
 
 InitOptions:
     lda #.lobyte(OptPal_Off)
@@ -115,3 +113,98 @@ InitOptions:
     EnableRam
     jmp BasicMenu::Init
 
+DataConfirmClear:
+    .asciiz "Are you sure?"
+
+    .word :+
+    .byte BasicMenu::ItemType::Button
+    .word @back
+
+    .word :++
+    .byte BasicMenu::ItemType::Button
+    .word @clear
+
+    .word $0000
+
+:   .asciiz "NO"
+:   .asciiz "YES"
+
+@back:
+    lda #InitIndex::Options
+    jmp GotoInit
+
+@clear:
+    DisableIRQ
+    jsr ClearRam
+
+    jsr WaitForNMI
+
+    lda #$22
+    sta $2006
+    lda #$49
+    sta $2006
+
+    ldx #0
+:   lda @clearText, x
+    beq :+
+    sta $2007
+    inx
+    jmp :-
+:
+
+    lda #0
+    sta $2005
+    sta $2005
+    jsr WaitForNMI
+
+    ; Wait two seconds, or if A, B, or
+    ; START are pressed
+    lda #120
+    sta TmpA
+@wait:
+    jsr ReadControllers
+
+    lda #BUTTON_B ; b
+    jsr ButtonPressed
+    bne @end
+
+    lda #BUTTON_A ; a
+    jsr ButtonPressed
+    bne @end
+
+    lda #BUTTON_START ; start
+    jsr ButtonPressed
+    bne @end
+
+    jsr WaitForNMI
+    dec TmpA
+    bne @wait
+
+@end:
+    lda #InitIndex::Options
+    jmp GotoInit
+
+@clearText:
+    .asciiz "Save Data Cleared"
+
+InitConfirmClear:
+    lda #.lobyte(OptPal_Off)
+    sta AddressPointer1+0
+    lda #.hibyte(OptPal_Off)
+    sta AddressPointer1+1
+    ldx #0
+    jsr LoadPalette
+
+    lda #.lobyte(OptPal_On)
+    sta AddressPointer1+0
+    lda #.hibyte(OptPal_On)
+    sta AddressPointer1+1
+    ldx #1
+    jsr LoadPalette
+
+    lda #.lobyte(DataConfirmClear)
+    sta BasicMenu::MenuData+0
+    lda #.hibyte(DataConfirmClear)
+    sta BasicMenu::MenuData+1
+
+    jmp BasicMenu::Init

@@ -239,20 +239,20 @@ SaveTypeColumn:
 .endmacro
 
 InitRam:
-    lda Debug_ClearSave
-    bne @reset
 
+    ; Check for the magic values in ram.  If they
+    ; aren't there, reset all of save ram.
     ldx #0
 @loop:
     lda Save_CheckVal, x
     cmp Save_CheckVal_Check, x
-    bne @reset
+    bne ClearRam
     inx
     cpx #5
     bne @loop
     rts
-@reset:
 
+ClearRam:
     EnableRam
 
     lda #GHOST_FLASH
@@ -491,9 +491,10 @@ FrameScores:
     jsr WaitForIRQ
     jmp FrameScores
 
-; TODO: don't update the score in this routine.  Return the
-;       index of the score if applicable, #$FF otherwise. Use
-;       a second routine to update the table.
+; TODO: don't update the score in this routine.  Return
+;       the index of the score if applicable, #$FF
+;       otherwise. Use a second routine to update the
+;       table.
 CheckForNewHighScore:
     lda CurrentGameMode+GameMode::HsIndex
     asl a

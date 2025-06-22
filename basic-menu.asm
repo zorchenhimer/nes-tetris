@@ -235,7 +235,6 @@ Init:
 
 @loopDone:
 
-
     lda #%0000_0001
     sta $5104
 
@@ -248,45 +247,39 @@ Init:
     lda #%0001_1110
     sta $2001
 
-    ; enable save ram
-    ;lda #$02
-    ;sta $5102
-    ;lda #$01
-    ;sta $5103
-
     SetIRQ 2, Irq
 
 Frame:
     ldy #Player1
     jsr ReadControllers
 
-    lda Opt_Selection
-    sta Opt_PrevSelection
+    lda Selection
+    sta PrevSelection
 
     lda #BUTTON_DOWN ; down, pressed
     jsr ButtonPressed
     beq :+
-    inc Opt_Selection
-    lda Opt_Selection
+    inc Selection
+    lda Selection
     cmp ItemCount
     bcc :+
     lda #0
-    sta Opt_Selection
+    sta Selection
 :
 
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
-    dec Opt_Selection
-    lda Opt_Selection
+    dec Selection
+    lda Selection
     bpl :+
     ldx ItemCount
     dex
-    stx Opt_Selection
+    stx Selection
 :
 
     ; Put the current option in AddressPointer1
-    lda Opt_Selection
+    lda Selection
     sta MMC5_MultA
     lda #.sizeof(BasicMenuData)
     sta MMC5_MultB
@@ -356,7 +349,7 @@ Frame:
     jsr BinToDec_8bit
     .repeat 3, i
         lda bcdOutput+i
-        sta Opt_NmiUpdate_Data+i
+        sta NmiUpdate_Data+i
     .endrepeat
     jmp @updateAddr
 
@@ -369,19 +362,19 @@ Frame:
     ldy #OptTile_OFF
 :
     .repeat 3, i
-    sty Opt_NmiUpdate_Data+i
+    sty NmiUpdate_Data+i
     iny
     .endrepeat
     jmp @updateAddr
 
 @updateButton:
     lda #0
-    sta Opt_NmiUpdate_Addr+0
-    sta Opt_NmiUpdate_Addr+1
+    sta NmiUpdate_Addr+0
+    sta NmiUpdate_Addr+1
     jmp @frameEnd
 
 @updateAddr:
-    lda Opt_Selection
+    lda Selection
     sta MMC5_MultA
     lda #32*2
     sta MMC5_MultB
@@ -389,11 +382,11 @@ Frame:
     clc
     lda MMC5_MultA
     adc #.lobyte(OptItems_ADDR)
-    sta Opt_NmiUpdate_Addr+0
+    sta NmiUpdate_Addr+0
 
     lda MMC5_MultB
     adc #.hibyte(OptItems_ADDR)
-    sta Opt_NmiUpdate_Addr+1
+    sta NmiUpdate_Addr+1
 
 @frameEnd:
     jsr WaitForIRQ
@@ -413,7 +406,7 @@ DecVal:
 
 changeVal:
 
-    lda Opt_Selection
+    lda Selection
     sta MMC5_MultA
     lda #.sizeof(BasicMenuData)
     sta MMC5_MultB
@@ -462,11 +455,11 @@ boolVal:
     rts
 
 Irq:
-    lda Opt_PrevSelection
+    lda PrevSelection
     ldx #$00
     jsr irq_WriteAttr
 
-    lda Opt_Selection
+    lda Selection
     ldx #$40
     jsr irq_WriteAttr
     rts
@@ -512,15 +505,15 @@ Nmi:
     lda #$02
     sta $4014
 
-    lda Opt_NmiUpdate_Addr+1
+    lda NmiUpdate_Addr+1
     beq @end
 
     sta $2006
-    lda Opt_NmiUpdate_Addr+0
+    lda NmiUpdate_Addr+0
     sta $2006
 
     .repeat 3, i
-    lda Opt_NmiUpdate_Data+i
+    lda NmiUpdate_Data+i
     sta $2007
     .endrepeat
 

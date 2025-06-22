@@ -638,6 +638,7 @@ Init_Routines:
     .word InitMenu
     .word InitDebug
     .word InitPracticeMenu
+    .word InitConfirmClear
 
 Init_ScreensNT0:
     .word Screen_Playfield
@@ -649,6 +650,7 @@ Init_ScreensNT0:
     .word Screen_Menu
     .word Screen_Playfield
     .word $0000 ; practice menu
+    .word $0000 ; confirm clear
 
 Init_ScreensNT1:
     .word $0000 ; game
@@ -660,6 +662,7 @@ Init_ScreensNT1:
     .word $0000 ; menu
     .word $0000 ; debug
     .word $0000 ; practice menu
+    .word $0000 ; confirm clear
 
 Init_BanksLower: ; lower 16k
     .byte 0 ; game
@@ -671,6 +674,7 @@ Init_BanksLower: ; lower 16k
     .byte 1 ; Main Menu
     .byte 0 ; Debug
     .byte 0 ; practice menu
+    .byte 0 ; confirm clear
 
 ; Destination index in A
 GotoInit:

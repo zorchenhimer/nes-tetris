@@ -90,6 +90,7 @@ NewScore
 Menu
 Debug
 PracticeMenu
+ConfirmClear
 .endenum
 
 .enum GameBaseType
