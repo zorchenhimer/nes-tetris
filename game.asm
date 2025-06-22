@@ -312,6 +312,15 @@ InitGame:
     ldx #7
     jsr LoadPalette
 
+    lda AddressPointer4+1
+    beq :+
+    jsr LoadBoard
+    lda #0
+    sta AddressPointer4+0
+    sta AddressPointer4+1
+    jmp @afterBoard
+:
+
     lda #0
     ldy #0
 :
@@ -322,6 +331,8 @@ InitGame:
     iny
     cpy #200
     bne :-
+
+@afterBoard:
 
     lda CurrentGameMode+GameMode::BaseType
     cmp #GameBaseType::Standard
@@ -537,6 +548,36 @@ FrameGame:
 
     jsr WaitForIRQ
     jmp FrameGame
+
+; Expects a pointer to the board in AddressPointer4
+LoadBoard:
+    ldx #0
+
+@loop:
+    ldy #0
+    lda (AddressPointer4), y
+    sta TmpA
+    ldy #8
+@byte:
+    asl TmpA
+    lda #0
+    rol a
+    sta FieldGrid, x
+    inx
+    cpx #200
+    beq @done
+    dey
+    bne @byte
+
+    ; next byte
+    inc AddressPointer4+0
+    bne :+
+    inc AddressPointer4+1
+:
+    jmp @loop
+
+@done:
+    rts
 
 InitDirtyBoard:
     ldy #10*10

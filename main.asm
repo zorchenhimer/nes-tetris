@@ -480,6 +480,9 @@ RESET:
     sta LagNMI
     sta LagIRQ
 
+    sta AddressPointer4+0
+    sta AddressPointer4+1
+
     lda #InitIndex::Menu
     jmp GotoInit
 

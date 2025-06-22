@@ -33,11 +33,11 @@ type PracticeBoard struct {
 }
 
 func (pb PracticeBoard) NameLabel() string {
-	return fmt.Sprintf("PB_name_%08X", crc32.ChecksumIEEE(pb.Data))
+	return fmt.Sprintf("PB_name_%08X", crc32.ChecksumIEEE([]byte(pb.Name)))
 }
 
 func (pb PracticeBoard) DataLabel() string {
-	return fmt.Sprintf("PB_data_%08X", crc32.ChecksumIEEE(pb.Data))
+	return fmt.Sprintf("PB_data_%08X", crc32.ChecksumIEEE([]byte(pb.Name)))
 }
 
 func (pb PracticeBoard) WriteTableEntry(w io.Writer) error {
@@ -66,27 +66,38 @@ func (pb PracticeBoard) WriteData(w io.Writer) error {
 		return err
 	}
 
+	fmt.Println(pb.Name)
 	data := []string{}
 	var outbyte byte
 	j := 0
+	col := 0
 	for _, b := range pb.Data {
 		v := byte(0)
 		if b != 0 {
 			v = 1
 		}
 		outbyte = (outbyte << 1) | v
-		fmt.Print(v, " ")
+		if v == 0 {
+			fmt.Print("  ")
+		} else {
+			fmt.Print("X ")
+		}
 		//if j % 10 == 0 {
 		//	fmt.Println("")
 		//}
 
 		//if j % 8 == 0 && j != 1 {
+		j++
 		if j == 8 {
 			j = 0
 			data = append(data, fmt.Sprintf("%%%08b", outbyte))
+		}
+
+		col++
+		if col == 10 {
+			col = 0
 			fmt.Println("")
 		}
-		j++
 	}
 	fmt.Println("")
 	data = append(data, fmt.Sprintf("%%%08b", outbyte))
@@ -94,7 +105,6 @@ func (pb PracticeBoard) WriteData(w io.Writer) error {
 	lines := []string{}
 	line := []string{}
 	j = 0
-	fmt.Println("len(data):", len(data))
 	for _, d := range data {
 		//if j % 5 == 0 && j != 1 {
 		if j == 5 {

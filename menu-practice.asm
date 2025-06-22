@@ -19,15 +19,15 @@ PracticeMenuData:
     .word Practice_PrevMenu
 
     ; TODO: figure out a better format to auto-generate
-    .word PB_name_3AA2F797
+    .word PB_name_87E7F917
     .byte BasicMenu::ItemType::Button
     .word Practice_DoButton
 
-    .word PB_name_DF81ACF2
+    .word PB_name_6F9E6620
     .byte BasicMenu::ItemType::Button
     .word Practice_DoButton
 
-    .word PB_name_3E786613
+    .word PB_name_9BC1471A
     .byte BasicMenu::ItemType::Button
     .word Practice_DoButton
 
@@ -62,7 +62,20 @@ InitPracticeMenu:
     jmp BasicMenu::Init
 
 Practice_DoButton:
-    brk ; TODO
-    rts
+    dec BasicMenu::Selection
+    lda BasicMenu::Selection
+    asl a
+    asl a
+    tax
+    lda PracticeBoards+2, x
+    sta AddressPointer4+0
+    lda PracticeBoards+3, x
+    sta AddressPointer4+1
+
+    lda #MMSel::Marathon
+    sta ModeSelection
+
+    lda #InitIndex::Game
+    jmp GotoInit
 
 .include "practice-boards.i"
