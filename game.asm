@@ -593,7 +593,7 @@ InitDirtyBoard:
     lda PieceRng, x
     cmp #4
     bcc :+
-    lda #3
+    lda #1
     sta FieldGrid, y
 :
     iny
