@@ -206,6 +206,8 @@ CurrentGameMode: .tag GameMode
 LagNMI: .res 1
 LagIRQ: .res 1
 
+LoadBoard_Addr: .res 2
+
     .include "scores.asm"
 
     .include "utils.asm"
@@ -482,6 +484,9 @@ RESET:
 
     sta AddressPointer4+0
     sta AddressPointer4+1
+
+    sta LoadBoard_Addr+0
+    sta LoadBoard_Addr+1
 
     lda #InitIndex::Menu
     jmp GotoInit

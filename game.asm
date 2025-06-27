@@ -312,12 +312,9 @@ InitGame:
     ldx #7
     jsr LoadPalette
 
-    lda AddressPointer4+1
+    lda LoadBoard_Addr+1
     beq :+
     jsr LoadBoard
-    lda #0
-    sta AddressPointer4+0
-    sta AddressPointer4+1
     jmp @afterBoard
 :
 
@@ -551,8 +548,13 @@ FrameGame:
 
 ; Expects a pointer to the board in AddressPointer4
 LoadBoard:
-    ldx #0
 
+    lda LoadBoard_Addr+0
+    sta AddressPointer4+0
+    lda LoadBoard_Addr+1
+    sta AddressPointer4+1
+
+    ldx #0
 @loop:
     ldy #0
     lda (AddressPointer4), y
@@ -577,6 +579,10 @@ LoadBoard:
     jmp @loop
 
 @done:
+
+    lda #0
+    sta LoadBoard_Addr+0
+    sta LoadBoard_Addr+1
     rts
 
 InitDirtyBoard:

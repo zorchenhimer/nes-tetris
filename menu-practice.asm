@@ -68,9 +68,9 @@ Practice_DoButton:
     asl a
     tax
     lda PracticeBoards+2, x
-    sta AddressPointer4+0
+    sta LoadBoard_Addr+0
     lda PracticeBoards+3, x
-    sta AddressPointer4+1
+    sta LoadBoard_Addr+1
 
     lda #MMSel::Marathon
     sta ModeSelection
