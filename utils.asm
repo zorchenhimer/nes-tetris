@@ -329,22 +329,36 @@ FillAttributeTable:
     lda #$C0
     sta $2006
 
-    .repeat 64
-    stx $2007
-    .endrepeat
+    txa
+    ldx #64
+:   sta $2007
+    dex
+    bne :-
     rts
 
 ; Fill value in X
+; PPU Hi Address A
 FillScreen:
     sta $2006
     lda #$00
     sta $2006
 
-    .repeat 32
-        .repeat 30
-            stx $2007
-        .endrepeat
-    .endrepeat
+    tya
+    pha
+
+    txa
+    ldy #32
+@outer:
+    ldx #30
+@inner:
+    sta $2007
+    dex
+    bne @inner
+    dey
+    bne @outer
+
+    pla
+    tay
     rts
 
 WaitForNMI:

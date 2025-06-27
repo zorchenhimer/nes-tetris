@@ -54,20 +54,6 @@ Init:
     lda #.hibyte(Nmi)
     sta NmiHandler+1
 
-    ;lda #.lobyte(Palette_ON)
-    ;sta AddressPointer1+0
-    ;lda #.hibyte(Palette_ON)
-    ;sta AddressPointer1+1
-    ;ldx #0
-    ;jsr LoadPalette
-
-    ;lda #.lobyte(Palette_OFF)
-    ;sta AddressPointer1+0
-    ;lda #.hibyte(Palette_OFF)
-    ;sta AddressPointer1+1
-    ;ldx #1
-    ;jsr LoadPalette
-
     ; Draw title
     lda #.hibyte(TitleAddr)
     sta $2006

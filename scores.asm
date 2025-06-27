@@ -318,10 +318,12 @@ InitScores:
     lda #$00
     sta $2006
 
-    .repeat 4*8, i
-        lda Palettes+i
-        sta $2007
-    .endrepeat
+    ldx #0
+:   lda Palettes, x
+    sta $2007
+    inx
+    cpx #4*8
+    bne :-
 
     ;
     ; Time colors
