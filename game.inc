@@ -857,12 +857,11 @@ CheckTSpin:
     lda TSpin, y
     and #$80
     bne :+
-    lda #0
-    sta TSpin, y
     rts
 :
 
     lda #0
+    sta TSpin, y
     sta TmpX ; occupied count
 
     jsr AlignBlockWithField

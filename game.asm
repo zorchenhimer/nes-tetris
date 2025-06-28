@@ -638,19 +638,23 @@ ClearCountScores:
     .byte 0, 1, 3, 5, 8
 
 CalcScore:
-    lda GameState+0
-    cmp #GS::Garbage
-    bne :+
-    lda GameStateArg+0
-    bne :+
     lda TSpin+0
     and #$7F
-    beq :+
+    beq @noTSpin
     clc
     lda #100
     adc CurrentScore+ScoreEntry::Score+0
     sta CurrentScore+ScoreEntry::Score+0
-:
+    lda CurrentScore+ScoreEntry::Score+1
+    adc #0
+    sta CurrentScore+ScoreEntry::Score+1
+
+    lda CurrentScore+ScoreEntry::Score+2
+    adc #0
+    sta CurrentScore+ScoreEntry::Score+2
+    lda #0
+    sta TSpin+0
+@noTSpin:
 
     clc
     lda DropScore
