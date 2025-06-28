@@ -315,6 +315,10 @@ InitGame:
     lda LoadBoard_Addr+1
     beq :+
     jsr LoadBoard
+    lda #GameBaseType::SingleBlock
+    sta CurrentGameMode+GameMode::BaseType
+    lda #2
+    sta CurrentGameMode+GameMode::TypeArg
     jmp @afterBoard
 :
 

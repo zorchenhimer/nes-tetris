@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="10" height="20" tilewidth="8" tileheight="8" infinite="0" nextlayerid="4" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="10" height="20" tilewidth="8" tileheight="8" infinite="0" nextlayerid="5" nextobjectid="1">
  <tileset firstgid="1" source="tiles.tsx"/>
  <layer id="1" name="dt-cannon" width="10" height="20" visible="0">
   <properties>
@@ -57,7 +57,7 @@
 18,18,0,0,18,18,18,18,18,18
 </data>
  </layer>
- <layer id="3" name="tst-tower" width="10" height="20">
+ <layer id="3" name="tst-tower" width="10" height="20" visible="0">
   <properties>
    <property name="Label" value="TST_Tower"/>
    <property name="Name" value="TST Tower"/>
@@ -83,6 +83,34 @@
 18,18,0,18,18,18,18,18,18,18,
 18,18,0,0,18,18,18,18,18,18,
 18,18,0,18,18,18,18,18,18,18
+</data>
+ </layer>
+ <layer id="4" name="wall-test" width="10" height="20">
+  <properties>
+   <property name="Label" value="wall_test"/>
+   <property name="Name" value="Wall Test"/>
+  </properties>
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+18,0,0,0,0,0,0,0,0,18,
+0,0,0,0,0,0,0,0,0,0,
+0,18,18,0,0,0,0,18,18,0,
+0,0,18,18,18,0,0,18,0,0,
+0,18,18,18,0,0,0,18,18,0
 </data>
  </layer>
 </map>

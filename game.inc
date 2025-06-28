@@ -1,6 +1,10 @@
 .ifndef _GAME_RAM_
 _GAME_RAM_ = 1
 
+; TODO:
+;   - Mini T-Spins.  They aren't currently
+;     differentiated from standard T-Spins.
+
 .pushseg
 .segment "ZEROPAGE"
 CurrentBlock: .res 2
@@ -347,6 +351,7 @@ BlockOffsets_Y:
     .byte 0, 0, 1, 1 ; O, rot 2
     .byte 0, 0, 1, 1 ; O, rot 3
 
+; Cells to check for a block when in CheckTSpin
 TSpinOffsets_Y:
     .byte   0,   0, 20, 20
     .byte   0,   0, 20, 20
@@ -862,8 +867,93 @@ CheckTSpin:
 
     jsr AlignBlockWithField
 
-    tya
-    pha
+    sty TmpYY
+
+    ; Check for walls & floor.  Add two if the long
+    ; side of the piece is up against one.
+    lda BlockRotation, y
+    cmp #1 ; left wall
+    bne @checkFloor
+
+    lda BlockX, y
+    cmp #1
+    bne @notWall
+
+    lda #2
+    sta TmpX
+
+    clc
+    lda TmpY
+    adc #2
+    tay
+    lda (AddressPointer1), y
+    beq :+
+    inc TmpX
+:
+    clc
+    lda TmpY
+    adc #2+20 ; 2+20
+    tay
+    lda (AddressPointer1), y
+    beq @wallDone
+    inc TmpX
+    jmp @wallDone
+
+@checkFloor:
+    cmp #0 ; floor
+    bne @checkRight
+
+    lda BlockY, y
+    cmp #19
+    bne @notWall
+
+    lda #2
+    sta TmpX
+
+    ldy TmpY
+    lda (AddressPointer1), y
+    beq :+
+    inc TmpX
+:
+    clc
+    lda TmpY
+    adc #2
+    tay
+    lda (AddressPointer1), y
+    beq @wallDone
+    inc TmpX
+
+    jmp @wallDone
+
+@checkRight:
+    cmp #3 ; right wall
+    bne @notWall
+
+    lda BlockX, y
+    cmp #10
+    bne @notWall
+
+    lda #2
+    sta TmpX
+
+    clc
+    lda TmpY
+    adc #2
+    tay
+    lda (AddressPointer1), y
+    beq :+
+    inc TmpX
+:
+    clc
+    lda TmpY
+    adc #2+20 ; 2+20
+    tay
+    lda (AddressPointer1), y
+    bne @wallDone
+    inc TmpX
+    jmp @wallDone
+
+@notWall:
 
     ldx #0
 @loop:
@@ -882,8 +972,8 @@ CheckTSpin:
     cpx #4
     bne @loop
 
-    pla
-    tay
+@wallDone:
+    ldy TmpYY
 
     lda #0
     sta TSpin, y

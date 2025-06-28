@@ -31,6 +31,10 @@ PracticeMenuData:
     .byte BasicMenu::ItemType::Button
     .word Practice_DoButton
 
+    .word PB_name_479350AE
+    .byte BasicMenu::ItemType::Button
+    .word Practice_DoButton
+
     .word $0000
 
 :   .asciiz "<- Back"
