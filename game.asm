@@ -428,6 +428,8 @@ InitGame:
     lda #$00
     sta $2003
 
+    SetIRQ 2, IrqDrawBoard
+
     jsr WaitForNMI
 
     lda #%0001_1110
@@ -451,8 +453,6 @@ InitGame:
     sta HoldPiece
 
 FrameGame:
-    SetIRQ 2, IrqDrawBoard
-
     jsr ReadControllers
 
     ldy #Player1
