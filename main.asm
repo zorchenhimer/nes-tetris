@@ -12,6 +12,8 @@ nes2end
 .feature underline_in_numbers
 .feature addrsize
 
+FAMISTUDIO_CFG_C_BINDINGS = 0
+
 MMC5_OFFSET = $3C00 ; Offset from $2000
 
 ;DEBUG_PIECE = 0
@@ -192,8 +194,13 @@ GameOverSprites: .res 8*4*4
 GameOverOops: .res 8*4
 TSpinDebugSprite: .res 4
 
-.segment "BSS"
+LoadBoard_Addr: .res 2
+
+.segment "STACK"
 Palettes: .res 4*8
+LowBank: .res 1
+
+.segment "BSS"
 ;BufferedBlock: .res 4*4
 rng_index: .res 1
 
@@ -205,8 +212,6 @@ FrameCount: .res 1
 CurrentGameMode: .tag GameMode
 LagNMI: .res 1
 LagIRQ: .res 1
-
-LoadBoard_Addr: .res 2
 
     .include "scores.asm"
 
@@ -271,7 +276,12 @@ Screen_ModeMenu:
 Screen_Menu:
     .include "menu-screen.i"
 
-.segment "PAGE_00"
+.segment "PAGE_AUDIO"
+
+    .include "famistudio_ca65.s"
+    .include "audio/sfx.s"
+    .include "audio/songs.s"
+
 .segment "PAGE_01"
 
 .segment "PAGE_INIT"
@@ -378,6 +388,11 @@ NMI:
     lda AddressPointer1+1
     pha
 
+    lda AddressPointer4+0
+    pha
+    lda AddressPointer4+1
+    pha
+
     lda TmpA
     pha
     lda TmpX
@@ -405,6 +420,11 @@ NMI:
     sta TmpA
 
     pla
+    sta AddressPointer4+1
+    pla
+    sta AddressPointer4+0
+
+    pla
     sta AddressPointer1+1
     pla
     sta AddressPointer1+0
@@ -413,8 +433,10 @@ NMI:
     tay
     pla
     tax
-
     pla
+
+    jsr fs_Update
+
     rti
 
 NmiTrampoline:
@@ -488,6 +510,18 @@ RESET:
     sta LoadBoard_Addr+0
     sta LoadBoard_Addr+1
 
+    lda #1 ; NTSC
+    ldx #.lobyte(music_data_untitled)
+    ldy #.hibyte(music_data_untitled)
+    jsr fs_Init
+
+    ldx #.lobyte(sounds)
+    ldy #.hibyte(sounds)
+    jsr fs_Sfx_Init
+
+    lda #0
+    jsr fs_Music_Play
+
     lda #InitIndex::Menu
     jmp GotoInit
 
@@ -531,9 +565,16 @@ MMC5_SelectLowBank:
     ; 8k  @ $E000-$FFFF
     ;lda #2
     ;sta $5100
+    sta LowBank
     asl a
     ora #$80
     sta $5115
+    rts
+
+MMC5_SelectHighBank:
+    ;asl a
+    ora #$80
+    sta $5116
     rts
 
 StartFrame:
@@ -676,3 +717,106 @@ Palette_Bg:
 
 Palette_Sp:
     .byte $0F, $27, $00, $10
+
+.enum FS
+init
+music_play
+music_pause
+music_stop
+sfx_init
+sfx_play
+update
+.endenum
+
+.macro PushRegs
+    pha
+    txa
+    pha
+    tya
+    pha
+.endmacro
+
+.macro PopRegs
+    pla
+    tay
+    pla
+    tax
+    pla
+.endmacro
+
+fs_functions:
+    .word famistudio_init
+    .word famistudio_music_play
+    .word famistudio_music_pause
+    .word famistudio_music_stop
+    .word famistudio_sfx_init
+    .word famistudio_sfx_play
+    .word famistudio_update
+
+fs_Init:
+    PushRegs
+    lda #FS::init
+    jmp fs_Trampoline
+
+fs_Music_Play:
+    PushRegs
+    lda #FS::music_play
+    jmp fs_Trampoline
+
+fs_Music_Pause:
+    PushRegs
+    lda #FS::music_pause
+    jmp fs_Trampoline
+
+fs_Music_Stop:
+    PushRegs
+    lda #FS::music_stop
+    jmp fs_Trampoline
+
+fs_Sfx_Init:
+    PushRegs
+    lda #FS::sfx_init
+    jmp fs_Trampoline
+
+fs_Sfx_Play:
+    PushRegs
+    lda #FS::sfx_play
+    jmp fs_Trampoline
+
+fs_Update:
+    PushRegs
+    lda #FS::update
+    jmp fs_Trampoline
+
+fs_Trampoline:
+    asl a
+    tax
+    lda fs_functions+0, x
+    sta AddressPointer4+0
+    lda fs_functions+1, x
+    sta AddressPointer4+1
+
+    lda LowBank
+    pha
+
+    lda #1
+    jsr MMC5_SelectLowBank
+
+    pla
+    sta LowBank
+
+    lda #5
+    jsr MMC5_SelectHighBank
+
+    PopRegs
+    jsr @jmp
+
+    lda #4
+    jsr MMC5_SelectHighBank
+
+    lda LowBank
+    jsr MMC5_SelectLowBank
+    rts
+
+@jmp:
+    jmp (AddressPointer4)

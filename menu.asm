@@ -417,6 +417,10 @@ FrameMenu:
     ldx #1
     jsr LoadPalette
 
+    lda #3
+    ldx #0
+    jsr fs_Sfx_Play
+
 @noSelection:
 
     jsr WaitForIRQ

@@ -85,6 +85,16 @@ EN_Shifted: .res 1
 EN_Selection: .res 1
 EN_Cursor: .res 1
 
+Save_CurrentList: .res 1
+
+ScoreAnim_Direction: .res 1 ; 0 = right; 1 = left; 256 = nothing
+ScoreAnim_DirectionIrq: .res 1 ; 0 = right; 1 = left; 256 = nothing
+ScoreAnim_Frame:     .res 1
+ScoreAnim_Scroll:    .res 1
+Score_DrawTitle:     .res 1
+
+NewHsIndex: .res 1
+
 .segment "SAVERAM"
 Save_Standard:  .res HS_LIST_SIZE
 Save_BlockZ:    .res HS_LIST_SIZE
@@ -113,22 +123,13 @@ Option_EnableHold:  .res 1
 Option_EnableHardDrop: .res 1
 Debug_ClearSave: .res 1
 
-.segment "BSS"
-Save_CurrentList: .res 1
-
 Scores_Screen: .res HS_DISPLAY_SIZE
 Title_Screen: .res HS_TITLE_LEN
 
+.segment "BSS"
+
 ;Scores_A: .res .sizeof(ScoreEntry)
 ;Scores_B: .res .sizeof(ScoreDisplay)
-
-ScoreAnim_Direction: .res 1 ; 0 = right; 1 = left; 256 = nothing
-ScoreAnim_DirectionIrq: .res 1 ; 0 = right; 1 = left; 256 = nothing
-ScoreAnim_Frame:     .res 1
-ScoreAnim_Scroll:    .res 1
-Score_DrawTitle:     .res 1
-
-NewHsIndex: .res 1
 
 .segment "OAM"
 EN_SelectSprites: .res 4*4
@@ -304,6 +305,7 @@ Save_ResetTable:
     rts
 
 InitScores:
+    EnableRam
     lda #.lobyte(Save_Palettes)
     sta AddressPointer1+0
     lda #.hibyte(Save_Palettes)
@@ -448,7 +450,6 @@ FrameScores:
     jsr ButtonPressed
     beq :+
 
-    DisableRam
     lda #InitIndex::Menu
     jmp GotoInit
 :

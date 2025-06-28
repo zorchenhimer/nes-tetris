@@ -29,7 +29,11 @@ SOURCES = \
 	playfield-vs.i \
 	practice-boards.i \
 	debug-field.i \
-	basic-menu.asm
+	basic-menu.asm \
+	audio/songs.s \
+	audio/sfx.s \
+	famistudio_ca65.s
+
 
 CHR = tiles.chr tiles2.chr tiles3.chr tiles4.chr
 

@@ -1,7 +1,9 @@
 bin/
 nope/
-audio/
 *.i
+*.mp4
 
 edlink-n8
 notes.txt
+
+NoteTables/*.bin
