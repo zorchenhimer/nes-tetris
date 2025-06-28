@@ -493,10 +493,8 @@ FrameScores:
     jsr WaitForIRQ
     jmp FrameScores
 
-; TODO: don't update the score in this routine.  Return
-;       the index of the score if applicable, #$FF
-;       otherwise. Use a second routine to update the
-;       table.
+; If the score is a new high score, its index will be in
+; NewHsIndex, otherwise $FF is written to this variable.
 CheckForNewHighScore:
     lda CurrentGameMode+GameMode::HsIndex
     asl a
@@ -601,8 +599,8 @@ SetNewHighScore:
 @noMemCpy:
     lda AddressPointer1+0
     sta AddressPointer2+0
-    lda AddressPointer1+2
-    sta AddressPointer2+2
+    lda AddressPointer1+1
+    sta AddressPointer2+1
 
     ldy #.sizeof(ScoreEntry)
 

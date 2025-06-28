@@ -1018,7 +1018,7 @@ DedFrame:
 
     lda NewHsIndex
     bmi @toMenu
-    lda #InitIndex::NewScore
+    lda #InitIndex::NewScore ; InitIndex::NewScore
     jmp GotoInit
 
 @nope:
