@@ -177,11 +177,11 @@ NmiGame:
     lda IsPaused
     beq :+
     lda #%0001_1111
-    sta $2001
+    sta PpuMask
     jmp :++
 :
     lda #%0001_1110
-    sta $2001
+    sta PpuMask
 :
 
     ldx DropShake
@@ -434,16 +434,14 @@ InitGame:
 
     SetIRQ 2, IrqDrawBoard
 
-    jsr WaitForNMI
-
     lda #%0001_1110
-    sta $2001
+    sta PpuMask
 
     lda #$00
     sta ScrollX
     sta ScrollY
-    sta $2005
-    sta $2005
+
+    jsr WaitForNMI
 
     lda #.lobyte(NmiGame)
     sta NmiHandler+0
@@ -1460,7 +1458,7 @@ InitDebug:
     jsr WaitForNMI
 
     lda #%0001_1110
-    sta $2001
+    sta PpuMask
 
     lda #$00
     sta ScrollX

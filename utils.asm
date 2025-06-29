@@ -701,12 +701,16 @@ GotoInit:
     DisableRam
     ResetNMI
 
+    lda #0
+    sta PpuMask
+
+    jsr WaitForNMI
+
     ; do some common stuff
     jsr WaitForNMI
     jsr ClearSprites
 
     lda #0
-    sta $2001
     sta $2000
 
     ; send cleared sprites

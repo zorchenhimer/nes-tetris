@@ -177,6 +177,7 @@ ScrollX:    .res 1
 ScrollY:    .res 1
 
 PpuControl: .res 1
+PpuMask: .res 1
 
 bcdInput:   .res 3  ; bin
 bcdScratch: .res 4  ; bcd
@@ -206,6 +207,10 @@ TSpinDebugSprite: .res 4
 .segment "STACK"
 Palettes: .res 4*8
 LowBank: .res 1
+
+PpuBuff_Addr: .res 2
+PpuBuff_Len: .res 1
+PpuBuff_Data: .res 64
 
 .segment "BSS"
 ;BufferedBlock: .res 4*4
@@ -410,14 +415,38 @@ NMI:
 
     jsr NmiTrampoline
 
+    lda PpuBuff_Addr+1
+    beq @noBuff
+
+    lda PpuBuff_Addr+1
+    sta $2006
+    lda PpuBuff_Addr+0
+    sta $2006
+
+    ldy PpuBuff_Len
+    ldx #0
+:   lda PpuBuff_Data, x
+    sta $2007
+    inx
+    dey
+    bne :-
+
+    lda #0
+    sta PpuBuff_Addr+1
+    sta PpuBuff_Addr+0
+@noBuff:
+
+    lda PpuControl
+    sta $2000
+
+    lda PpuMask
+    sta $2001
+
     bit $2002
     lda ScrollX
     sta $2005
     lda ScrollY
     sta $2005
-
-    lda PpuControl
-    sta $2000
 
     lda #$FF
     sta Sleeping

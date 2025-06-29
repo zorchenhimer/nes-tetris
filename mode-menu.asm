@@ -91,11 +91,16 @@ InitModeMenu:
     lda #%1000_1000
     sta PpuControl
 
-    SetIRQ 5, IrqModeMenu
+    lda #0
+    sta ScrollX
+    sta ScrollY
+
+    lda #%0001_1110
+    sta PpuMask
 
     jsr WaitForNMI
-    lda #%0001_1110
-    sta $2001
+
+    SetIRQ 5, IrqModeMenu
 
 FrameModeMenu:
     jsr ReadControllers
@@ -209,7 +214,7 @@ FrameModeMenu:
 
     jsr UpdateSingleBlock
 
-    jsr WaitForNMI
+    jsr WaitForIRQ
     jmp FrameModeMenu
 
 @doStart:

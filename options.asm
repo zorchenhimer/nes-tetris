@@ -139,18 +139,19 @@ DataConfirmClear:
 
     jsr WaitForNMI
 
-    lda #$22
-    sta $2006
-    lda #$49
-    sta $2006
-
     ldx #0
 :   lda @clearText, x
     beq :+
-    sta $2007
+    sta PpuBuff_Data, x
     inx
     jmp :-
 :
+    stx PpuBuff_Len
+
+    lda #$22
+    sta PpuBuff_Addr+1
+    lda #$49
+    sta PpuBuff_Addr+0
 
     lda #0
     sta $2005

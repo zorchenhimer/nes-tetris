@@ -318,10 +318,16 @@ InitMenu:
 
     lda #%1000_0000
     sta PpuControl
+    sta $2000
+
+    lda #0
+    sta ScrollX
+    sta ScrollY
+
+    lda #%0000_1110
+    sta PpuMask
 
     jsr WaitForNMI
-    lda #%0000_1110
-    sta $2001
 
     SetIRQ 5, IrqMenu
     jsr WaitForNMI

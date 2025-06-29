@@ -203,9 +203,10 @@ InitVsMode:
     sta PpuControl
     sta $2000
 
-    jsr WaitForNMI
     lda #%0001_1110
-    sta $2001
+    sta PpuMask
+
+    jsr WaitForNMI
 
     lda #$00
     sta ScrollX

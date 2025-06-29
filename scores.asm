@@ -423,10 +423,13 @@ InitScores:
     sta PpuControl
     sta $2000
 
-    jsr WaitForNMI
-
     lda #%0000_1110
-    sta $2001
+    sta PpuMask
+
+    lda #0
+    sta ScrollX
+    sta ScrollY
+
     jsr WaitForNMI
 
     lda #$FF
@@ -1235,7 +1238,7 @@ InitScores_EnterName:
     sta NmiHandler+1
 
     lda #%0001_1110
-    sta $2001
+    sta PpuMask
     jsr WaitForNMI
 
 Frame_EnterName:
@@ -1308,10 +1311,11 @@ Frame_EnterName:
 :
 
     jsr EN_UpdateSprites
-    jsr WaitForNMI
 
     lda #%0001_1000
-    sta $2001
+    sta PpuMask
+    jsr WaitForNMI
+
     jmp Frame_EnterName
 
 EnTbl_Directions:
