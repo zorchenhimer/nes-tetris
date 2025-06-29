@@ -45,15 +45,15 @@ TRUE = 1
 FALSE = 0
 
 .macro SetIRQ Line, Addr
-    lda #Line
-    sta $5203
-    lda #$80
-    sta $5204
-
     lda #.lobyte(Addr)
     sta ptrIRQ+0
     lda #.hibyte(Addr)
     sta ptrIRQ+1
+
+    lda #Line
+    sta $5203
+    lda #$80
+    sta $5204
     cli
 .endmacro
 
@@ -73,6 +73,13 @@ FALSE = 0
     lda #$00
     sta $5102
     sta $5103
+.endmacro
+
+.macro ResetNMI
+    lda #.lobyte(BareNmiHandler)
+    sta NmiHandler+0
+    lda #.hibyte(BareNmiHandler)
+    sta NmiHandler+1
 .endmacro
 
 .struct ScoreEntry
@@ -181,6 +188,8 @@ CurrentGameType: .res 1
 CurrentScore: .tag ScoreEntry
 TimeFrame: .res 1
 
+LoadBoard_Addr: .res 2
+
 .segment "OAM"
 SpriteStart = *
 ;SpriteBlock: .res 4*4
@@ -193,8 +202,6 @@ SpriteGhostP2: .res 4*4
 GameOverSprites: .res 8*4*4
 GameOverOops: .res 8*4
 TSpinDebugSprite: .res 4
-
-LoadBoard_Addr: .res 2
 
 .segment "STACK"
 Palettes: .res 4*8
@@ -306,6 +313,8 @@ IRQ:
     bit SleepingIrq
     bpl :+
     inc LagIRQ
+    bit $5204
+    rti
 :
 
     pha
@@ -374,6 +383,7 @@ NMI:
     bit Sleeping
     bpl :+
     inc LagNMI
+    rti
 :
 
     pha

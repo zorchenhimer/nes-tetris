@@ -215,7 +215,7 @@ InitVsMode:
 
     jsr WaitForNMI
 
-    SetIRQ 2, IrqVsGame_Unrolled
+    SetIRQ 6, IrqVsGame_Unrolled
 
 VsModeFrame:
     jsr ReadControllers

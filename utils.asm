@@ -386,6 +386,7 @@ WaitForIRQ:
     cli
     lda #0
     sta SleepingIrq
+    sta Sleeping
 :
     inc rng_index
     bit SleepingIrq
@@ -696,14 +697,13 @@ GotoInit:
     asl a
     pha ; offset
 
-    lda #0
-    sta NmiHandler+0
-    sta NmiHandler+1
+    DisableIRQ
+    DisableRam
+    ResetNMI
 
     ; do some common stuff
     jsr WaitForNMI
     jsr ClearSprites
-    DisableIRQ
 
     lda #0
     sta $2001
