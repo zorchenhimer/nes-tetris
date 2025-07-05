@@ -131,6 +131,8 @@ Title_Screen: .res HS_TITLE_LEN
 ;Scores_A: .res .sizeof(ScoreEntry)
 ;Scores_B: .res .sizeof(ScoreDisplay)
 
+EnIrqDone: .res 1
+
 .segment "OAM"
 EN_SelectSprites: .res 4*4
 EN_CursorSprite: .res 4
@@ -437,10 +439,8 @@ InitScores:
     sta ScoreAnim_DirectionIrq
     sta ScoreAnim_Scroll
 
-    SetIRQ 35, IRQ_Scores
-    jsr WaitForIRQ
-
 FrameScores:
+    SetIRQ 35, IRQ_Scores
     lda ScoreAnim_DirectionIrq
     bmi :+
     jsr WaitForIRQ
@@ -1242,6 +1242,9 @@ InitScores_EnterName:
     jsr WaitForNMI
 
 Frame_EnterName:
+    lda #0
+    sta EnIrqDone
+
     SetIRQ 48, irqNameTop
 
     jsr WaitForIRQ
@@ -1314,6 +1317,12 @@ Frame_EnterName:
 
     lda #%0001_1000
     sta PpuMask
+
+    ldx #0
+:   stx SleepingIrq
+    lda EnIrqDone
+    beq :-
+
     jsr WaitForNMI
 
     jmp Frame_EnterName
@@ -1603,8 +1612,7 @@ irqNameTop:
     lda PpuControl
     and #%1111_1100
     ora EN_Shifted
-    sta PpuControl
-    sta $2000
+    sta $2000 ; Don't store in the buffer variable.
 
     lda #0
     sta $2005
@@ -1614,11 +1622,12 @@ irqNameTop:
 irqNameBottom:
     lda PpuControl
     and #%1111_1100
-    sta PpuControl
-    sta $2000
+    sta $2000 ; Don't store in the buffer variable.
     lda #0
     sta $2005
     sta $2005
+    lda #1
+    sta EnIrqDone
     rts
 
 EN_CURSOR_PPU = $20A8
