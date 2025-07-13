@@ -76,6 +76,8 @@ dbgBlockX: .res 1
 dbgBlockY: .res 1
 dbgBlockOffset: .res 1
 dbgFieldOffset: .res 1
+Combo: .res 2 ; one byte per player
+ClearCount: .res 2 ; rows cleared this frame
 
 .segment "BSS"
 
@@ -106,7 +108,6 @@ HeldSwapped: .res 2
 
 Level: .res 2
 
-Combo: .res 2 ; one byte per player
 Lines: .res 4 ; two bytes per player
 UpdateCombo: .res 2
 Back2Back: .res 2
@@ -116,7 +117,6 @@ TmpScore: .res 3
 ; Contains tile indicies
 HighScore: .res 6
 
-ClearCount: .res 2 ; rows cleared this frame
 DropScore: .res 1  ; soft and hard drop scores this frame
 
 LowestY:    .res 1
@@ -208,7 +208,7 @@ TSpinTriple
 MiniTSpinSingle
 MiniTSpinDouble
 
-;PerfectClear
+PerfectClear
 .endenum
 
 .enum Rot
@@ -1451,14 +1451,27 @@ State_Clear:
     pla
     tay
 
-    lda ClearCount, y
+    ; LastClearType includes T-Spin offsets as well as
+    ; setting the high bit on Perfect Clear.
+    lda LastClearType, y
+    bpl :+
+    lda #GarbageLines::PerfectClear ; GarbageLines::PerfectClear
+:
     tax
-    dex
+
+    ; Combo is not covered in the LastClearType value
     lda GarbagePerLine, x
-    beq :+
+    ldx Combo, y
+    cpx #GarbageComboTableSize
+    bcc :+
+    ; Larger than table, use last value in table
+    ldx GarbageComboTableSize-1
+:   clc
+    adc GarbagePerCombo, x
+    beq @noGarbage
     tax
     jsr QueueGarbage
-:
+@noGarbage:
 
     jsr NextBlock
     lda #GS::Fall
@@ -2827,6 +2840,8 @@ GarbagePerLine:
 
     .byte 10 ; Perfect Clear. good luck, lmao
 
+GarbagePerLineTableSize = * - GarbagePerLine
+
 GarbagePerCombo:
     .byte 0 ; 0 combo
 
@@ -2849,6 +2864,7 @@ GarbagePerCombo:
 
     ; 10+
     .byte 5
+GarbageComboTableSize = * - GarbagePerCombo
 
 .enum ClearText
 Single
