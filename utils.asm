@@ -651,7 +651,6 @@ Init_Routines:
     .word InitOptions
     .word InitScores_EnterName
     .word InitMenu
-    .word InitDebug
     .word InitPracticeMenu
     .word InitConfirmClear
 
@@ -663,7 +662,6 @@ Init_ScreensNT0:
     .word $0000 ; options
     .word Screen_NewHighScore
     .word Screen_Menu
-    .word Screen_Playfield
     .word $0000 ; practice menu
     .word $0000 ; confirm clear
 
@@ -675,7 +673,6 @@ Init_ScreensNT1:
     .word $0000 ; options
     .word Screen_NewHighScore_Shifted ; new score
     .word $0000 ; menu
-    .word $0000 ; debug
     .word $0000 ; practice menu
     .word $0000 ; confirm clear
 
@@ -684,12 +681,11 @@ Init_BanksLower: ; lower 16k
     .byte 1 ; Scores
     .byte 1 ; ModeMenu
     .byte 0 ; VsMode
-    .byte 0 ; options
+    .byte 1 ; options
     .byte 1 ; Scores_EnterName
     .byte 1 ; Main Menu
-    .byte 0 ; Debug
-    .byte 0 ; practice menu
-    .byte 0 ; confirm clear
+    .byte 1 ; practice menu
+    .byte 1 ; confirm clear
 
 ; Destination index in A
 GotoInit:

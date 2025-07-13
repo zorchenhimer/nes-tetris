@@ -141,6 +141,14 @@ LastClearType: .res 2
 
 LastClearCount: .res 2
 
+VsGarbageP1_Tiles: .res 12
+VsGarbageP2_Tiles: .res 12
+
+VsGarbageP1_Attr: .res 12
+VsGarbageP2_Attr: .res 12
+
+GarbageCounter: .res 2 ; frames until next ready
+GarbageReady:   .res 2 ; next group ready to spawn
 
 .popseg
 
@@ -164,6 +172,28 @@ PAL_D  = $C0
 
 BlockGridOffset_X = 2
 ;BlockGridOffset_Y = 1
+
+GarbageBarP1_Tile_Empty = $07
+GarbageBarP2_Tile_Empty = $05
+
+GarbageBarP1_Tile_EmptyBottom = $03
+GarbageBarP2_Tile_EmptyBottom = $04
+
+GarbageBarP1_Tile_Bottom = $F2
+GarbageBarP2_Tile_Bottom = $F6
+
+GarbageBarP1_Tile = $F0
+GarbageBarP2_Tile = $F4
+
+GarbageBar_Attr_Empty   = $02
+GarbageBar_Attr_Pending = $C1
+GarbageBar_Attr_Ready   = $C2
+
+; Timer is frames, not seconds
+GarbageTimerStart = 150
+
+GarbageBarP1_Addr = $21E2
+GarbageBarP2_Addr = $21FD
 
 .enum GarbageLines
 Single
@@ -218,8 +248,8 @@ GamePalettes:
     .byte BG_COLOR, $00, $1A, $20
     ;.byte BG_COLOR, $0F, $1A, $20
     .byte BG_COLOR, $23, $21, $20
-    .byte BG_COLOR, $2C, $28, $20
-    .byte BG_COLOR, $15, $27, $20
+    .byte BG_COLOR, $2C, $27, $20
+    .byte BG_COLOR, $15, $28, $20
 
 SpritePalettes:
     .byte BG_COLOR, $0F, $0A, $20
@@ -811,6 +841,21 @@ DoPlayer:
     rts
 :
 
+    lda GarbageCounter, y
+    cmp #$FF
+    beq :+
+    tya
+    tax
+    dec GarbageCounter, x
+    lda GarbageCounter, y
+    cmp #$FF
+    bne :+
+    lda #1
+    sta GarbageReady, y
+:
+
+    jsr UpdateGarbageBar
+
     lda GameState, y
     asl a
     tax
@@ -819,6 +864,10 @@ DoPlayer:
     sta AddressPointer1+0
     lda VsGameStates+1, x
     sta AddressPointer1+1
+    jsr @jmp
+    rts
+
+@jmp:
     jmp (AddressPointer1)
 
 ; Add garbage to field
@@ -827,7 +876,7 @@ State_Garbage:
     sta TSpin, y
 
     bit CurrentBlock+1
-    bmi @2pMode
+    bpl @2pMode
     jsr NextBlock
     lda #GS::Fall
     sta GameState, y
@@ -836,7 +885,154 @@ State_Garbage:
     rts
 
 @2pMode:
+    ; TODO: check for garbage clear
     ; TODO: spawn garbo
+    sty TmpY
+
+    lda ClearCount, y
+    beq :+
+    jmp @end
+:
+
+    ;
+    ; Spawn Garbo lines
+    lda GarbageReady, y
+    bne :+
+    jmp @end
+:
+
+    cpy #Player2
+    beq :+
+    lda #.lobyte(VsGarbageP1_Tiles)
+    sta AddressPointer1+0
+    lda #.hibyte(VsGarbageP1_Tiles)
+    sta AddressPointer1+1
+
+    lda #.lobyte(VsGarbageP1_Attr)
+    sta AddressPointer2+0
+    lda #.hibyte(VsGarbageP1_Attr)
+    sta AddressPointer2+1
+
+    lda #.lobyte(FieldGrid)
+    sta AddressPointer3+0
+    lda #.hibyte(FieldGrid)
+    sta AddressPointer3+1
+
+    lda #GarbageBarP1_Tile_EmptyBottom ; GarbageBarP1_Tile_EmptyBottom
+    sta TmpX
+    pha
+    lda #GarbageBarP1_Tile ; GarbageBarP1_Tile
+    sta TmpXX
+    lda #GarbageBarP1_Tile_Empty
+    pha
+    jmp :++
+:
+    lda #.lobyte(VsGarbageP2_Tiles)
+    sta AddressPointer1+0
+    lda #.hibyte(VsGarbageP2_Tiles)
+    sta AddressPointer1+1
+
+    lda #.lobyte(VsGarbageP2_Attr)
+    sta AddressPointer2+0
+    lda #.hibyte(VsGarbageP2_Attr)
+    sta AddressPointer2+1
+
+    lda #.lobyte(FieldGridP2)
+    sta AddressPointer3+0
+    lda #.hibyte(FieldGridP2)
+    sta AddressPointer3+1
+
+    lda #GarbageBarP2_Tile_EmptyBottom ; GarbageBarP2_Tile_EmptyBottom
+    sta TmpX
+    pha
+    lda #GarbageBarP2_Tile ; GarbageBarP2_Tile
+    sta TmpXX
+    lda #GarbageBarP2_Tile_Empty
+    pha
+:
+
+    ;
+    ; Make sure the bar isn't empty
+    ldy #.sizeof(VsGarbageP1_Tiles)-1
+    lda (AddressPointer1), y
+    cmp TmpX
+    bne :+
+    pla
+    pla
+    jmp @end
+:
+
+    ;lda TmpA
+    ;sta (AddressPointer2), y
+
+    ;
+    ; Count number of rows
+    ldx #1
+:   dey
+    lda (AddressPointer1), y
+    cmp TmpXX ; not start of next or empty
+    bne :+
+    ;lda TmpA
+    ;sta (AddressPointer2), y
+    inx
+    jmp :-
+:
+
+    txa
+    pha
+    ldy TmpY
+    jsr SpawnGarbage
+
+    pla
+    sta TmpX
+
+    ; update waiting garbo
+    lda #0
+    sta GarbageReady, y
+
+    sec
+    lda AddressPointer1+0
+    sbc TmpX
+    sta AddressPointer3+0
+    lda AddressPointer1+1
+    sbc #0
+    sta AddressPointer3+1
+
+    ldy #11
+:   lda (AddressPointer3), y
+    sta (AddressPointer1), y
+    dey
+    cpy TmpX
+    bcs :-
+
+    pla
+    sta TmpA ; GarbageBarP1_Tile_Empty
+    pla
+    sta TmpB ; GarbageBarP2_Tile_EmptyBottom
+
+    ; TmpXX = GarbageBarP2_Tile
+
+    lda TmpA
+:   sta (AddressPointer1), y
+    dey
+    bpl :-
+
+    ldy #11
+    lda (AddressPointer1), y
+    cmp TmpA ; _Tile_Empty
+    bne @notEmpty
+
+    lda TmpB
+    sta (AddressPointer1), y
+    jmp @end
+
+@notEmpty:
+    ldy TmpY
+    lda #GarbageTimerStart
+    sta GarbageCounter, y
+
+@end:
+    ldy TmpY
     jsr NextBlock
     lda #GS::Fall
     sta GameState, y
@@ -1255,7 +1451,17 @@ State_Clear:
     pla
     tay
 
-    lda #GS::Garbage
+    lda ClearCount, y
+    tax
+    dex
+    lda GarbagePerLine, x
+    beq :+
+    tax
+    jsr QueueGarbage
+:
+
+    jsr NextBlock
+    lda #GS::Fall
     sta GameState, y
     lda #0
     sta GameStateArg, y
@@ -2442,6 +2648,168 @@ _shuffle_clr:
 
     pla
     tay
+    rts
+
+UpdateGarbageBar:
+;    lda GarbageReady, y
+;    bne :+
+;    rts
+;:
+
+    cpy #Player2
+    beq :+
+    lda #.lobyte(VsGarbageP1_Tiles)
+    sta AddressPointer1+0
+    lda #.hibyte(VsGarbageP1_Tiles)
+    sta AddressPointer1+1
+
+    lda #.lobyte(VsGarbageP1_Attr)
+    sta AddressPointer2+0
+    lda #.hibyte(VsGarbageP1_Attr)
+    sta AddressPointer2+1
+
+    lda #GarbageBarP1_Tile_EmptyBottom
+    sta TmpX ; GarbageBarP1_Tile_EmptyBottom
+    lda #GarbageBarP1_Tile
+    sta TmpXX
+    jmp :++
+:
+    lda #.lobyte(VsGarbageP2_Tiles)
+    sta AddressPointer1+0
+    lda #.hibyte(VsGarbageP2_Tiles)
+    sta AddressPointer1+1
+
+    lda #.lobyte(VsGarbageP2_Attr)
+    sta AddressPointer2+0
+    lda #.hibyte(VsGarbageP2_Attr)
+    sta AddressPointer2+1
+    lda #GarbageBarP2_Tile_EmptyBottom
+    sta TmpX
+    lda #GarbageBarP2_Tile
+    sta TmpXX
+:
+    sty TmpY
+
+    lda GarbageReady, y
+    beq :+
+    ; garbage is ready.  turn red
+    lda #GarbageBar_Attr_Ready ; GarbageBar_Attr_Ready
+    sta TmpA
+    jmp :++
+:
+    ; garbage isn't ready, turn yellow
+    lda #GarbageBar_Attr_Pending ; GarbageBar_Attr_Pending
+    sta TmpA
+:
+
+    ;
+    ; Make sure the bar isn't empty
+    ldy #.sizeof(VsGarbageP1_Tiles)-1
+    lda (AddressPointer1), y
+    cmp TmpX
+    beq @done
+
+    lda TmpA
+    sta (AddressPointer2), y
+
+    ;
+    ; Count number of rows
+    ldx #1
+:   dey
+    lda (AddressPointer1), y
+    cmp TmpXX ; not start of next or empty
+    bne :+
+    lda TmpA
+    sta (AddressPointer2), y
+    inx
+    jmp :-
+:
+
+
+@done:
+    ldy TmpY
+    rts
+
+; Player ID in Y
+; Rows to spawn in X
+SpawnGarbage:
+    stx TmpX
+    sty TmpY
+
+    stx MMC5_MultA
+    lda #10
+    sta MMC5_MultB
+    ldx MMC5_MultA
+    stx TmpXX ; cells to check
+    txa
+
+    clc
+    adc AddressPointer3+0
+    sta AddressPointer4+0
+
+    lda AddressPointer3+1
+    adc #0
+    sta AddressPointer4+1
+
+    lda #0
+    sta TmpA ; game over?
+
+    sec
+    lda #BoardHeight
+    sbc TmpX
+    sta MMC5_MultB
+    lda #10
+    sta MMC5_MultA
+    lda MMC5_MultA
+    sta TmpB
+
+    ldy #0
+@findLoop:
+    lda (AddressPointer3), y
+    bne @gameOver
+    iny
+    dex
+    bne @findLoop
+
+    ldy #0
+@copyLoop:
+    lda (AddressPointer4), y
+    sta (AddressPointer3), y
+    iny
+    cpy TmpB
+    ;cpy #BoardHeight * BoardWidth
+    bne @copyLoop
+
+    lda #$01
+@spawn:
+    sta (AddressPointer3), y
+    iny
+    cpy #200
+    bne @spawn
+
+    lda rng_index
+    and #$07
+    clc
+    adc #1
+    sta TmpB
+
+    sec
+    lda #199
+    sbc TmpB
+    tay
+
+    lda #0
+@holePunch:
+    sta (AddressPointer3), y
+    .repeat 10
+    dey
+    .endrepeat
+    dec TmpX
+    bne @holePunch
+
+@gameOver:
+
+    ldy TmpY
     rts
 
 GarbagePerLine:

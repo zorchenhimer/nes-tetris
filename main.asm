@@ -97,7 +97,6 @@ VsMode
 Options
 NewScore
 Menu
-Debug
 PracticeMenu
 ConfirmClear
 .endenum
@@ -208,6 +207,7 @@ TSpinDebugSprite: .res 4
 Palettes: .res 4*8
 LowBank: .res 1
 
+PpuBuff_Vertical: .res 1
 PpuBuff_Addr: .res 2
 PpuBuff_Len: .res 1
 PpuBuff_Data: .res 64
@@ -250,9 +250,6 @@ LagIRQ: .res 1
 
     .include "game.asm"
     .include "vsmode.asm"
-    .include "basic-menu.asm"
-    .include "options.asm"
-    .include "menu-practice.asm"
 
 .ifdef DEBUG_FIELD
 DebugField:
@@ -266,6 +263,10 @@ PieceRng:
 
     .include "menu.asm"
     .include "mode-menu.asm"
+
+    .include "basic-menu.asm"
+    .include "options.asm"
+    .include "menu-practice.asm"
 
 Screen_Playfield:
     .include "playfield-rle.i"
@@ -418,6 +419,13 @@ NMI:
     lda PpuBuff_Addr+1
     beq @noBuff
 
+    lda PpuBuff_Vertical
+    beq :+
+    lda #%0000_0100
+:
+    ora PpuControl
+    sta $2000
+
     lda PpuBuff_Addr+1
     sta $2006
     lda PpuBuff_Addr+0
@@ -434,6 +442,7 @@ NMI:
     lda #0
     sta PpuBuff_Addr+1
     sta PpuBuff_Addr+0
+    sta PpuBuff_Vertical
 @noBuff:
 
     lda PpuControl

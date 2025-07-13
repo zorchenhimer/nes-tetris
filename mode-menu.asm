@@ -221,7 +221,8 @@ FrameModeMenu:
     lda ModeSelection
     cmp #MMSel::Classic
     bne :+
-    lda #InitIndex::Debug
+    ; TODO: set the correct shit for this
+    lda #InitIndex::Game
     jmp GotoInit
 
 :   cmp #MMSel::Practice

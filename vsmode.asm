@@ -6,10 +6,13 @@ Player2 = 1
 VsBlockLocation_X = 24 - (8*2)
 VsBlockLocation_Y = 55 - (8*1)
 
+; PPU Addresses for the top of the bars
+GarbageBar_P1 = $21E2
+GarbageBar_P2 = $21FD
+
 .pushseg
 .segment "BSS"
 VsBtnStart: .res 2
-
 .popseg
 
 InitVsMode:
@@ -24,12 +27,6 @@ InitVsMode:
     lda #.hibyte(GamePalettes)
     sta AddressPointer1+1
     jsr LoadSpPalettes
-    ;lda #.lobyte(GameOverPalette)
-    ;sta AddressPointer1+0
-    ;lda #.hibyte(GameOverPalette)
-    ;sta AddressPointer1+1
-    ;ldx #7
-    ;jsr LoadPalette
 
     lda #0
     ldy #0
@@ -156,16 +153,33 @@ InitVsMode:
     dex
     bpl :-
 
-    ; Bottom attack
-    lda #$C2
-    .repeat 2, i
-        sta $2322+MMC5_OFFSET+(i*32)
-    .endrepeat
+    ldx #0
+    lda #GarbageBarP1_Tile_Empty ; GarbageBarP1_Tile_Empty
+:   sta VsGarbageP1_Tiles, x
+    inx
+    cpx #12
+    bne :-
 
-    lda #$82
-    .repeat 4, i
-        sta $22FD+MMC5_OFFSET+(i*32)
-    .endrepeat
+    ldx #0
+    lda #GarbageBarP2_Tile_Empty ; GarbageBarP2_Tile_Empty
+:   sta VsGarbageP2_Tiles, x
+    inx
+    cpx #12
+    bne :-
+
+    lda #GarbageBarP1_Tile_EmptyBottom ; GarbageBarP1_Tile_EmptyBottom
+    sta VsGarbageP1_Tiles+.sizeof(VsGarbageP1_Tiles)-1
+
+    lda #GarbageBarP2_Tile_EmptyBottom ; GarbageBarP1_Tile_EmptyBottom
+    sta VsGarbageP2_Tiles+.sizeof(VsGarbageP1_Tiles)-1
+
+    ldx #0
+    lda #GarbageBar_Attr_Empty ; GarbageBar_Attr_Empty
+:   sta VsGarbageP1_Attr, x
+    sta VsGarbageP2_Attr, x
+    inx
+    cpx #12
+    bne :-
 
     lda #%0000_0001
     sta $5104
@@ -186,6 +200,12 @@ InitVsMode:
     sta HoldPiece+1
     sta Combo+0
     sta Combo+1
+    sta GarbageCounter+0
+    sta GarbageCounter+1
+
+    lda #$80
+    sta PlaceWait+0
+    sta PlaceWait+1
 
     jsr ShuffleBag_Init
 
@@ -217,6 +237,22 @@ InitVsMode:
     jsr WaitForNMI
 
     SetIRQ 6, IrqVsGame_Unrolled
+
+    ;ldy #Player2
+    ;ldx #1
+    ;jsr QueueGarbage
+
+    ;ldy #Player2
+    ;ldx #4
+    ;jsr QueueGarbage
+
+    ;ldy #Player1
+    ;ldx #2
+    ;jsr QueueGarbage
+
+    ;ldy #Player2
+    ;ldx #3
+    ;jsr QueueGarbage
 
 VsModeFrame:
     jsr ReadControllers
@@ -412,12 +448,36 @@ NmiVsGame:
     lda IsPaused
     beq :+
     lda #%0001_1111
-    sta $2001
+    sta PpuMask
     jmp :++
 :
     lda #%0001_1110
-    sta $2001
+    sta PpuMask
 :
+
+    lda PpuControl
+    ora #%0000_0100 ; vertical mode
+    sta $2000
+
+    lda #.hibyte(GarbageBar_P1)
+    sta $2006
+    lda #.lobyte(GarbageBar_P1)
+    sta $2006
+
+    .repeat 12, i
+        lda VsGarbageP1_Tiles+i
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(GarbageBar_P2)
+    sta $2006
+    lda #.lobyte(GarbageBar_P2)
+    sta $2006
+
+    .repeat 12, i
+        lda VsGarbageP2_Tiles+i
+        sta $2007
+    .endrepeat
 
     rts
 
@@ -567,6 +627,17 @@ IrqVsGame_Unrolled:
     dec TmpX
     bne :-
 
+    ;
+    ; Garbage bars
+    .repeat 12, i
+        lda VsGarbageP1_Attr+i
+        sta GarbageBarP1_Addr+MMC5_OFFSET+(i*32)
+        lda VsGarbageP2_Attr+i
+        sta GarbageBarP2_Addr+MMC5_OFFSET+(i*32)
+    .endrepeat
+
+    ;
+    ; update both grids
     .repeat 20, row
         .repeat 10, cell
             lda FieldGrid+cell+(row*10)
@@ -684,7 +755,11 @@ UpdateActiveBlocks_Vs:
 
     lda GameState+0
     cmp #GS::Clear
-    bne :+
+    beq :+
+    cmp #GS::Garbage
+    beq :+
+    jmp :++
+:
     lda #$FF
     .repeat 4, i
         sta SpriteP1+(i*4)
@@ -777,7 +852,11 @@ UpdateActiveBlocks_Vs:
 
     lda GameState+1
     cmp #GS::Clear
-    bne :+
+    beq :+
+    cmp #GS::Garbage
+    beq :+
+    jmp :++
+:
     lda #$FF
     .repeat 4, i
         sta SpriteP2+(i*4)
@@ -787,6 +866,113 @@ UpdateActiveBlocks_Vs:
 
     pla
     tay
+    rts
+
+; Sending player in Y
+; Lines in X
+QueueGarbage:
+    stx TmpX
+
+    cpy #Player1
+    beq @sendToP2
+    ;
+    ; send to P1
+
+    ldx #.sizeof(VsGarbageP1_Tiles)-1
+:   lda VsGarbageP1_Tiles, x
+    cmp #GarbageBarP1_Tile_Empty
+    beq :+
+    cmp #GarbageBarP1_Tile_EmptyBottom
+    beq :+
+    dex
+    bpl :-
+:
+
+    ;
+    ; exit early if we have no space
+    cpx #$FF
+    bne :+
+    rts
+:
+    cpx #0
+    bne :+
+    lda #GarbageTimerStart
+    sta GarbageCounter+Player1
+:
+
+    cpx #.sizeof(VsGarbageP1_Tiles)-1
+    bne :+
+    lda #GarbageTimerStart
+    sta GarbageCounter+Player1
+    lda #0
+    sta GarbageReady+Player1
+:
+
+    lda #GarbageBarP1_Tile_Bottom
+    sta VsGarbageP1_Tiles, x
+    dex
+    bpl :+
+    rts ; ran out of space
+:
+    dec TmpX
+    beq @rts
+
+    lda #GarbageBarP1_Tile
+:   sta VsGarbageP1_Tiles, x
+    dec TmpX
+    beq @rts
+    dex
+    bpl :-
+    rts
+
+@sendToP2:
+    ldx #.sizeof(VsGarbageP2_Tiles)-1
+:   lda VsGarbageP2_Tiles, x
+    cmp #GarbageBarP2_Tile_Empty
+    beq :+
+    cmp #GarbageBarP2_Tile_EmptyBottom
+    beq :+
+    dex
+    bpl :-
+:
+
+    ;
+    ; exit early if we have no space
+    cpx #$FF
+    bne :+
+    rts
+:
+
+    cpx #0
+    bne :+
+    lda #GarbageTimerStart
+    sta GarbageCounter+Player2
+:
+
+    cpx #.sizeof(VsGarbageP2_Tiles)-1
+    bne :+
+    lda #GarbageTimerStart
+    sta GarbageCounter+Player2
+    lda #0
+    sta GarbageReady+Player2
+:
+
+    lda #GarbageBarP2_Tile_Bottom
+    sta VsGarbageP2_Tiles, x
+    dex
+    bpl :+
+    rts ; ran out of space
+:
+    dec TmpX
+    beq @rts
+
+    lda #GarbageBarP2_Tile
+:   sta VsGarbageP2_Tiles, x
+    dec TmpX
+    beq @rts
+    dex
+    bpl :-
+@rts:
     rts
 
 ; Losing player in Y

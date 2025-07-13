@@ -398,6 +398,9 @@ InitGame:
 
     lda #0
     sta TimeFrame
+    lda #$FF
+    sta GarbageCounter+0
+    sta GarbageCounter+1
 
     ;lda #SPEED
     lda DropSpeeds+0
@@ -2289,21 +2292,6 @@ TILE_Z = TILE_1 | PAL_D
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte TILE_X, TILE_X, TILE_Z, TILE_X
-    .byte TILE_X, TILE_Z, TILE_Z, TILE_X
-    .byte TILE_X, TILE_Z, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_Z, TILE_Z, TILE_X, TILE_X
-    .byte TILE_X, TILE_Z, TILE_Z, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_Z, TILE_X, TILE_X
-    .byte TILE_Z, TILE_Z, TILE_X, TILE_X
-    .byte TILE_Z, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
 ; S
 ;  XX
 ; XX
@@ -2311,21 +2299,6 @@ TILE_S = TILE_2 | PAL_A
 :   .byte TILE_X, TILE_S, TILE_S, TILE_X
     .byte TILE_S, TILE_S, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_S, TILE_X, TILE_X
-    .byte TILE_X, TILE_S, TILE_S, TILE_X
-    .byte TILE_X, TILE_X, TILE_S, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_S, TILE_S, TILE_X
-    .byte TILE_S, TILE_S, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_S, TILE_X, TILE_X, TILE_X
-    .byte TILE_S, TILE_S, TILE_X, TILE_X
-    .byte TILE_X, TILE_S, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
 ; T
@@ -2337,43 +2310,13 @@ TILE_T = TILE_1 | PAL_B
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte TILE_X, TILE_T, TILE_X, TILE_X
-    .byte TILE_X, TILE_T, TILE_T, TILE_X
-    .byte TILE_X, TILE_T, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_T, TILE_T, TILE_T, TILE_X
-    .byte TILE_X, TILE_T, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_T, TILE_X, TILE_X
-    .byte TILE_T, TILE_T, TILE_X, TILE_X
-    .byte TILE_X, TILE_T, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
 ; L
 ; XXX
 ; X
-TILE_L = TILE_2 | PAL_D
+TILE_L = TILE_2 | PAL_C
 :   .byte TILE_X, TILE_X, TILE_L, TILE_X
     .byte TILE_L, TILE_L, TILE_L, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_L, TILE_X, TILE_X
-    .byte TILE_X, TILE_L, TILE_X, TILE_X
-    .byte TILE_X, TILE_L, TILE_L, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_L, TILE_L, TILE_L, TILE_X
-    .byte TILE_L, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_L, TILE_L, TILE_X, TILE_X
-    .byte TILE_X, TILE_L, TILE_X, TILE_X
-    .byte TILE_X, TILE_L, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
 ; J
@@ -2385,21 +2328,6 @@ TILE_J = TILE_2 | PAL_B
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte TILE_X, TILE_J, TILE_J, TILE_X
-    .byte TILE_X, TILE_J, TILE_X, TILE_X
-    .byte TILE_X, TILE_J, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_J, TILE_J, TILE_J, TILE_X
-    .byte TILE_X, TILE_X, TILE_J, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_J, TILE_X, TILE_X
-    .byte TILE_X, TILE_J, TILE_X, TILE_X
-    .byte TILE_J, TILE_J, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
 ; I
 ; XXXX
 TILE_I = TILE_1 | PAL_C
@@ -2408,41 +2336,11 @@ TILE_I = TILE_1 | PAL_C
     .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
 
-    .byte TILE_X, TILE_X, TILE_I, TILE_X
-    .byte TILE_X, TILE_X, TILE_I, TILE_X
-    .byte TILE_X, TILE_X, TILE_I, TILE_X
-    .byte TILE_X, TILE_X, TILE_I, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_I, TILE_I, TILE_I, TILE_I
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-    .byte TILE_X, TILE_I, TILE_X, TILE_X
-
 ; O
 ; XX
 ; XX
-TILE_O = TILE_2 | PAL_C
+TILE_O = TILE_2 | PAL_D
 :   .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_O, TILE_O, TILE_X
-    .byte TILE_X, TILE_O, TILE_O, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_O, TILE_O, TILE_X
-    .byte TILE_X, TILE_O, TILE_O, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-    .byte TILE_X, TILE_O, TILE_O, TILE_X
-    .byte TILE_X, TILE_O, TILE_O, TILE_X
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
-
-    .byte TILE_X, TILE_X, TILE_X, TILE_X
     .byte TILE_X, TILE_O, TILE_O, TILE_X
     .byte TILE_X, TILE_O, TILE_O, TILE_X
     .byte TILE_X, TILE_X, TILE_X, TILE_X
