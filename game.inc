@@ -222,7 +222,6 @@ Fall
 Place
 Clear
 Garbage
-Paused
 .endenum
 
 .enum GSArg
@@ -885,8 +884,6 @@ State_Garbage:
     rts
 
 @2pMode:
-    ; TODO: check for garbage clear
-    ; TODO: spawn garbo
     sty TmpY
 
     lda ClearCount, y
@@ -1469,6 +1466,16 @@ State_Clear:
 :   clc
     adc GarbagePerCombo, x
     beq @noGarbage
+
+    ; TODO (maybe?):
+    ;   Check for queued garbage.  if it exists,
+    ;   subtract the number of rows we would have
+    ;   sent to the other player from the queue.
+    ;   If this number is negative (ie, clear more
+    ;   queued rows than are actively queued), send
+    ;   the remainder to the other player.
+
+
     tax
     jsr QueueGarbage
 @noGarbage:

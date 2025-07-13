@@ -239,7 +239,11 @@ InitVsMode:
     SetIRQ 6, IrqVsGame_Unrolled
 
     ;ldy #Player2
-    ;ldx #0
+    ;ldx #1
+    ;jsr QueueGarbage
+
+    ;ldy #Player2
+    ;ldx #1
     ;jsr QueueGarbage
 
     ;ldy #Player2
