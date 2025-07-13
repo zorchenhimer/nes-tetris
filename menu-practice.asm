@@ -82,4 +82,7 @@ Practice_DoButton:
     lda #InitIndex::Game
     jmp GotoInit
 
+.pushseg
+.segment "PAGE_UTIL"
 .include "practice-boards.i"
+.popseg
