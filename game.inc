@@ -58,24 +58,6 @@ GameState:    .res 2
 GameStateArg: .res 2
 GameStateArgB: .res 2 ; used for clear animation
 
-dbgActive_X: .res 1
-dbgActive_Y: .res 1
-dbgGhost_X: .res 1
-dbgGhost_Y: .res 1
-
-dbgOffsetActive: .res 1
-dbgOffsetGhost: .res 1
-
-dbgStep: .res 1 ; the lookup index for the kick table
-dbgEnum: .res 1
-
-dbgKickTable: .res 1
-dbgKickTable_Wall: .res 1
-
-dbgBlockX: .res 1
-dbgBlockY: .res 1
-dbgBlockOffset: .res 1
-dbgFieldOffset: .res 1
 Combo: .res 2 ; one byte per player
 ClearCount: .res 2 ; rows cleared this frame
 
