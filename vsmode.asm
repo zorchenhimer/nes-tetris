@@ -748,6 +748,18 @@ UpdateActiveBlocks_Vs:
         .endif
     .endrepeat
 
+    lda Option_GhostFlash
+    beq :+
+    ; do flash
+    lda FrameCount
+    and #$01
+    beq :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteGhostP1+(i*4)
+    .endrepeat
+:
+
     lda BlockY+0
     cmp GhostY+0
     bne :+
@@ -844,6 +856,18 @@ UpdateActiveBlocks_Vs:
             inx
         .endif
     .endrepeat
+
+    lda Option_GhostFlash
+    beq :+
+    ; do flash
+    lda FrameCount
+    and #$01
+    beq :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteGhostP2+(i*4)
+    .endrepeat
+:
 
     lda BlockY+1
     cmp GhostY+1

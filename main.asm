@@ -386,6 +386,8 @@ BareNmiHandler:
     rts
 
 NMI:
+    inc FrameCount
+
     bit Sleeping
     bpl :+
     inc LagNMI
@@ -459,8 +461,6 @@ NMI:
 
     lda #$FF
     sta Sleeping
-
-    inc FrameCount
 
     pla
     sta TmpX

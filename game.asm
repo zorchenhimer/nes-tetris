@@ -1145,6 +1145,18 @@ UpdateBlock:
     sta Palettes+(0*4)+2+16
 :
 
+    lda Option_GhostFlash
+    beq :+
+    ; do flash
+    lda FrameCount
+    and #$01
+    beq :+
+    lda #$FF
+    .repeat 4, i
+        sta SpriteGhostP1+(i*4)
+    .endrepeat
+:
+
     lda BlockY+0
     cmp GhostY+0
     bne :+
