@@ -82,6 +82,13 @@ FALSE = 0
     sta NmiHandler+1
 .endmacro
 
+.macro SetNMI Addr
+    lda #.lobyte(Addr)
+    sta NmiHandler+0
+    lda #.hibyte(Addr)
+    sta NmiHandler+1
+.endmacro
+
 .struct ScoreEntry
     Name  .byte 16
     Time  .byte 2
@@ -210,7 +217,11 @@ LowBank: .res 1
 PpuBuff_Vertical: .res 1
 PpuBuff_Addr: .res 2
 PpuBuff_Len: .res 1
-PpuBuff_Data: .res 64
+PpuBuff_Data: .res 20
+
+VsWinLooseBuffReady: .res 1
+VsWinLoseP1Buffer: .res 10
+VsWinLoseP2Buffer: .res 10
 
 .segment "BSS"
 ;BufferedBlock: .res 4*4
@@ -341,10 +352,14 @@ IRQ:
 
     lda TmpX
     pha
+    lda TmpA
+    pha
 
     bit $5204
     jsr IrqCall
 
+    pla
+    sta TmpA
     pla
     sta TmpX
 
@@ -424,6 +439,9 @@ NMI:
     lda PpuBuff_Vertical
     beq :+
     lda #%0000_0100
+    jmp :++
+:
+    lda #0
 :
     ora PpuControl
     sta $2000

@@ -13,6 +13,9 @@ GarbageBar_P2 = $21FD
 .pushseg
 .segment "BSS"
 VsBtnStart: .res 2
+.segment "ZEROPAGE"
+VsWinLoseP1Tile: .res 1
+VsWinLoseP2Tile: .res 1
 .popseg
 
 InitVsMode:
@@ -1003,11 +1006,225 @@ QueueGarbage:
 @rts:
     rts
 
+WinLose_P1 = $2183
+WinLose_P2 = $2193
+
+WinTileStart = $10
+LoseTileStart = $40
+
+VsModeGameOver_NMI:
+    lda #$3F
+    sta $2006
+    lda #$00
+    sta $2006
+
+    .repeat 4*8, i
+        lda Palettes+i
+        sta $2007
+    .endrepeat
+
+    lda #$00
+    sta $2003
+    lda #$02
+    sta $4014
+
+    lda PpuControl
+    and #%1111_1011 ; turn off vertical write
+    sta $2000
+
+    lda VsWinLooseBuffReady
+    bpl :+
+    rts
+:
+
+    sta MMC5_MultA
+    lda #32
+    sta MMC5_MultB
+
+    lda MMC5_MultA
+    clc
+    adc #.lobyte(WinLose_P1)
+    sta TmpX
+
+    lda #.hibyte(WinLose_P1)
+    adc #0
+    sta $2006
+
+    lda TmpX
+    sta $2006
+    ldy #0
+:
+    lda VsWinLoseP1Buffer, y
+    sta $2007
+    iny
+    cpy #10
+    bne :-
+
+    lda MMC5_MultA
+    clc
+    adc #.lobyte(WinLose_P2)
+    sta TmpX
+
+    lda #.hibyte(WinLose_P2)
+    adc #0
+    sta $2006
+
+    lda TmpX
+    sta $2006
+    ldy #0
+:
+    lda VsWinLoseP2Buffer, y
+    sta $2007
+    iny
+    cpy #10
+    bne :-
+
+    lda #$FF
+    sta VsWinLooseBuffReady
+    rts
+
 ; Losing player in Y
 VsModeGameOver:
     lda #%0001_1110
     sta $2001
-    jsr ClearSprites
+    ;jsr ClearSprites
+
+    cpy #Player1
+    bne :+
+    ; P1 loss
+    lda #LoseTileStart
+    sta VsWinLoseP1Tile
+    lda #WinTileStart
+    sta VsWinLoseP2Tile
+    jmp :++
+:
+    ; P2 loss
+    lda #WinTileStart
+    sta VsWinLoseP1Tile
+    lda #LoseTileStart
+    sta VsWinLoseP2Tile
+:
+
+    ; put sprites behind background
+    .repeat 4, i
+    lda SpriteP1+(i*4)+2
+    ora #%0010_0000
+    sta SpriteP1+(i*4)+2
+
+    lda SpriteP2+(i*4)+2
+    ora #%0010_0000
+    sta SpriteP2+(i*4)+2
+
+    lda SpriteGhostP1+(i*4)+2
+    ora #%0010_0000
+    sta SpriteGhostP1+(i*4)+2
+
+    lda SpriteGhostP2+(i*4)+2
+    ora #%0010_0000
+    sta SpriteGhostP2+(i*4)+2
+    .endrepeat
+
+    lda #$FF
+    sta VsWinLooseBuffReady
+
+    SetNMI VsModeGameOver_NMI
+
+    jsr WaitForIRQ
+
+    lda #$03
+    sta TmpA
+
+    ldx #0
+    ldy VsWinLoseP1Tile
+:   tya
+    sta VsWinLoseP1Buffer, x
+    lda TmpA
+    sta FieldGrid+(10*5), x
+    iny
+    inx
+    cpx #10
+    bne :-
+
+    ldx #0
+    ldy VsWinLoseP2Tile
+:   tya
+    sta VsWinLoseP2Buffer, x
+    lda TmpA
+    sta FieldGridP2+(10*5), x
+    iny
+    inx
+    cpx #10
+    bne :-
+
+    lda #0
+    sta VsWinLooseBuffReady
+
+    jsr WaitForIRQ
+
+    ldx #0
+    lda VsWinLoseP1Tile
+    clc
+    adc #$10
+    tay
+:   tya
+    sta VsWinLoseP1Buffer, x
+    lda TmpA
+    sta FieldGrid+(10*6), x
+    iny
+    inx
+    cpx #10
+    bne :-
+
+    ldx #0
+    lda VsWinLoseP2Tile
+    clc
+    adc #$10
+    tay
+:   tya
+    sta VsWinLoseP2Buffer, x
+    lda TmpA
+    sta FieldGridP2+(10*6), x
+    iny
+    inx
+    cpx #10
+    bne :-
+
+    lda #1
+    sta VsWinLooseBuffReady
+
+    jsr WaitForIRQ
+
+    ldx #0
+    lda VsWinLoseP1Tile
+    clc
+    adc #$20
+    tay
+:   tya
+    sta VsWinLoseP1Buffer, x
+    lda TmpA
+    sta FieldGrid+(10*7), x
+    iny
+    inx
+    cpx #10
+    bne :-
+
+    ldx #0
+    lda VsWinLoseP2Tile
+    clc
+    adc #$20
+    tay
+:   tya
+    sta VsWinLoseP2Buffer, x
+    lda TmpA
+    sta FieldGridP2+(10*7), x
+    iny
+    inx
+    cpx #10
+    bne :-
+
+    lda #2
+    sta VsWinLooseBuffReady
+    jsr WaitForIRQ
 
 VsModeGameOver_Frame:
     jsr WaitForIRQ
