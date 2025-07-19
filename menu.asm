@@ -338,6 +338,10 @@ FrameMenu:
     lda #BUTTON_START ; start
     jsr ButtonPressed
     beq :+
+
+    lda #MMSel::Marathon ; MMSel::Marathon
+    sta ModeSelection
+
     lda MenuSelection
     jmp GotoInit
 
@@ -346,6 +350,10 @@ FrameMenu:
     lda #BUTTON_A ; a
     jsr ButtonPressed
     beq :+
+
+    lda #MMSel::Marathon ; MMSel::Marathon
+    sta ModeSelection
+
     lda MenuSelection
     jmp GotoInit
 :

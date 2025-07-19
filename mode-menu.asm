@@ -68,9 +68,10 @@ InitModeMenu:
     lda #%0000_0010
     sta $5104
 
-    lda ModeSelection
-    asl a
-    tax
+    lda #0
+    sta ModeSelection
+
+    ldx #0
     lda ModeMenuIrqFunctions+0, x
     sta AddressPointer1+0
     lda ModeMenuIrqFunctions+1, x
