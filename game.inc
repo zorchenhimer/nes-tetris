@@ -2431,7 +2431,7 @@ NextBlock:
     sta HeldSwapped, y
 
 NextBlock_Swap:
-    lda Speed_Drop, y
+    lda Speed_Drop
     sta DropSpeed, y
 
     bit CurrentBlock+1
@@ -2463,9 +2463,6 @@ NextBlock_Swap:
     tax
     ldy #0
     lda (AddressPointer1), y
-    .ifdef DEBUG_PIECE
-    lda #DEBUG_PIECE
-    .endif
     sta CurrentBlock, x
 
     ldy #1
