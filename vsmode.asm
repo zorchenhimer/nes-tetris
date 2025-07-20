@@ -13,9 +13,16 @@ GarbageBar_P2 = $21FD
 .pushseg
 .segment "BSS"
 VsBtnStart: .res 2
+
 .segment "ZEROPAGE"
 VsWinLoseP1Tile: .res 1
 VsWinLoseP2Tile: .res 1
+
+.segment "STACK"
+VsWinLoseBuffReady: .res 1
+VsWinLoseP1Buffer: .res 10
+VsWinLoseP2Buffer: .res 10
+
 .popseg
 
 InitVsMode:
@@ -1035,7 +1042,7 @@ VsModeGameOver_NMI:
     and #%1111_1011 ; turn off vertical write
     sta $2000
 
-    lda VsWinLooseBuffReady
+    lda VsWinLoseBuffReady
     bpl :+
     rts
 :
@@ -1083,13 +1090,15 @@ VsModeGameOver_NMI:
     bne :-
 
     lda #$FF
-    sta VsWinLooseBuffReady
+    sta VsWinLoseBuffReady
+    rts
     rts
 
 ; Losing player in Y
 VsModeGameOver:
     lda #%0001_1110
     sta $2001
+    sty TmpYY
 
     cpy #Player1
     bne :+
@@ -1103,6 +1112,11 @@ VsModeGameOver:
     lda #WinPalette
     sta TmpX
 
+    lda #.lobyte(SpriteP1)
+    sta AddressPointer2+0
+    lda #.hibyte(SpriteP1)
+    sta AddressPointer2+1
+
     ; put Winner's sprites behind background
     .repeat 4, i
         lda SpriteP2+(i*4)+2
@@ -1113,6 +1127,11 @@ VsModeGameOver:
         ora #%0010_0000
         sta SpriteGhostP2+(i*4)+2
     .endrepeat
+
+    lda #.lobyte(FieldGrid)
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGrid)
+    sta AddressPointer1+1
 
     jmp :++
 :
@@ -1126,6 +1145,11 @@ VsModeGameOver:
     lda #WinPalette
     sta TmpA
 
+    lda #.lobyte(SpriteP2)
+    sta AddressPointer2+0
+    lda #.hibyte(SpriteP2)
+    sta AddressPointer2+1
+
     ; put Winner's sprites behind background
     .repeat 4, i
         lda SpriteP1+(i*4)+2
@@ -1136,10 +1160,15 @@ VsModeGameOver:
         ora #%0010_0000
         sta SpriteGhostP1+(i*4)+2
     .endrepeat
+
+    lda #.lobyte(FieldGridP2)
+    sta AddressPointer1+0
+    lda #.hibyte(FieldGridP2)
+    sta AddressPointer1+1
 :
 
     lda #$FF
-    sta VsWinLooseBuffReady
+    sta VsWinLoseBuffReady
 
     SetNMI VsModeGameOver_NMI
 
@@ -1168,7 +1197,7 @@ VsModeGameOver:
     bne :-
 
     lda #0
-    sta VsWinLooseBuffReady
+    sta VsWinLoseBuffReady
 
     jsr WaitForIRQ
 
@@ -1201,7 +1230,7 @@ VsModeGameOver:
     bne :-
 
     lda #1
-    sta VsWinLooseBuffReady
+    sta VsWinLoseBuffReady
 
     jsr WaitForIRQ
 
@@ -1234,8 +1263,68 @@ VsModeGameOver:
     bne :-
 
     lda #2
-    sta VsWinLooseBuffReady
+    sta VsWinLoseBuffReady
     jsr WaitForIRQ
+
+    jsr WaitForIRQ
+    jsr WaitForIRQ
+    jsr WaitForIRQ
+
+    lda #0
+    sta TmpX
+    ldy #200-1
+@blankLoop:
+
+    cpy #79
+    bne :+
+    ldy #49
+:
+
+    lda #$01
+    ldx #10
+@inner:
+    sta (AddressPointer1), y
+    dey
+    dex
+    bne @inner
+
+    cpy #9
+    bne :+
+    jsr @hideSprite
+:
+
+    cpy #$FF
+    beq @loopDone
+
+    jsr WaitForIRQ
+    jsr WaitForIRQ
+    jsr WaitForIRQ
+    jsr WaitForIRQ
+
+    jmp @blankLoop
+
+@loopDone:
+    jmp VsModeGameOver_Frame
+
+@hideSprite:
+    sty TmpY
+    ldy #0
+    lda #$FF
+    sta (AddressPointer2), y
+    .repeat 4
+        iny
+    .endrepeat
+    sta (AddressPointer2), y
+    .repeat 4
+        iny
+    .endrepeat
+    sta (AddressPointer2), y
+    .repeat 4
+        iny
+    .endrepeat
+    sta (AddressPointer2), y
+    ldy TmpY
+    rts
 
 VsModeGameOver_Frame:
     jsr WaitForIRQ

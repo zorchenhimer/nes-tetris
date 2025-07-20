@@ -219,10 +219,6 @@ PpuBuff_Addr: .res 2
 PpuBuff_Len: .res 1
 PpuBuff_Data: .res 20
 
-VsWinLooseBuffReady: .res 1
-VsWinLoseP1Buffer: .res 10
-VsWinLoseP2Buffer: .res 10
-
 .segment "BSS"
 ;BufferedBlock: .res 4*4
 rng_index: .res 1
@@ -426,6 +422,11 @@ NMI:
     lda AddressPointer4+1
     pha
 
+    lda AddressPointer2+0
+    pha
+    lda AddressPointer2+1
+    pha
+
     lda TmpA
     pha
     lda TmpX
@@ -480,10 +481,17 @@ NMI:
     lda #$FF
     sta Sleeping
 
+    jsr fs_Update
+
     pla
     sta TmpX
     pla
     sta TmpA
+
+    pla
+    sta AddressPointer2+1
+    pla
+    sta AddressPointer2+0
 
     pla
     sta AddressPointer4+1
@@ -501,7 +509,6 @@ NMI:
     tax
     pla
 
-    jsr fs_Update
 
     rti
 
