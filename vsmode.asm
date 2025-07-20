@@ -681,7 +681,7 @@ UpdateActiveBlocks_Vs:
     ; P1 first
     ldx CurrentBlock+0
     lda GameState+0
-    cmp #GS::Fall
+    cmp #GS::Fall ; GS::Fall
     bne :+
     lda BlockColors, x
     sta Palettes+(0*4)+1+16
@@ -1012,6 +1012,9 @@ WinLose_P2 = $2193
 WinTileStart = $10
 LoseTileStart = $40
 
+WinPalette = $03
+LosePalette = $C3
+
 VsModeGameOver_NMI:
     lda #$3F
     sta $2006
@@ -1087,7 +1090,6 @@ VsModeGameOver_NMI:
 VsModeGameOver:
     lda #%0001_1110
     sta $2001
-    ;jsr ClearSprites
 
     cpy #Player1
     bne :+
@@ -1096,6 +1098,22 @@ VsModeGameOver:
     sta VsWinLoseP1Tile
     lda #WinTileStart
     sta VsWinLoseP2Tile
+    lda #LosePalette
+    sta TmpA
+    lda #WinPalette
+    sta TmpX
+
+    ; put Winner's sprites behind background
+    .repeat 4, i
+        lda SpriteP2+(i*4)+2
+        ora #%0010_0000
+        sta SpriteP2+(i*4)+2
+
+        lda SpriteGhostP2+(i*4)+2
+        ora #%0010_0000
+        sta SpriteGhostP2+(i*4)+2
+    .endrepeat
+
     jmp :++
 :
     ; P2 loss
@@ -1103,26 +1121,22 @@ VsModeGameOver:
     sta VsWinLoseP1Tile
     lda #LoseTileStart
     sta VsWinLoseP2Tile
-:
+    lda #LosePalette
+    sta TmpX
+    lda #WinPalette
+    sta TmpA
 
-    ; put sprites behind background
+    ; put Winner's sprites behind background
     .repeat 4, i
-    lda SpriteP1+(i*4)+2
-    ora #%0010_0000
-    sta SpriteP1+(i*4)+2
+        lda SpriteP1+(i*4)+2
+        ora #%0010_0000
+        sta SpriteP1+(i*4)+2
 
-    lda SpriteP2+(i*4)+2
-    ora #%0010_0000
-    sta SpriteP2+(i*4)+2
-
-    lda SpriteGhostP1+(i*4)+2
-    ora #%0010_0000
-    sta SpriteGhostP1+(i*4)+2
-
-    lda SpriteGhostP2+(i*4)+2
-    ora #%0010_0000
-    sta SpriteGhostP2+(i*4)+2
+        lda SpriteGhostP1+(i*4)+2
+        ora #%0010_0000
+        sta SpriteGhostP1+(i*4)+2
     .endrepeat
+:
 
     lda #$FF
     sta VsWinLooseBuffReady
@@ -1130,9 +1144,6 @@ VsModeGameOver:
     SetNMI VsModeGameOver_NMI
 
     jsr WaitForIRQ
-
-    lda #$03
-    sta TmpA
 
     ldx #0
     ldy VsWinLoseP1Tile
@@ -1149,7 +1160,7 @@ VsModeGameOver:
     ldy VsWinLoseP2Tile
 :   tya
     sta VsWinLoseP2Buffer, x
-    lda TmpA
+    lda TmpX
     sta FieldGridP2+(10*5), x
     iny
     inx
@@ -1182,7 +1193,7 @@ VsModeGameOver:
     tay
 :   tya
     sta VsWinLoseP2Buffer, x
-    lda TmpA
+    lda TmpX
     sta FieldGridP2+(10*6), x
     iny
     inx
@@ -1215,7 +1226,7 @@ VsModeGameOver:
     tay
 :   tya
     sta VsWinLoseP2Buffer, x
-    lda TmpA
+    lda TmpX
     sta FieldGridP2+(10*7), x
     iny
     inx

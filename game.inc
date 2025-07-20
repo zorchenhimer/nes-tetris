@@ -2513,10 +2513,17 @@ NextBlock_Swap:
     rts
 :
 
+    lda #GS::Fall
+    sta GameState, y
+    lda #0
+    sta GameStateArg, y
+
     bit CurrentBlock+1
     bpl @2p
+    jsr UpdateBlock
     jmp DedTransition
 @2p:
+    jsr UpdateActiveBlocks_Vs
     jmp VsModeGameOver
 
 ; Player ID in Y
