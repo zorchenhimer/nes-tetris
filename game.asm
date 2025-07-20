@@ -8,6 +8,8 @@
 .pushseg
 .segment "BSS"
 
+DedFirstFrame: .res 1
+
 SoloNotifTimer: .res 1
 SoloNotifClear: .res 1
 
@@ -28,6 +30,9 @@ BlockLocation_Y = 40 - 1
 
 GAMEOVER_START_X = 104
 GAMEOVER_START_Y = 109
+
+GAMEOVER_START_PPU = $21AD
+;GAMEOVER_START_Y = 109
 
 SCORE_ADDR = $2202
 LINES_ADDR = $2262
@@ -895,8 +900,18 @@ DedNmi:
     jsr BareNmiHandler
 
     ldx DropShake
-    bmi @noShake
+    bpl @shake
 
+;@noShake:
+    lda #0
+    sta ScrollX
+    sta ScrollY
+    lda #%1000_0000
+    sta PpuControl
+    ;rts
+    jmp @checkFirst
+
+@shake:
     stx MMC5_MultA
     lda #3
     sta MMC5_MultB
@@ -911,109 +926,60 @@ DedNmi:
     sta PpuControl
 
     dec DropShake
-    rts
 
-@noShake:
+@checkFirst:
+    lda DedFirstFrame
+    bne :+
+    rts
+:
     lda #0
-    sta ScrollX
-    sta ScrollY
-    lda #%1000_0000
-    sta PpuControl
+    sta DedFirstFrame
+
+    bit $2002
+    .repeat 4, j
+        lda #.hibyte(GAMEOVER_START_PPU+(j*32))
+        sta $2006
+        lda #.lobyte(GAMEOVER_START_PPU+(j*32))
+        sta $2006
+
+        ldy #$A0+(j*$10)
+        .repeat 8, i
+            sty $2007
+            .if i < 7
+                iny
+            .endif
+        .endrepeat
+    .endrepeat
     rts
 
 DedTransition:
     jsr UpdateBlock
     jsr WaitForIRQ
-    DisableIRQ
 
     lda #$FF
     .repeat 4, i
         sta SpriteGhostP1+(i*4)
     .endrepeat
 
-    lda #.lobyte(DedNmi)
-    sta NmiHandler+0
-    lda #.hibyte(DedNmi)
-    sta NmiHandler+1
+    lda #1
+    sta DedFirstFrame
 
-    ; game
-    ; over
-
-    ;ldx #0
-    ;ldy #$A0
-    .repeat 8, i
-        lda #GAMEOVER_START_Y
-        sta GameOverSprites+(i*4)+0
-
-        lda #$A0+i
-        sta GameOverSprites+(i*4)+1
-
-        lda #$03
-        sta GameOverSprites+(i*4)+2
-
-        lda #GAMEOVER_START_X+(i*8)
-        sta GameOverSprites+(i*4)+3
-    .endrepeat
-    ; ----
-    .repeat 8, i
-        lda #GAMEOVER_START_Y+8
-        sta GameOverSprites+(i*4)+0+(1*8*4)
-
-        lda #$B0+i
-        sta GameOverSprites+(i*4)+1+(1*8*4)
-
-        lda #$03
-        sta GameOverSprites+(i*4)+2+(1*8*4)
-
-        lda #GAMEOVER_START_X+(i*8)
-        sta GameOverSprites+(i*4)+3+(1*8*4)
+    lda #$C0
+    .repeat 4, j
+        .repeat 8, i
+            ;sta GAMEOVER_START_PPU+MMC5_OFFSET+(i*8)+(j*4)
+            sta FieldGrid+(j*10)+i+(7*10+1)
+        .endrepeat
     .endrepeat
 
-    ; ----
-    .repeat 8, i
-        lda #GAMEOVER_START_Y+16+4
-        sta GameOverSprites+(i*4)+0+(2*8*4)
+    SetNMI DedNmi
 
-        lda #$C0+i
-        sta GameOverSprites+(i*4)+1+(2*8*4)
+    jsr WaitForIRQ
 
-        lda #$03
-        sta GameOverSprites+(i*4)+2+(2*8*4)
-
-        lda #GAMEOVER_START_X+(i*8)
-        sta GameOverSprites+(i*4)+3+(2*8*4)
-    .endrepeat
-    ; ----
-    .repeat 8, i
-        lda #GAMEOVER_START_Y+24+4
-        sta GameOverSprites+(i*4)+0+(3*8*4)
-
-        lda #$D0+i
-        sta GameOverSprites+(i*4)+1+(3*8*4)
-
-        lda #$03
-        sta GameOverSprites+(i*4)+2+(3*8*4)
-
-        lda #GAMEOVER_START_X+(i*8)
-        sta GameOverSprites+(i*4)+3+(3*8*4)
-    .endrepeat
-
-    .repeat 8, i
-        lda #125
-        sta GameOverOops+(i*4)
-
-        lda #$90
-        sta GameOverOops+(i*4)+1
-
-        lda #$03
-        sta GameOverOops+(i*4)+2
-
-        lda #GAMEOVER_START_X+(i*8)
-        sta GameOverOops+(i*4)+3
-    .endrepeat
+    DisableIRQ
 
     jsr CheckForNewHighScore
-    jsr WaitForNMI
+    jsr WaitForIRQ
 
 DedFrame:
 

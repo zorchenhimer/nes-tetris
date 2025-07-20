@@ -149,9 +149,6 @@ LoadSpPalettes:
 
 ; Binary value in A, decimal values
 ; output in BinOutput
-; TODO: Split this in two?  one for six
-;       characters (this one), and one for
-;       four?
 BinToDec_Sm:
     lda #2
     sta TmpX

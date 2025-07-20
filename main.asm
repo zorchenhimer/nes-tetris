@@ -206,8 +206,6 @@ SpriteGhostP1: .res 4*4
 SpriteP2: .res 4*4
 SpriteGhostP2: .res 4*4
 
-GameOverSprites: .res 8*4*4
-GameOverOops: .res 8*4
 TSpinDebugSprite: .res 4
 
 .segment "STACK"
