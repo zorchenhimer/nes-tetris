@@ -248,16 +248,12 @@ InitVsMode:
 
     SetIRQ 6, IrqVsGame_Unrolled
 
-    ;ldy #Player2
-    ;ldx #1
-    ;jsr QueueGarbage
-
-    ;ldy #Player2
-    ;ldx #1
-    ;jsr QueueGarbage
-
-    ;ldy #Player2
+    ;ldy #Player1
     ;ldx #4
+    ;jsr QueueGarbage
+
+    ;ldy #Player1
+    ;ldx #3
     ;jsr QueueGarbage
 
     ;ldy #Player1
@@ -265,7 +261,15 @@ InitVsMode:
     ;jsr QueueGarbage
 
     ;ldy #Player2
+    ;ldx #4
+    ;jsr QueueGarbage
+
+    ;ldy #Player2
     ;ldx #3
+    ;jsr QueueGarbage
+
+    ;ldy #Player2
+    ;ldx #2
     ;jsr QueueGarbage
 
 VsModeFrame:

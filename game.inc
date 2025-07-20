@@ -2731,6 +2731,16 @@ UpdateGarbageBar:
     jmp :-
 :
 
+    ; clear non-ready garbage attrs
+    lda #GarbageBar_Attr_Empty
+:
+    cpy #$FF
+    beq :+
+    sta (AddressPointer2), y
+    dey
+    jmp :-
+:
+
 
 @done:
     ldy TmpY
