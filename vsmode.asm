@@ -1327,8 +1327,28 @@ VsModeGameOver:
     rts
 
 VsModeGameOver_Frame:
+    jsr ReadControllers
+
+    ldy #Player1
+    lda #BUTTON_START | BUTTON_A
+    jsr ButtonPressed
+    beq :+
+    jmp @end
+:
+
+    ldy #Player2
+    lda #BUTTON_START | BUTTON_A
+    jsr ButtonPressed
+    beq :+
+    jmp @end
+:
+
     jsr WaitForIRQ
     jmp VsModeGameOver_Frame
+
+@end:
+    lda #InitIndex::Menu
+    jmp GotoInit
 
 VsPlayfieldStartP1 = $20E3 + MMC5_OFFSET
 VsPlayfieldStartP2 = $20F3 + MMC5_OFFSET
