@@ -979,7 +979,7 @@ DedTransition:
     DisableIRQ
 
     jsr CheckForNewHighScore
-    jsr WaitForIRQ
+    jsr WaitForNMI
 
 DedFrame:
 
