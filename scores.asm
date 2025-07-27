@@ -1120,13 +1120,13 @@ InitScores_EnterName:
     sta EN_CursorSprite+2
 
     ; tiles
-    lda #$8E
+    lda #$E0
     sta EN_SelectSprites+1+(0*4)
-    lda #$8F
+    lda #$E1
     sta EN_SelectSprites+1+(1*4)
-    lda #$9E
+    lda #$E2
     sta EN_SelectSprites+1+(2*4)
-    lda #$9F
+    lda #$E3
     sta EN_SelectSprites+1+(3*4)
 
     lda #$84
