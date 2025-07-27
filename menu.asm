@@ -432,7 +432,7 @@ FrameMenu:
     jsr LoadPalette
 
     lda #3
-    ldx #0
+    ldx #FAMISTUDIO_SFX_CH0
     jsr fs_Sfx_Play
 
 @noSelection:

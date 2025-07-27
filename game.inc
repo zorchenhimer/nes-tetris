@@ -1205,6 +1205,14 @@ State_Clear:
     bne @notFirst
     ; first frame of clear
 
+    tya
+    pha
+    lda #1
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
+    pla
+    tay
+
     lda TSpin, y
     and #$7F
     bne @tspin
@@ -1587,6 +1595,14 @@ SetClearRows:
 
 ; place a block, discover rows to clear
 State_Place:
+    tya
+    pha
+    lda #0
+    ldx #FAMISTUDIO_SFX_CH1
+    jsr fs_Sfx_Play
+    pla
+    tay
+
     jsr CheckTSpin
 
     ldx CurrentBlock, y

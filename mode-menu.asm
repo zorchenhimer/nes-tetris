@@ -120,6 +120,9 @@ FrameModeMenu:
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
+    lda #3
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
     lda #MenuDir::Up
     sta MenuSelDir
 :
@@ -127,6 +130,9 @@ FrameModeMenu:
     lda #BUTTON_DOWN ; down
     jsr ButtonPressed
     beq :+
+    lda #3
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
     lda #MenuDir::Down
     sta MenuSelDir
 :
@@ -134,6 +140,9 @@ FrameModeMenu:
     lda #BUTTON_LEFT ; left
     jsr ButtonPressed
     beq :++
+    lda #3
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
 
     lda ModeSelection
     cmp #MMSel::SingleBlock
@@ -151,6 +160,9 @@ FrameModeMenu:
     lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
     beq :++
+    lda #3
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
 
     lda ModeSelection
     cmp #MMSel::SingleBlock

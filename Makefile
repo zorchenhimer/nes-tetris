@@ -34,7 +34,6 @@ SOURCES = \
 	audio/sfx.s \
 	famistudio_ca65.s
 
-
 CHR = tiles.chr tiles2.chr tiles3.chr tiles4.chr
 
 all: env chr bin/$(NAME).nes
@@ -94,3 +93,6 @@ mode-menu.i: screens/mode-menu.tmx
 
 practice-boards.i: screens/practice-boards.tmx practice-boards.go
 	go run practice-boards.go $< $@
+
+audio/sfx.s: audio/sfx.fms
+	famistudio $< famistudio-asm-sfx-export $@ -famistudio-asm-format:ca65 -famistudio-asm-sfx-generate-list:audio/sfx-names.s

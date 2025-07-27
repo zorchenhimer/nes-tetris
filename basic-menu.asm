@@ -245,6 +245,9 @@ Frame:
     lda #BUTTON_DOWN ; down, pressed
     jsr ButtonPressed
     beq :+
+    lda #3
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
     inc Selection
     lda Selection
     cmp ItemCount
@@ -256,6 +259,9 @@ Frame:
     lda #BUTTON_UP ; up
     jsr ButtonPressed
     beq :+
+    lda #3
+    ldx #FAMISTUDIO_SFX_CH0
+    jsr fs_Sfx_Play
     dec Selection
     lda Selection
     bpl :+
