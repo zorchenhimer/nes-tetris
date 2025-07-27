@@ -297,29 +297,6 @@ BlockColors_Ghost:
     .byte $18 ; O
 .endif
 
-BlockSprites_Tiles:
-    .byte SP_TILE_1 ; Z
-    .byte SP_TILE_2 ; S
-    .byte SP_TILE_1 ; T
-    .byte SP_TILE_2 ; L
-    .byte SP_TILE_2 ; J
-    .byte SP_TILE_1 ; I
-    .byte SP_TILE_2 ; O
-
-SP_PAL_A = PAL_A >> 6
-SP_PAL_B = PAL_B >> 6
-SP_PAL_C = PAL_C >> 6
-SP_PAL_D = PAL_D >> 6
-
-BlockSprites_Palettes:
-    .byte SP_PAL_D ; Z
-    .byte SP_PAL_A ; S
-    .byte SP_PAL_B ; T
-    .byte SP_PAL_D ; L
-    .byte SP_PAL_B ; J
-    .byte SP_PAL_C ; I
-    .byte SP_PAL_C ; O
-
 ; Offsets for each block in full 8px increments
 ; Includes rotations
 BlockOffsets_Y:

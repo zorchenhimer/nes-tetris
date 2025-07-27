@@ -23,6 +23,15 @@ NotifBufferMMC5:  .res 40
 ; Length (byte)
 NotifBufferClear: .res 20
 
+HoldPieceBuffer_Attr: .res 1
+NextPieceBuffer_Attr: .res 4
+
+.segment "ZEROPAGE"
+
+HoldPieceBuffer_Tiles: .res 4*2
+NextPieceBufferTop_Tiles: .res 4*2
+NextPieceBuffer_Tiles: .res 3*3*2
+
 .popseg
 
 BlockLocation_X = 88 - 8
@@ -39,8 +48,8 @@ LINES_ADDR = $2262
 COMBO_ADDR = $21A6
 LEVEL_ADDR = $22C4
 
-HOLD_ADDR  = $2139 + MMC5_OFFSET
-NEXT_ADDR_START = $21D9 + MMC5_OFFSET
+HOLD_ADDR  = $2139
+NEXT_ADDR_START = $21D9
 
 ; Lines per level
 LEVEL_LENGTH = 10
@@ -129,6 +138,114 @@ NmiGame:
     .repeat .sizeof(Level_Tiles), j
     lda Level_Tiles+j
     sta $2007
+    .endrepeat
+
+    lda #.hibyte(HOLD_ADDR)
+    sta $2006
+    lda #.lobyte(HOLD_ADDR)
+    sta $2006
+
+    .repeat 4, i
+        lda HoldPieceBuffer_Tiles+i
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(HOLD_ADDR+32)
+    sta $2006
+    lda #.lobyte(HOLD_ADDR+32)
+    sta $2006
+
+    .repeat 4, i
+        lda HoldPieceBuffer_Tiles+i+4
+        sta $2007
+    .endrepeat
+
+    ;
+    ; Bag+0
+    lda #.hibyte(NEXT_ADDR_START)
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START)
+    sta $2006
+
+    .repeat 4, i
+        lda NextPieceBufferTop_Tiles+i
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(NEXT_ADDR_START+32)
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+32)
+    sta $2006
+
+    .repeat 4, i
+        lda NextPieceBufferTop_Tiles+i+4
+        sta $2007
+    .endrepeat
+
+    ;
+    ; Bag+1
+    lda #.hibyte(NEXT_ADDR_START+(32*3))
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+(32*3))
+    sta $2006
+
+    .repeat 3, i
+        lda NextPieceBuffer_Tiles+i+(6*0)
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(NEXT_ADDR_START+(32*3)+32)
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+(32*3)+32)
+    sta $2006
+
+    .repeat 3, i
+        lda NextPieceBuffer_Tiles+i+3+(6*0)
+        sta $2007
+    .endrepeat
+
+    ;
+    ; Bag+2
+    lda #.hibyte(NEXT_ADDR_START+(32*6))
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+(32*6))
+    sta $2006
+
+    .repeat 3, i
+        lda NextPieceBuffer_Tiles+i+(6*1)
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(NEXT_ADDR_START+(32*6)+32)
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+(32*6)+32)
+    sta $2006
+
+    .repeat 3, i
+        lda NextPieceBuffer_Tiles+i+3+(6*1)
+        sta $2007
+    .endrepeat
+
+    ;
+    ; Bag+3
+    lda #.hibyte(NEXT_ADDR_START+(32*9))
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+(32*9))
+    sta $2006
+
+    .repeat 3, i
+        lda NextPieceBuffer_Tiles+i+(6*2)
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(NEXT_ADDR_START+(32*9)+32)
+    sta $2006
+    lda #.lobyte(NEXT_ADDR_START+(32*9)+32)
+    sta $2006
+
+    .repeat 3, i
+        lda NextPieceBuffer_Tiles+i+3+(6*2)
+        sta $2007
     .endrepeat
 
     lda SoloNotifClear
@@ -445,8 +562,6 @@ InitGame:
     lda #$00
     sta $2003
 
-    SetIRQ 2, IrqDrawBoard
-
     lda #%0001_1110
     sta PpuMask
 
@@ -468,6 +583,7 @@ InitGame:
     sta HoldPiece
 
 FrameGame:
+    SetIRQ 10, IrqDrawBoard
     jsr ReadControllers
 
     ldy #Player1
@@ -536,27 +652,138 @@ FrameGame:
 
 @noShake:
 
-    lda TSpin+0
-    and #$80
-    beq :+
-    lda #'R'
-    jmp :++
-:
-    lda #' '
-:   sta TSpinDebugSprite+1
+    ; Prep the hold piece
+    bit HoldPiece+0
+    bmi @noHold
 
-    lda TSpin+0
-    and #$7F
-    beq :+
-    lda #'T'
-    sta TSpinDebugSprite+1
-:
-    lda #40
-    sta TSpinDebugSprite+0
-    lda #24
-    sta TSpinDebugSprite+3
-    lda #0
-    sta TSpinDebugSprite+2
+    lda #' '
+    ldx #.sizeof(HoldPieceBuffer_Tiles)
+:   sta HoldPieceBuffer_Tiles, x
+    dex
+    bpl :-
+
+    lda HoldPiece+0
+    asl a
+    tax
+    lda PreviewPieces_6px+0, x
+    sta AddressPointer1+0
+    lda PreviewPieces_6px+1, x
+    sta AddressPointer1+1
+
+    ; row length
+    ldy #0
+    lda (AddressPointer1), y
+    sta TmpA ; length
+    pha
+    iny
+    lda (AddressPointer1), y
+    sta HoldPieceBuffer_Attr
+    iny
+
+    ; Top row
+    ldx #0
+:   lda (AddressPointer1), y
+    sta HoldPieceBuffer_Tiles, x
+    inx
+    iny
+    dec TmpA
+    bne :-
+
+    ; Bottom row
+    ldx #4
+    pla
+    sta TmpA
+:   lda (AddressPointer1), y
+    sta HoldPieceBuffer_Tiles, x
+    inx
+    iny
+    dec TmpA
+    bne :-
+
+@noHold:
+
+    lda #' '
+    ldx #.sizeof(NextPieceBuffer_Tiles)+.sizeof(NextPieceBufferTop_Tiles)
+:   sta NextPieceBufferTop_Tiles, x
+    dex
+    bpl :-
+
+    ; Prep next pieces
+    lda BagP1+0
+    asl a
+    tax
+
+    ; Top is 6px, rest are 4px
+    lda PreviewPieces_6px+0, x
+    sta AddressPointer1+0
+    lda PreviewPieces_6px+1, x
+    sta AddressPointer1+1
+
+    ldy #0
+    lda (AddressPointer1), y
+    sta TmpA ; row width
+    pha
+    iny
+    lda (AddressPointer1), y
+    sta NextPieceBuffer_Attr+0
+    iny
+
+    ldx #0
+:   lda (AddressPointer1), y
+    sta NextPieceBufferTop_Tiles, x
+    inx
+    iny
+    dec TmpA
+    bne :-
+
+    pla
+    sta TmpA
+    ldx #0
+:   lda (AddressPointer1), y
+    sta NextPieceBufferTop_Tiles+4, x
+    inx
+    iny
+    dec TmpA
+    bne :-
+
+    .repeat 3, i
+    lda BagP1+1+i
+    asl a
+    tax
+
+    lda PreviewPieces_5px+0, x
+    sta AddressPointer1+0
+    lda PreviewPieces_5px+1, x
+    sta AddressPointer1+1
+
+    ldy #0
+    lda (AddressPointer1), y
+    sta TmpA ; row width
+    pha
+    iny
+    lda (AddressPointer1), y
+    sta NextPieceBuffer_Attr+1+i
+    iny
+
+    ldx #0
+:   lda (AddressPointer1), y
+    sta NextPieceBuffer_Tiles+(3*0)+(i*6), x
+    inx
+    iny
+    dec TmpA
+    bne :-
+
+    pla
+    sta TmpA
+    ldx #0
+:   lda (AddressPointer1), y
+    sta NextPieceBuffer_Tiles+3+(3*0)+(i*6), x
+    inx
+    iny
+    dec TmpA
+    bne :-
+    .endrepeat
+
 
     jsr WaitForIRQ
     jmp FrameGame
@@ -1197,92 +1424,41 @@ IrqDrawBoard:
     bpl :+
     jmp @noHold
 :
-    ;
-    ; Draw hold piece
-    lda HoldPiece
-    asl a
-    tax
-    lda BlockTiles+0, x
-    sta AddressPointer1+0
-    lda BlockTiles+1, x
-    sta AddressPointer1+1
 
-    lda HoldPiece
-    cmp #5
-    bcc :+
-    clc
-    lda AddressPointer1+0
-    adc #4
-    sta AddressPointer1+0
-    lda AddressPointer1+1
-    adc #0
-    sta AddressPointer1+1
-:
-
-    ldy #0
-    .repeat 2, i
-        .repeat 4, j
-            lda (AddressPointer1), y
-            sta HOLD_ADDR + (i*32) + j
-            iny
-        .endrepeat
+    lda HoldPieceBuffer_Attr
+    .repeat 4, i
+    sta HOLD_ADDR+MMC5_OFFSET+i
+    sta HOLD_ADDR+MMC5_OFFSET+i+32
     .endrepeat
+
 @noHold:
 
     ;
     ; Draw bag contents
-    .repeat 4, j
-    .if j = 1
-        lda Option_ShowNext
-        bne :+
-        jmp @noBag
-:
-    .endif
-
-        lda BagP1+j
-        asl a
-        tax
-        lda BlockTiles+0, x
-        sta AddressPointer1+0
-        lda BlockTiles+1, x
-        sta AddressPointer1+1
-
-        lda BagP1+j
-        cmp #5
-        bcc :+
-        clc
-        lda AddressPointer1+0
-        adc #4
-        sta AddressPointer1+0
-        lda AddressPointer1+1
-        adc #0
-        sta AddressPointer1+1
-:
-
-        .repeat 2, i
-            lda BagRows0+0+(i*2)+(j*2*2)
-            sta AddressPointer2+0
-            lda BagRows0+1+(i*2)+(j*2*2)
-            sta AddressPointer2+1
-
-            ldy #0
-            .repeat 4
-                lda (AddressPointer1), y
-                sta (AddressPointer2), y
-                iny
-            .endrepeat
-
-            clc
-            lda AddressPointer1+0
-            adc #4
-            sta AddressPointer1+0
-            lda AddressPointer1+1
-            adc #0
-            sta AddressPointer1+1
-        .endrepeat
+    lda NextPieceBuffer_Attr+0
+    .repeat 4, i
+        sta NEXT_ADDR_START+MMC5_OFFSET+i
+        sta NEXT_ADDR_START+MMC5_OFFSET+i+32
     .endrepeat
 
-@noBag:
+    lda NextPieceBuffer_Attr+1
+    .repeat 3, i
+        sta NEXT_ADDR_START+MMC5_OFFSET+(32*3)+i
+        sta NEXT_ADDR_START+MMC5_OFFSET+(32*3)+i+32
+    .endrepeat
+
+    lda NextPieceBuffer_Attr+2
+    .repeat 3, i
+        sta NEXT_ADDR_START+MMC5_OFFSET+(32*6)+i
+        sta NEXT_ADDR_START+MMC5_OFFSET+(32*6)+i+32
+    .endrepeat
+
+    lda NextPieceBuffer_Attr+3
+    .repeat 3, i
+        sta NEXT_ADDR_START+MMC5_OFFSET+(32*9)+i
+        sta NEXT_ADDR_START+MMC5_OFFSET+(32*9)+i+32
+    .endrepeat
+
     ;
     ; Draw playfield
     ldx #0
@@ -1719,3 +1895,270 @@ ComboTiles_B:
     .endrepeat
     .byte '0'
     .byte '1'
+
+; Labels for all the clear types. Tiles and MMC5 metadata.
+; The idea is these will be written line-by line above
+; the playfield when clears happen.
+ClearNames:
+    ; Single
+    .byte 5  ; length
+    .word :+ ; data
+
+    ; Double
+    .byte 5
+    .word :++
+
+    ; Triple
+    .byte 6
+    .word :+++
+
+    ; Quad
+    .byte 9
+    .word :++++
+
+    ; Mini T-Spin
+    .byte 3
+    .word :+++++
+
+    ; T-Spin
+    .byte 5
+    .word :++++++
+
+    ; Back2Back
+    .byte 8
+    .word :+++++++
+
+    ; Perfect Clear
+    .byte 10
+    .word :++++++++
+
+    ; Single
+:   .repeat 5, i ; tiles
+        .byte $91+i
+    .endrepeat
+
+    .repeat 5 ; mmc5
+        .byte $62
+    .endrepeat
+
+    ; Double
+:   .repeat 5, i
+        .byte $A1+i
+    .endrepeat
+
+    .repeat 5
+        .byte $62
+    .endrepeat
+
+    ; Triple
+:   .repeat 6, i
+        .byte $B1+i
+    .endrepeat
+
+    .repeat 6
+        .byte $62
+    .endrepeat
+
+    ; Quad
+:   .repeat 9, i
+        .byte $C1+i
+    .endrepeat
+
+    .repeat 9
+        .byte $62
+    .endrepeat
+
+    ; Mini T-Spin (just "mini")
+:   .repeat 3, i
+        .byte $9D+i
+    .endrepeat
+
+    .repeat 3
+        .byte $62
+    .endrepeat
+
+    ; T-Spin
+:   .repeat 5, i
+        .byte $98+i
+    .endrepeat
+
+    .repeat 5
+        .byte $62
+    .endrepeat
+
+    ; Back2Back
+:   .repeat 8, i
+        .byte $A8 + i
+    .endrepeat
+
+    .repeat 4
+        .byte $62
+    .endrepeat
+    .repeat 4
+        .byte $82
+    .endrepeat
+
+    ; Perfect Clear
+:   .repeat 6, i
+        .byte $BA + i
+    .endrepeat
+    .repeat 4, i
+        .byte $CA + i
+    .endrepeat
+
+    .repeat 10
+        .byte $62
+    .endrepeat
+
+PreviewPieces_4px:
+    .word :+
+    .word :++
+    .word :+++
+    .word :++++
+    .word :+++++
+    .word :++++++
+    .word :+++++++
+
+; Z
+:   .byte 2 ; width
+    .byte 1 | PAL_D
+    .byte $AC, $AD
+    .byte $BC, $BD
+
+; S
+:   .byte 2
+    .byte 1 | PAL_A
+    .byte $AA, $AB
+    .byte $BA, $BB
+
+; T
+:   .byte 2
+    .byte 1 | PAL_B
+    .byte $AE, $AF
+    .byte $BE, $BF
+
+; L
+:   .byte 2
+    .byte 1 | PAL_C
+    .byte $A8, $A9
+    .byte $B8, $B9
+
+; J
+:   .byte 2
+    .byte 1 | PAL_B
+    .byte $A6, $A7
+    .byte $B6, $B7
+
+; I
+:   .byte 3
+    .byte 1 | PAL_C
+    .byte $C2, $C3, $C4
+    .byte $B2, $B3, $B4
+
+; O
+:   .byte 2
+    .byte 1 | PAL_D
+    .byte $C0, $C1
+    .byte $D0, $D1
+
+PreviewPieces_5px:
+    .word :+
+    .word :++
+    .word :+++
+    .word :++++
+    .word :+++++
+    .word :++++++
+    .word :+++++++
+
+; Z
+:   .byte 3 ; width
+    .byte 1 | PAL_D
+    .byte $EA, $EB, $EC
+    .byte $FA, $FB, $FC
+
+; S
+:   .byte 3
+    .byte 1 | PAL_A
+    .byte $ED, $EE, $EF
+    .byte $FD, $FE, $FF
+
+; T
+:   .byte 3
+    .byte 1 | PAL_B
+    .byte $CB, $CC, $CD
+    .byte $DB, $DC, $DD
+
+; L
+:   .byte 3
+    .byte 1 | PAL_C
+    .byte $C8, $C9, $CA
+    .byte $D8, $D9, $DA
+
+; J
+:   .byte 3
+    .byte 1 | PAL_B
+    .byte $C5, $C6, $C7
+    .byte $D5, $D6, $D7
+
+; I
+:   .byte 3
+    .byte 1 | PAL_C
+    .byte $E7, $E8, $E9
+    .byte $F7, $F8, $F9
+
+; O
+:   .byte 2
+    .byte 1 | PAL_D
+    .byte $CE, $CF
+    .byte $DE, $DF
+
+PreviewPieces_6px:
+    .word :+
+    .word :++
+    .word :+++
+    .word :++++
+    .word :+++++
+    .word :++++++
+    .word :+++++++
+
+; Z
+:   .byte 3 ; width
+    .byte 1 | PAL_D
+    .byte $A0, $A1, $A2
+    .byte $B0, $B1, $B2
+
+; S
+:   .byte 3
+    .byte 1 | PAL_A
+    .byte $A3, $A4, $A5
+    .byte $B3, $B4, $B5
+
+; T
+:   .byte 3
+    .byte 1 | PAL_B
+    .byte $86, $87, $88
+    .byte $96, $97, $98
+
+; L
+:   .byte 3
+    .byte 1 | PAL_C
+    .byte $83, $84, $85
+    .byte $93, $94, $95
+
+; J
+:   .byte 3
+    .byte 1 | PAL_B
+    .byte $80, $81, $82
+    .byte $90, $91, $92
+
+; I
+:   .byte 4
+    .byte 1 | PAL_C
+    .byte $8C, $8D, $8E, $8F
+    .byte $9C, $9D, $9E, $9F
+
+; O
+:   .byte 3
+    .byte 1 | PAL_D
+    .byte $89, $8A, $8B
+    .byte $99, $9A, $9B

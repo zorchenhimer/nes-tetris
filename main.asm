@@ -206,8 +206,6 @@ SpriteGhostP1: .res 4*4
 SpriteP2: .res 4*4
 SpriteGhostP2: .res 4*4
 
-TSpinDebugSprite: .res 4
-
 .segment "STACK"
 Palettes: .res 4*8
 LowBank: .res 1
@@ -348,10 +346,18 @@ IRQ:
     pha
     lda TmpA
     pha
+    lda TmpB
+    pha
+    lda TmpC
+    pha
 
     bit $5204
     jsr IrqCall
 
+    pla
+    sta TmpC
+    pla
+    sta TmpB
     pla
     sta TmpA
     pla
@@ -617,6 +623,7 @@ MMC5_Init:
     ; CHR mode 1: 4k pages
     lda #1
     sta $5101
+    sta $5123
 
     ; Vertical mirroring
     lda #$44
@@ -668,120 +675,6 @@ StartFrame:
     sta $2005
     lda #%1000_0000
     sta $2000
-
-; Labels for all the clear types. Tiles and MMC5 metadata.
-; The idea is these will be written line-by line above
-; the playfield when clears happen.
-ClearNames:
-    ; Single
-    .byte 5  ; length
-    .word :+ ; data
-
-    ; Double
-    .byte 5
-    .word :++
-
-    ; Triple
-    .byte 6
-    .word :+++
-
-    ; Quad
-    .byte 9
-    .word :++++
-
-    ; Mini T-Spin
-    .byte 3
-    .word :+++++
-
-    ; T-Spin
-    .byte 5
-    .word :++++++
-
-    ; Back2Back
-    .byte 8
-    .word :+++++++
-
-    ; Perfect Clear
-    .byte 10
-    .word :++++++++
-
-    ; Single
-:   .repeat 5, i ; tiles
-        .byte $91+i
-    .endrepeat
-
-    .repeat 5 ; mmc5
-        .byte $62
-    .endrepeat
-
-    ; Double
-:   .repeat 5, i
-        .byte $A1+i
-    .endrepeat
-
-    .repeat 5
-        .byte $62
-    .endrepeat
-
-    ; Triple
-:   .repeat 6, i
-        .byte $B1+i
-    .endrepeat
-
-    .repeat 6
-        .byte $62
-    .endrepeat
-
-    ; Quad
-:   .repeat 9, i
-        .byte $C1+i
-    .endrepeat
-
-    .repeat 9
-        .byte $62
-    .endrepeat
-
-    ; Mini T-Spin (just "mini")
-:   .repeat 3, i
-        .byte $9D+i
-    .endrepeat
-
-    .repeat 3
-        .byte $62
-    .endrepeat
-
-    ; T-Spin
-:   .repeat 5, i
-        .byte $98+i
-    .endrepeat
-
-    .repeat 5
-        .byte $62
-    .endrepeat
-
-    ; Back2Back
-:   .repeat 8, i
-        .byte $A8 + i
-    .endrepeat
-
-    .repeat 4
-        .byte $62
-    .endrepeat
-    .repeat 4
-        .byte $82
-    .endrepeat
-
-    ; Perfect Clear
-:   .repeat 6, i
-        .byte $BA + i
-    .endrepeat
-    .repeat 4, i
-        .byte $CA + i
-    .endrepeat
-
-    .repeat 10
-        .byte $62
-    .endrepeat
 
 Palette_Bg:
     .byte $0F, $20, $00, $10
