@@ -254,44 +254,6 @@ BlockBg_Tiles:
 SP_TILE_1 = $11
 SP_TILE_2 = $12
 
-; Raw color values for each block
-BlockColors:
-    .byte $15 ; Z
-    .byte $1A ; S
-    .byte $23 ; T
-    .byte $27 ; L
-    .byte $21 ; J
-    .byte $2C ; I
-    .byte $28 ; O
-
-BlockColors_Place:
-    .byte $25 ; Z
-    .byte $2A ; S
-    .byte $33 ; T
-    .byte $37 ; L
-    .byte $31 ; J
-    .byte $3C ; I
-    .byte $38 ; O
-
-BlockColors_Ghost:
-.if BG_COLOR = $20
-    .byte $25 ; Z
-    .byte $2A ; S
-    .byte $33 ; T
-    .byte $37 ; L
-    .byte $31 ; J
-    .byte $3C ; I
-    .byte $38 ; O
-.else
-    .byte $05 ; Z
-    .byte $0A ; S
-    .byte $13 ; T
-    .byte $17 ; L
-    .byte $11 ; J
-    .byte $1C ; I
-    .byte $18 ; O
-.endif
-
 ; Offsets for each block in full 8px increments
 ; Includes rotations
 BlockOffsets_Y:

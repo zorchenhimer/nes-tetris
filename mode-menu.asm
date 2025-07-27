@@ -4,6 +4,9 @@ SingleBlockId: .res 1
 ModeSelection: .res 1
 TimeModeType:  .res 1
 
+.segment "OAM"
+TTSprites: .res 4*9
+
 .popseg
 
 ModeMenuPalettes:
@@ -57,13 +60,6 @@ InitModeMenu:
     sta AddressPointer1+1
     jsr LoadSpPalettes
 
-    ;lda #.lobyte(mm_Practice)
-    ;sta MenuSelectFn+0
-    ;sta MenuClearFn+0
-    ;lda #.hibyte(mm_Practice)
-    ;sta MenuSelectFn+1
-    ;sta MenuClearFn+1
-
     ; Turn ExtAttr mode off
     lda #%0000_0010
     sta $5104
@@ -88,6 +84,42 @@ InitModeMenu:
     ; Turn ExtAttr mode back on
     lda #%0000_0001
     sta $5104
+
+; Time Attack selection sprites
+    ldx #0
+    ldy #0
+:
+    lda TimeModeText_X, x
+    sta TTSprites+3, y
+    lda #128
+    sta TTSprites+0, y
+    lda #1
+    sta TTSprites+2, y
+    inx
+    iny
+    iny
+    iny
+    iny
+    cpy #(4*4)
+    bne :-
+
+; second row
+    ldx #0
+    ;ldy #0
+:
+    lda TimeModeText_X, x
+    sta TTSprites+3, y
+    lda #128+8
+    sta TTSprites+0, y
+    lda #1
+    sta TTSprites+2, y
+    inx
+    iny
+    iny
+    iny
+    iny
+    cpy #(4*4)+(4*5)
+    bne :-
 
     lda #%1000_1000
     sta PpuControl
@@ -139,7 +171,7 @@ FrameModeMenu:
 
     lda #BUTTON_LEFT ; left
     jsr ButtonPressed
-    beq :++
+    beq @noLeft
     lda #3
     ldx #FAMISTUDIO_SFX_CH0
     jsr fs_Sfx_Play
@@ -148,18 +180,26 @@ FrameModeMenu:
     cmp #MMSel::SingleBlock
     bne :+
     dec SingleBlockId
-    bpl :++
+    bpl @noLeft
     lda #4
     sta SingleBlockId
-    jmp :++
+    jmp @noLeft
 :
+    cmp #MMSel::TimeAttack
+    bne @moveLeft
+
+    lda TimeModeType
+    eor #$01
+    sta TimeModeType
+    jmp @noLeft
+@moveLeft:
     lda #MenuDir::Left
     sta MenuSelDir
-:
+@noLeft:
 
     lda #BUTTON_RIGHT ; right
     jsr ButtonPressed
-    beq :++
+    beq @noRight
     lda #3
     ldx #FAMISTUDIO_SFX_CH0
     jsr fs_Sfx_Play
@@ -170,14 +210,22 @@ FrameModeMenu:
     inc SingleBlockId
     lda SingleBlockId
     cmp #5
-    bne :++
+    bne @noRight
     lda #0
     sta SingleBlockId
-    jmp :++
+    jmp @noRight
 :
+    cmp #MMSel::TimeAttack
+    bne @moveRight
+
+    lda TimeModeType
+    eor #$01
+    sta TimeModeType
+    jmp @noRight
+@moveRight:
     lda #MenuDir::Right
     sta MenuSelDir
-:
+@noRight:
 
     bit MenuSelDir
     bmi @noSelection
@@ -226,6 +274,7 @@ FrameModeMenu:
     bne @doStart
 
     jsr UpdateSingleBlock
+    jsr UpdateTimeAttack
 
     jsr WaitForIRQ
     jmp FrameModeMenu
@@ -246,30 +295,68 @@ FrameModeMenu:
 :   lda #InitIndex::Game
     jmp GotoInit
 
+UpdateTimeAttack:
+    lda ModeSelection
+    cmp #MMSel::TimeAttack
+    beq :+
+    ; inactive
+    lda #$10
+    jmp :++
+:
+    ; active
+    lda #$14
+:
+
+    sta Palettes+(1*4)+1+16
+
+    lda TimeModeType
+    sta MMC5_MultA
+    lda #9
+    sta MMC5_MultB
+    ldx MMC5_MultA
+
+    ldy #0
+:
+    lda TimeModeText, x
+    sta TTSprites+1, y
+    inx
+    iny
+    iny
+    iny
+    iny
+    cpy #(9*4)
+    bne :-
+    rts
+
 UpdateSingleBlock:
     lda ModeSelection
     cmp #MMSel::SingleBlock
     beq :+
-    lda #.lobyte(ModeSpritePalettes_Dark)
-    sta AddressPointer1+0
-    lda #.hibyte(ModeSpritePalettes_Dark)
-    sta AddressPointer1+1
+    ; inactive
+
+    lda #$12
     jmp :++
 :
-    lda #.lobyte(ModeSpritePalettes_Bright)
-    sta AddressPointer1+0
-    lda #.hibyte(ModeSpritePalettes_Bright)
-    sta AddressPointer1+1
+    ; active
 
+    lda #$11
 :
-    jsr LoadSpPalettes
+
+    .repeat 4, i
+    sta SpriteP1+1+(i*4)
+    .endrepeat
+
+    ;ldx #4
+    ;jsr LoadPalette
 
     ldx SingleBlockId
-    lda SingleBlockTiles, x
-    sta $5127
+    lda BlockColors, x
+    sta Palettes+(0*4)+1+16
+    lda BlockColors_Ghost, x
+    sta Palettes+(0*4)+2+16
 
-    lda SingleBlockPals, x
-    sta TmpY
+    ;lda SingleBlockPals, x
+    ;sta TmpY
     txa
     asl a
     asl a
@@ -294,11 +381,11 @@ UpdateSingleBlock:
     adc #79
     sta SpriteP1+0, y
 
-    lda #0
-    sta SpriteP1+1, y
+    ;lda #0
+    ;sta SpriteP1+1, y
 
-    lda TmpY
-    sta SpriteP1+2, y
+    ;lda TmpY
+    ;sta SpriteP1+2, y
 
     iny
     iny
@@ -494,4 +581,16 @@ mm_DirtyBoard:
         sta $22F4+MMC5_OFFSET+i
     .endrepeat
     rts
+
+TimeModeText:
+    .byte "40  "
+    .byte "LINES"
+
+    .byte "200K"
+    .byte "SCORE"
+
+TimeModeText_X:
+    .repeat 5, i
+        .byte 152 + (i*8)
+    .endrepeat
 
