@@ -26,6 +26,11 @@ NotifBufferClear: .res 20
 HoldPieceBuffer_Attr: .res 1
 NextPieceBuffer_Attr: .res 4
 
+Level_Tiles: .res 4
+Score_Tiles: .res 8
+Lines_Tiles: .res 6
+Combo_Tiles: .res 2
+
 .segment "ZEROPAGE"
 
 HoldPieceBuffer_Tiles: .res 4*2
@@ -43,10 +48,10 @@ GAMEOVER_START_Y = 109
 GAMEOVER_START_PPU = $21AD
 ;GAMEOVER_START_Y = 109
 
-SCORE_ADDR = $2202
-LINES_ADDR = $2262
-COMBO_ADDR = $21A6
-LEVEL_ADDR = $22C4
+SCORE_ADDR = $21C2
+LINES_ADDR = $2224
+COMBO_ADDR = $2168
+LEVEL_ADDR = $2286
 
 HOLD_ADDR  = $2139
 NEXT_ADDR_START = $21D9
@@ -1095,14 +1100,18 @@ CalcScore:
     sta Lines_Tiles+i
     .endrepeat
 
-    .repeat 5, i
-        lda Lines_Tiles+i
-        cmp #$30
-        bne @linesTiles_done
-        lda #' '
-        sta Lines_Tiles+i
-    .endrepeat
-@linesTiles_done:
+    ldx #0
+    ldy #5
+:
+    lda Lines_Tiles, x
+    cmp #$30
+    bne :+
+    lda #' '
+    sta Lines_Tiles, x
+    inx
+    dey
+    bne :-
+:
 
     lda Level+0
     sta Bin_Input+0
@@ -1117,6 +1126,19 @@ CalcScore:
     lda Bin_Tiles+2+i
     sta Level_Tiles+i
     .endrepeat
+
+    ldx #0
+    ldy #.sizeof(Level_Tiles)
+:
+    lda Level_Tiles, x
+    cmp #$30
+    bne :+
+    lda #' '
+    sta Level_Tiles, x
+    inx
+    dey
+    bne :-
+:
 
     lda #0
     sta ClearCount

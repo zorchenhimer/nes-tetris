@@ -29,11 +29,6 @@ KickAlignX: .res 1
 SoftDrop: .res 2
 HardDrop: .res 2
 
-Level_Tiles: .res 4
-Score_Tiles: .res 8
-Lines_Tiles: .res 6
-Combo_Tiles: .res 2
-
 Combo_TilesP1: .res 3
 Combo_TilesP2: .res 3
 
