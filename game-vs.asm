@@ -1,5 +1,3 @@
-.include "game.inc"
-
 Player1 = 0
 Player2 = 1
 

@@ -9,30 +9,30 @@ CAFLAGS = -g -t nes
 LDFLAGS = -C $(NESCFG) --dbgfile bin/$(NAME).dbg -m bin/$(NAME).map
 
 SOURCES = \
+	audio/sfx.s \
+	audio/songs.s \
+	basic-menu.asm \
+	debug-field.i \
+	famistudio_ca65.s \
+	game-shared.asm \
+	game-solo.asm \
+	game-vs.asm \
 	main.asm \
-	menu.asm \
-	mode-menu.asm \
+	menu-main.asm \
+	menu-mode.asm \
+	menu-mode.i \
 	menu-practice.asm \
-	scores.asm \
-	game.asm \
-	game.inc \
-	vsmode.asm \
-	utils.asm \
+	menu-screen.i \
+	new-high-score-a.i \
+	new-high-score-b.i \
 	options.asm \
 	piece-rng.inc \
 	playfield-rle.i \
-	menu-screen.i \
-	mode-menu.i \
-	scores-screen.i \
-	new-high-score-a.i \
-	new-high-score-b.i \
 	playfield-vs.i \
 	practice-boards.i \
-	debug-field.i \
-	basic-menu.asm \
-	audio/songs.s \
-	audio/sfx.s \
-	famistudio_ca65.s
+	scores-screen.i \
+	scores.asm \
+	utils.asm
 
 CHR = tiles.chr tiles2.chr tiles3.chr tiles4.chr
 
@@ -82,13 +82,13 @@ new-high-score-a.i: screens/new-high-score.tmx convert-map.go
 new-high-score-b.i: screens/new-high-score.tmx convert-map.go
 	go run convert-map.go $< $@ --rle --layer shifted
 
-debug-field.i: screens/debug-field.tmx
+debug-field.i: screens/debug-field.tmx convert-map.go
 	go run convert-map.go $< $@
 
-menu-screen.i: screens/main-menu.tmx
+menu-screen.i: screens/main-menu.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
-mode-menu.i: screens/mode-menu.tmx
+menu-mode.i: screens/menu-mode.tmx convert-map.go
 	go run convert-map.go $< $@ --rle
 
 practice-boards.i: screens/practice-boards.tmx practice-boards.go

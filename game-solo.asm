@@ -1,5 +1,3 @@
-.include "game.inc"
-
 ; FIXME:
 ;   - Clear the whole notification even when
 ;     another row clear happens before the

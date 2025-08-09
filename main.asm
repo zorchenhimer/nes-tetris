@@ -251,8 +251,9 @@ LagIRQ: .res 1
 
 .segment "PAGE_GAME"
 
-    .include "game.asm"
-    .include "vsmode.asm"
+    .include "game-shared.asm"
+    .include "game-solo.asm"
+    .include "game-vs.asm"
 
 .ifdef DEBUG_FIELD
 DebugField:
@@ -264,8 +265,8 @@ PieceRng:
 
 .segment "PAGE_GAME2"
 
-    .include "menu.asm"
-    .include "mode-menu.asm"
+    .include "menu-main.asm"
+    .include "menu-mode.asm"
 
     .include "basic-menu.asm"
     .include "options.asm"
@@ -287,7 +288,7 @@ Screen_NewHighScore_Shifted:
     .include "new-high-score-b.i"
 
 Screen_ModeMenu:
-    .include "mode-menu.i"
+    .include "menu-mode.i"
 
 Screen_Menu:
     .include "menu-screen.i"

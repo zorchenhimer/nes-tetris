@@ -1,5 +1,3 @@
-.ifndef _GAME_RAM_
-_GAME_RAM_ = 1
 
 ; TODO:
 ;   - Mini T-Spins.  They aren't currently
@@ -2830,4 +2828,3 @@ TSpin
 Back2Back
 PerfectClear
 .endenum
-.endif
