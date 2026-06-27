@@ -113,8 +113,19 @@ Debug_Kick: .res 1
 
 ; Index into GarbagePerLine (GarbageLines enum)
 LastClearType: .res 2
-
 LastClearCount: .res 2
+LastClearMask: .res 2 ; used for notifications
+
+.enum ClearMask
+Single    = 1
+Double    = 2
+Triple    = 3
+Quad      = 4
+TSpin     = %0000_1000
+TSpinMini = %0001_0000
+B2B       = %0010_0000
+Perfect   = %0100_0000
+.endenum
 
 VsGarbageP1_Tiles: .res 12
 VsGarbageP2_Tiles: .res 12
@@ -1131,6 +1142,7 @@ State_Clear:
 
     lda TmpA
     sta LastClearCount, y
+    sta LastClearMask, y
 
     lda GameStateArg, y
     cmp #GSArg::Clear
@@ -1161,11 +1173,18 @@ State_Clear:
     ;lda GarbagePerLine, x
     sta LastClearType, y
 
+    lda #ClearMask::TSpin
+    ora LastClearMask, y
+    sta LastClearMask, y
 :
 
     lda LastClearType, y
     cmp #GarbageLines::Tetris
     bcc @noB2B
+
+    lda #ClearMask::B2B
+    ora LastClearMask, y
+    sta LastClearMask, y
 
     ldx Back2Back, y
     inx
@@ -1183,6 +1202,10 @@ State_Clear:
 
     jsr CheckPerfectClear
     beq :+
+
+    lda #ClearMask::Perfect
+    ora LastClearMask, y
+    sta LastClearMask, y
 
     lda LastClearType, y
     ora #$80
@@ -1529,6 +1552,7 @@ SetClearRows:
 State_Place:
     tya
     pha
+
     lda #0
     ldx #FAMISTUDIO_SFX_CH1
     jsr fs_Sfx_Play
@@ -1572,6 +1596,8 @@ State_Place:
 
     jsr CheckClearRows
     beq :+
+    lda #NotifCountdown_Start
+    sta NotifCountdowns, y
     lda #GS::Clear
     sta GameState, y
     lda #GSArg::Clear

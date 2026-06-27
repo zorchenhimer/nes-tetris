@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="32" height="30" tilewidth="8" tileheight="8" infinite="0" nextlayerid="2" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="32" height="30" tilewidth="8" tileheight="8" infinite="0" nextlayerid="2" nextobjectid="1">
  <tileset firstgid="1" source="tiles.tsx"/>
  <tileset firstgid="257" source="tiles2.tsx"/>
  <tileset firstgid="513" source="tiles3.tsx"/>
@@ -33,7 +33,7 @@
 33,33,753,1,1,1,1,1,1,1,1,1,1,286,49,49,49,49,264,1,1,1,1,1,1,1,1,1,1,757,33,33,
 33,33,755,1,1,1,1,1,1,1,1,1,1,285,265,265,265,265,259,1,1,1,1,1,1,1,1,1,1,759,33,33,
 33,33,269,265,265,265,265,265,265,265,265,265,265,266,33,33,33,33,269,265,265,265,265,265,265,265,265,265,265,266,33,33,
-33,33,597,596,622,729,730,731,745,746,747,67,51,67,33,33,33,33,597,596,622,732,733,734,745,746,747,67,51,67,33,33,
+33,33,728,729,730,731,732,733,747,748,749,744,745,746,33,33,33,33,597,596,622,734,735,736,747,748,749,744,745,746,33,33,
 33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33
 </data>
  </layer>

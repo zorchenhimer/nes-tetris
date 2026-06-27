@@ -16,6 +16,12 @@ VsBtnStart: .res 2
 VsWinLoseP1Tile: .res 1
 VsWinLoseP2Tile: .res 1
 
+P1Notifs: .res 12
+P2Notifs: .res 12
+
+NotifCountdowns: .res 2
+NotifCountdown_Start = 60*2
+
 .segment "STACK"
 VsWinLoseBuffReady: .res 1
 VsWinLoseP1Buffer: .res 10
@@ -189,8 +195,27 @@ InitVsMode:
     cpx #12
     bne :-
 
+NotifsAddr_P1 = $2382
+NotifsAddr_P2 = $2392
+
+    ; Setup notifications
+    ldx #0
+    lda #$02
+:   sta NotifsAddr_P1+MMC5_OFFSET, x
+    sta NotifsAddr_P2+MMC5_OFFSET, x
+    inx
+    cpx #12
+    bne :-
+
     lda #%0000_0001
     sta $5104
+
+    ; clear notifs
+    lda #$20
+    ldx #23
+:   sta P1Notifs, x
+    dex
+    bpl :-
 
     lda #GS::Fall
     sta GameState+0
@@ -320,6 +345,8 @@ VsModeFrame:
     sta IsPaused
 @noPause:
 
+    jsr PrepNotifs
+
     .ifdef DEBUG_COLORS
         lda #%1001_1110
         sta $2001
@@ -409,6 +436,144 @@ VsModeFrame:
     jsr WaitForIRQ
     jmp VsModeFrame
 
+PrepNotifs:
+    lda NotifCountdowns+0
+    beq :+
+    dec NotifCountdowns+0
+    bne :++
+:
+    lda #0
+    sta LastClearMask+0
+:
+
+    lda NotifCountdowns+1
+    beq :+
+    dec NotifCountdowns+1
+    bne :++
+:
+    lda #0
+    sta LastClearMask+1
+:
+
+    lda #$20
+    .repeat 12, i
+        sta P1Notifs+i
+        sta P2Notifs+i
+    .endrepeat
+
+    lda LastClearMask+0 ; P1
+    and #$07
+    tax
+    lda Mult3, x
+    tax
+    .repeat 3, i
+        lda NotifsTiles_Counts+i, x
+        sta P1Notifs+(1*3)+i
+    .endrepeat
+
+    lda LastClearMask+0
+    and #ClearMask::TSpin
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(0*3)+i
+        sta P1Notifs+(0*3)+i
+    .endrepeat
+:
+
+    lda LastClearMask+0
+    and #ClearMask::TSpinMini
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(1*3)+i
+        sta P1Notifs+(0*3)+i
+    .endrepeat
+:
+
+    lda LastClearMask+0
+    and #ClearMask::Perfect
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(2*3)+i
+        sta P1Notifs+(2*3)+i
+    .endrepeat
+:
+
+    lda LastClearMask+0
+    and #ClearMask::B2B
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(3*3)+i
+        sta P1Notifs+(3*3)+i
+    .endrepeat
+:
+
+    ;; P2
+    lda LastClearMask+1
+    and #$07
+    tax
+    lda Mult3, x
+    tax
+    .repeat 3, i
+        lda NotifsTiles_Counts+i, x
+        sta P2Notifs+(1*3)+i
+    .endrepeat
+
+    lda LastClearMask+1
+    and #ClearMask::TSpin
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(0*3)+i
+        sta P2Notifs+(0*3)+i
+    .endrepeat
+:
+
+    lda LastClearMask+1
+    and #ClearMask::TSpinMini
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(1*3)+i
+        sta P2Notifs+(0*3)+i
+    .endrepeat
+:
+
+    lda LastClearMask+1
+    and #ClearMask::Perfect
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(2*3)+i
+        sta P2Notifs+(2*3)+i
+    .endrepeat
+:
+
+    lda LastClearMask+1
+    and #ClearMask::B2B
+    beq :+
+    .repeat 3, i
+        lda NotifsTiles+(3*3)+i
+        sta P2Notifs+(3*3)+i
+    .endrepeat
+:
+
+    ;lda #0
+    ;sta LastClearMask+0
+    ;sta LastClearMask+1
+
+    rts
+
+NotifsTiles:
+    .byte $D7, $D8, $20 ; tspin
+    .byte $D7, $D8, $D9 ; tspin mini
+    .byte $E7, $E8, $E9 ; b2b
+    .byte $EA, $EB, $EC ; perfect
+
+; row clear counts
+NotifsTiles_Counts:
+    .byte $20, $20, $20
+    .byte $DA, $DB, $DC
+    .byte $DD, $DE, $DF
+    .byte $ED, $EE, $EF
+    .byte $FD, $FE, $FF
+
 NmiVsGame:
     lda #$3F
     sta $2006
@@ -470,6 +635,24 @@ NmiVsGame:
     lda #%0001_1110
     sta PpuMask
 :
+
+    lda #.hibyte(NotifsAddr_P1)
+    sta $2006
+    lda #.lobyte(NotifsAddr_P1)
+    sta $2006
+    .repeat 12, i
+        lda P1Notifs+i
+        sta $2007
+    .endrepeat
+
+    lda #.hibyte(NotifsAddr_P2)
+    sta $2006
+    lda #.lobyte(NotifsAddr_P2)
+    sta $2006
+    .repeat 12, i
+        lda P2Notifs+i
+        sta $2007
+    .endrepeat
 
     lda PpuControl
     ora #%0000_0100 ; vertical mode
