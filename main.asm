@@ -635,8 +635,8 @@ RESET:
     ldy #.hibyte(sounds)
     jsr fs_Sfx_Init
 
-    lda #0
-    jsr fs_Music_Play
+    ;lda #0
+    ;jsr fs_Music_Play
 
     lda #InitIndex::Menu
     jmp GotoInit
