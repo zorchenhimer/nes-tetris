@@ -10,7 +10,6 @@ nes2end
 
 .feature leading_dot_in_identifiers
 .feature underline_in_numbers
-.feature addrsize
 
 FAMISTUDIO_CFG_C_BINDINGS = 0
 
