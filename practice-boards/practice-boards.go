@@ -66,7 +66,7 @@ func (pb PracticeBoard) WriteData(w io.Writer) error {
 		return err
 	}
 
-	fmt.Println(pb.Name)
+	//fmt.Println(pb.Name)
 	data := []string{}
 	var outbyte byte
 	j := 0
@@ -77,11 +77,11 @@ func (pb PracticeBoard) WriteData(w io.Writer) error {
 			v = 1
 		}
 		outbyte = (outbyte << 1) | v
-		if v == 0 {
-			fmt.Print("  ")
-		} else {
-			fmt.Print("X ")
-		}
+		//if v == 0 {
+		//	fmt.Print("  ")
+		//} else {
+		//	fmt.Print("X ")
+		//}
 		//if j % 10 == 0 {
 		//	fmt.Println("")
 		//}
@@ -96,10 +96,10 @@ func (pb PracticeBoard) WriteData(w io.Writer) error {
 		col++
 		if col == 10 {
 			col = 0
-			fmt.Println("")
+			//fmt.Println("")
 		}
 	}
-	fmt.Println("")
+	//fmt.Println("")
 	data = append(data, fmt.Sprintf("%%%08b", outbyte))
 
 	lines := []string{}

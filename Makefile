@@ -38,6 +38,7 @@ CHR = tiles.chr tiles2.chr tiles3.chr tiles4.chr
 
 all: env chr bin/$(NAME).nes
 env: bin/
+utils: bin/convert-map bin/practice-boards
 
 send: all
 	./edlink-n8 bin/$(NAME).nes
@@ -67,32 +68,38 @@ bin/main.o: $(SOURCES) $(CHR)
 images/%.bmp: images/%.aseprite
 	aseprite -b $< --save-as $@
 
-playfield-vs.i: screens/vs-playfield.tmx convert-map.go
-	go run convert-map.go $< $@ --rle
+playfield-vs.i: screens/vs-playfield.tmx utils
+	bin/convert-map $< $@ --rle
 
-playfield-rle.i: screens/playfield.tmx convert-map.go
-	go run convert-map.go $< $@ --rle
+playfield-rle.i: screens/playfield.tmx utils
+	bin/convert-map $< $@ --rle
 
-scores-screen.i: screens/scores.tmx convert-map.go
-	go run convert-map.go $< $@ --rle
+scores-screen.i: screens/scores.tmx utils
+	bin/convert-map $< $@ --rle
 
-new-high-score-a.i: screens/new-high-score.tmx convert-map.go
-	go run convert-map.go $< $@ --rle
+new-high-score-a.i: screens/new-high-score.tmx utils
+	bin/convert-map $< $@ --rle
 
-new-high-score-b.i: screens/new-high-score.tmx convert-map.go
-	go run convert-map.go $< $@ --rle --layer shifted
+new-high-score-b.i: screens/new-high-score.tmx utils
+	bin/convert-map $< $@ --rle --layer shifted
 
-debug-field.i: screens/debug-field.tmx convert-map.go
-	go run convert-map.go $< $@
+debug-field.i: screens/debug-field.tmx utils
+	bin/convert-map $< $@
 
-menu-screen.i: screens/main-menu.tmx convert-map.go
-	go run convert-map.go $< $@ --rle
+menu-screen.i: screens/main-menu.tmx utils
+	bin/convert-map $< $@ --rle
 
-menu-mode.i: screens/menu-mode.tmx convert-map.go
-	go run convert-map.go $< $@ --rle
+menu-mode.i: screens/menu-mode.tmx utils
+	bin/convert-map $< $@ --rle
 
-practice-boards.i: screens/practice-boards.tmx practice-boards.go
-	go run practice-boards.go $< $@
+practice-boards.i: screens/practice-boards.tmx utils
+	bin/practice-boards $< $@
 
 audio/sfx.s: audio/sfx.fms
 	famistudio $< famistudio-asm-sfx-export $@ -famistudio-asm-format:ca65 -famistudio-asm-sfx-generate-list:audio/sfx-names.s
+
+bin/convert-map: convert-map/*.go
+	cd convert-map && go build -o ../$@
+
+bin/practice-boards: practice-boards/*.go
+	cd practice-boards && go build -o ../$@
