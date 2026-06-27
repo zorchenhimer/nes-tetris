@@ -479,10 +479,10 @@ InitGame:
     bne :+
     jsr InitBag_SingleBlock
     jmp :++
-:
-    ldy #Player1
+:   ldy #Player1
     jsr ShuffleBag_Init
 :
+
     ldy #Player1
     jsr NextBlock
 
@@ -502,14 +502,6 @@ InitGame:
     sta CurrentScore, x
     inx
     cpx #.sizeof(CurrentScore)
-    bne :-
-
-    lda #'0'
-    ldx #0
-:
-    sta HighScore, x
-    inx
-    cpx #.sizeof(HighScore)
     bne :-
 
     lda #$FF
@@ -602,6 +594,37 @@ FrameGame:
 
     ldy #Player1
     jsr UpdateBlock
+
+    lda CurrentGameMode+GameMode::BaseType
+    cmp #GameBaseType::TimeAttack
+    bne @noTime
+    lda CurrentGameMode+GameMode::TypeArg
+    bne @timeScore
+    ; lines
+    lda CurrentScore+ScoreEntry::Lines
+    cmp #40
+    bcc @noTime
+    jmp DedTransition
+
+@timeScore:
+    lda CurrentScore+ScoreEntry::Score+2
+    cmp #$03
+    beq :+
+    bcc @noTime
+    jmp @dedTime
+:   lda CurrentScore+ScoreEntry::Score+1
+    cmp #$0D
+    beq :+
+    bcc @noTime
+    jmp @dedTime
+:   lda CurrentScore+ScoreEntry::Score+0
+    cmp #$40
+    bcc @noTime
+
+@dedTime:
+    jmp DedTransition
+
+@noTime:
 
     lda LastClearCount+0
     bpl :+

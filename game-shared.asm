@@ -8,7 +8,6 @@
 CurrentBlock: .res 2
 BlockRotation: .res 2
 DropSpeed: .res 2
-DebugRotation: .res 1
 RotationDirection: .res 2
 TSpin: .res 2
 BlockX: .res 2
@@ -88,10 +87,6 @@ UpdateCombo: .res 2
 Back2Back: .res 2
 
 TmpScore: .res 3
-
-; Contains tile indicies
-HighScore: .res 6
-
 DropScore: .res 1  ; soft and hard drop scores this frame
 
 LowestY:    .res 1
@@ -108,8 +103,6 @@ Speed_Soft: .res 1
 Speed_Drop: .res 1
 
 DirtyLeft: .res 1
-
-Debug_Kick: .res 1
 
 ; Index into GarbagePerLine (GarbageLines enum)
 LastClearType: .res 2
